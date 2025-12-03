@@ -1,7 +1,7 @@
 
-  # Hospital Management Solution (Copy)
+  # Hospital Management Solution
 
-  This is a code bundle for Hospital Management Solution. The original project is available at https://www.figma.com/design/YyY8Q7X5gu3VFNl5WtZbYA/Hospital-Management-Solution--Copy-.
+  This is frontend code for Hospital Management Solution.
 
   ## Running the code
 
