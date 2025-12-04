@@ -29,14 +29,15 @@ export function useRoles() {
     try {
       setError(null);
       const newRole = await rolesApi.create(data);
-      setRoles(prev => [...prev, newRole]);
+      // Refresh the roles list after creation
+      await fetchRoles();
       return newRole;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to create role';
       setError(errorMessage);
       throw err;
     }
-  }, []);
+  }, [fetchRoles]);
 
   const updateRole = useCallback(async (data: UpdateRoleDto) => {
     try {
@@ -51,7 +52,7 @@ export function useRoles() {
     }
   }, []);
 
-  const deleteRole = useCallback(async (id: number) => {
+  const deleteRole = useCallback(async (id: string) => {
     try {
       setError(null);
       await rolesApi.delete(id);

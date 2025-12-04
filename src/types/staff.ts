@@ -4,15 +4,19 @@ export type StaffType = 'inhouse-doctor' | 'consulting-doctor' | 'nurse' | 'othe
 export type StaffRole = 'doctor' | 'nurse' | 'receptionist' | 'lab-technician' | 'pharmacist' | 'admin' | 'other';
 
 export interface Staff {
-  id: number;
-  name: string;
-  employeeId: string;
+  UserId: number;
+  EmployeeId: string;
+  RoleId: StaffRole;
+  UserName: string;
+  Password: string;
+  PhoneNo: string;  
+  EmailId: string;
   type: StaffType;
-  role: StaffRole;
-  department?: string;
+  
+  DoctorDepartment?: string;
   specialty?: string; // For doctors
-  phone: string;
-  email: string;
+  
+  
   joinDate: string;
   status: 'active' | 'inactive' | 'on-leave';
 }

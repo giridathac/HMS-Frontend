@@ -1,10 +1,17 @@
 // Dashboard UI Component - Separated from logic
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { Users, ClipboardList, BedDouble, Scissors, HeartPulse, Activity } from 'lucide-react';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { Label } from './ui/label';
+import { Textarea } from './ui/textarea';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
+import { Users, ClipboardList, BedDouble, Scissors, HeartPulse, Activity, Building2, Stethoscope, Edit, Trash2 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { useDashboard } from '../hooks';
+import { useDepartments } from '../hooks/useDepartments';
 import { ChartData, DoctorQueue } from '../types';
+import { Department, DepartmentCategory } from '../types/departments';
 
 interface DashboardProps {
   stats?: {
@@ -18,6 +25,15 @@ interface DashboardProps {
   opdData?: ChartData[];
   admissionData?: ChartData[];
   doctorQueue?: DoctorQueue[];
+  departments?: Array<{
+    id: number;
+    name: string;
+    category: string;
+    description?: string;
+    specialisationDetails?: string;
+    noOfDoctors?: number;
+    status: 'active' | 'inactive';
+  }>;
   loading?: boolean;
 }
 
@@ -32,8 +48,9 @@ const statConfig = [
 
 export function Dashboard() {
   const { stats, opdData, admissionData, doctorQueue, loading } = useDashboard();
+  const { departments, loading: departmentsLoading, updateDepartment, deleteDepartment, fetchDepartments } = useDepartments();
 
-  if (loading) {
+  if (loading || departmentsLoading) {
     return (
       <div className="p-8">
         <div className="text-center py-12 text-blue-600">Loading dashboard data...</div>
@@ -41,10 +58,99 @@ export function Dashboard() {
     );
   }
 
-  return <DashboardView stats={stats} opdData={opdData} admissionData={admissionData} doctorQueue={doctorQueue} />;
+  return (
+    <DashboardView 
+      stats={stats} 
+      opdData={opdData} 
+      admissionData={admissionData} 
+      doctorQueue={doctorQueue} 
+      departments={departments}
+      onUpdateDepartment={updateDepartment}
+      onDeleteDepartment={deleteDepartment}
+      onRefreshDepartments={fetchDepartments}
+    />
+  );
 }
 
-export function DashboardView({ stats, opdData, admissionData, doctorQueue }: DashboardProps) {
+interface DashboardViewProps extends DashboardProps {
+  onUpdateDepartment: (data: { id: number } & Partial<{
+    name: string;
+    category: DepartmentCategory;
+    description?: string;
+    specialisationDetails?: string;
+    noOfDoctors?: number;
+    status?: 'active' | 'inactive';
+  }>) => Promise<Department>;
+  onDeleteDepartment: (id: number) => Promise<void>;
+  onRefreshDepartments: () => Promise<void>;
+}
+
+const categoryOptions: DepartmentCategory[] = ['Clinical', 'Surgical', 'Diagnostic', 'Support', 'Administrative'];
+
+export function DashboardView({ 
+  stats, 
+  opdData, 
+  admissionData, 
+  doctorQueue, 
+  departments,
+  onUpdateDepartment,
+  onDeleteDepartment,
+  onRefreshDepartments
+}: DashboardViewProps) {
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [selectedDepartment, setSelectedDepartment] = useState<Department | null>(null);
+  const [formData, setFormData] = useState({
+    name: '',
+    category: 'Clinical' as DepartmentCategory,
+    description: '',
+    specialisationDetails: '',
+    noOfDoctors: 0,
+    status: 'active' as 'active' | 'inactive',
+  });
+
+  const handleEdit = (department: Department) => {
+    setSelectedDepartment(department);
+    setFormData({
+      name: department.name,
+      category: department.category,
+      description: department.description || '',
+      specialisationDetails: department.specialisationDetails || '',
+      noOfDoctors: department.noOfDoctors || 0,
+      status: department.status,
+    });
+    setIsEditDialogOpen(true);
+  };
+
+  const handleEditSubmit = async () => {
+    if (!selectedDepartment) return;
+    try {
+      await onUpdateDepartment({
+        id: selectedDepartment.id,
+        name: formData.name,
+        category: formData.category,
+        description: formData.description || undefined,
+        specialisationDetails: formData.specialisationDetails || undefined,
+        noOfDoctors: formData.noOfDoctors || undefined,
+        status: formData.status,
+      });
+      setIsEditDialogOpen(false);
+      setSelectedDepartment(null);
+      await onRefreshDepartments();
+    } catch (err) {
+      console.error('Failed to update department:', err);
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    if (confirm('Are you sure you want to delete this department? This action cannot be undone.')) {
+      try {
+        await onDeleteDepartment(id);
+        await onRefreshDepartments();
+      } catch (err) {
+        console.error('Failed to delete department:', err);
+      }
+    }
+  };
   return (
     <div className="p-8 bg-blue-100 min-h-full">
       <div className="mb-8">
@@ -177,6 +283,163 @@ export function DashboardView({ stats, opdData, admissionData, doctorQueue }: Da
           </div>
         </CardContent>
       </Card>
+
+      {/* Departments Overview */}
+      <Card className="mt-8">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Building2 className="size-5" />
+            Departments Overview
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {(departments || []).slice(0, 6).map((dept) => (
+              <Card key={dept.id} className="hover:shadow-md transition-shadow">
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex-1">
+                      <h3 className="text-gray-900 font-semibold mb-1">{dept.name}</h3>
+                      <span className={`px-2 py-1 rounded text-xs ${
+                        dept.category === 'Clinical' ? 'bg-blue-100 text-blue-700' :
+                        dept.category === 'Surgical' ? 'bg-red-100 text-red-700' :
+                        dept.category === 'Diagnostic' ? 'bg-green-100 text-green-700' :
+                        dept.category === 'Support' ? 'bg-yellow-100 text-yellow-700' :
+                        'bg-purple-100 text-purple-700'
+                      }`}>
+                        {dept.category}
+                      </span>
+                    </div>
+                    <div className="flex gap-1">
+                      <Button variant="ghost" size="sm" onClick={() => handleEdit(dept)}>
+                        <Edit className="size-4" />
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => handleDelete(dept.id)}>
+                        <Trash2 className="size-4 text-red-600" />
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="mb-3">
+                    <p className="text-sm font-medium text-gray-700 mb-1">Description:</p>
+                    <p className="text-sm text-gray-600">{dept.description || 'No description available'}</p>
+                  </div>
+                  <div className="space-y-2 text-sm mb-3">
+                    <div className="flex items-start gap-2 text-gray-600">
+                      <Stethoscope className="size-4 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <span className="text-xs font-medium text-gray-700">Specialisation: </span>
+                        <span className="text-xs">{dept.specialisationDetails || 'Not specified'}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 text-gray-600">
+                      <Users className="size-4" />
+                      <span>{dept.noOfDoctors !== undefined ? `${dept.noOfDoctors} Doctor${dept.noOfDoctors !== 1 ? 's' : ''}` : '0 Doctors'}</span>
+                    </div>
+                  </div>
+                  <div className="mt-3 pt-3 border-t border-gray-100">
+                    <span className={`px-2 py-1 rounded text-xs ${
+                      dept.status === 'active' 
+                        ? 'bg-green-100 text-green-700' 
+                        : 'bg-red-100 text-red-700'
+                    }`}>
+                      {dept.status === 'active' ? 'Active' : 'Inactive'}
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          {(!departments || departments.length === 0) && (
+            <div className="text-center py-12 text-gray-500">
+              No departments found
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Edit Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Department</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="edit-name">Department Name</Label>
+                <Input
+                  id="edit-name"
+                  placeholder="e.g., Medicine"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-category">Category</Label>
+                <select
+                  id="edit-category"
+                  aria-label="Category"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                  value={formData.category}
+                  onChange={(e) => setFormData({ ...formData, category: e.target.value as DepartmentCategory })}
+                >
+                  {categoryOptions.map(cat => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="edit-description">Description</Label>
+              <Textarea
+                id="edit-description"
+                placeholder="Enter department description..."
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                rows={3}
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-specialisationDetails">Specialisation Details</Label>
+              <Textarea
+                id="edit-specialisationDetails"
+                placeholder="e.g., Cardiology, Interventional Cardiology, Cardiac Rehabilitation"
+                value={formData.specialisationDetails}
+                onChange={(e) => setFormData({ ...formData, specialisationDetails: e.target.value })}
+                rows={3}
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-noOfDoctors">Number of Doctors</Label>
+              <Input
+                id="edit-noOfDoctors"
+                type="number"
+                min="0"
+                placeholder="Enter number of doctors"
+                value={formData.noOfDoctors}
+                onChange={(e) => setFormData({ ...formData, noOfDoctors: parseInt(e.target.value) || 0 })}
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-status">Status</Label>
+              <select
+                id="edit-status"
+                aria-label="Status"
+                className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                value={formData.status}
+                onChange={(e) => setFormData({ ...formData, status: e.target.value as 'active' | 'inactive' })}
+              >
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </select>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleEditSubmit}>Update Department</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

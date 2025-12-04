@@ -7,10 +7,8 @@ export interface Department {
   name: string;
   category: DepartmentCategory;
   description?: string;
-  headOfDepartment?: string;
-  location?: string;
-  phone?: string;
-  email?: string;
+  specialisationDetails?: string;
+  noOfDoctors?: number;
   status: 'active' | 'inactive';
 }
 

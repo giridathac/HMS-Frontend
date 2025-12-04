@@ -9,42 +9,30 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Plus, Trash2, Edit, Shield, Info } from 'lucide-react';
 import { useRoles } from '../hooks/useRoles';
 import { Role, RoleName } from '../types/roles';
+import { PageLayout } from './layouts/PageLayout';
 
 interface RolesViewProps {
   roles: Role[];
   onCreateRole: (data: {
-    name: RoleName;
-    description?: string;
-    permissions?: string[];
+    RoleName: string;
+    RoleDescription?: string;
+    CreatedBy?: number;
   }) => Promise<void>;
   onUpdateRole: (id: number, data: Partial<{
-    name: RoleName;
-    description?: string;
-    permissions?: string[];
+    RoleName?: string;
+    RoleDescription?: string;
   }>) => Promise<void>;
-  onDeleteRole: (id: number) => Promise<void>;
+  onDeleteRole: (id: string) => Promise<void>;
 }
 
-const roleNameOptions: RoleName[] = [
-  'Superadmin',
-  'Frontdeskadmin',
-  'Doctorinhouse',
-  'Doctorconsulting',
-  'Surgeon',
-  'Labadmin',
-  'Icuadmin',
-  'Otadmin',
-  'Nurse',
-  'Pharmacyadmin',
-];
 
 export function Roles() {
   const { roles, loading, error, createRole, updateRole, deleteRole } = useRoles();
 
   const handleCreateRole = async (data: {
-    name: RoleName;
-    description?: string;
-    permissions?: string[];
+    RoleName: string;
+    RoleDescription?: string;
+    CreatedBy?: number;
   }) => {
     try {
       await createRole(data);
@@ -54,10 +42,9 @@ export function Roles() {
     }
   };
 
-  const handleUpdateRole = async (id: number, data: Partial<{
-    name: RoleName;
-    description?: string;
-    permissions?: string[];
+  const handleUpdateRole = async (id: string, data: Partial<{
+    RoleName?: string;
+    RoleDescription?: string;
   }>) => {
     try {
       await updateRole({ id, ...data });
@@ -113,7 +100,7 @@ function RolesView({
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
   const [formData, setFormData] = useState({
-    name: 'Superadmin' as RoleName,
+    name: '' as RoleName,
     description: '',
     permissions: [] as string[],
   });
@@ -122,14 +109,15 @@ function RolesView({
   const handleAddSubmit = async () => {
     try {
       await onCreateRole({
-        name: formData.name,
-        description: formData.description || undefined,
-        permissions: formData.permissions.length > 0 ? formData.permissions : undefined,
+        RoleName: formData.RoleName,
+        RoleDescription: formData.RoleDescription || undefined,
+        // CreatedBy can be added later from auth context if needed
+        // Permissions will be filled in later, not sent during creation
       });
       setIsAddDialogOpen(false);
       setFormData({
-        name: 'Superadmin',
-        description: '',
+        RoleName: '',
+        RoleDescription: '',
         permissions: [],
       });
       setNewPermission('');
@@ -142,15 +130,15 @@ function RolesView({
     if (!selectedRole) return;
     try {
       await onUpdateRole(selectedRole.id, {
-        name: formData.name,
-        description: formData.description || undefined,
-        permissions: formData.permissions.length > 0 ? formData.permissions : undefined,
+        RoleName: formData.RoleName,
+        RoleDescription: formData.RoleDescription || undefined,
+        // Permissions will be handled separately, not in update for now
       });
       setIsEditDialogOpen(false);
       setSelectedRole(null);
       setFormData({
-        name: 'Superadmin',
-        description: '',
+        RoleName: '',
+        RoleDescription: '',
         permissions: [],
       });
       setNewPermission('');
@@ -186,173 +174,168 @@ function RolesView({
     });
   };
 
-  return (
-    <div className="p-8 bg-blue-100 min-h-full">
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-gray-900 mb-2">Role Management</h1>
-          <p className="text-gray-500">Manage user roles and permissions</p>
-        </div>
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="gap-2">
-              <Plus className="size-4" />
-              Add Role
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Add New Role</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div>
-                <Label htmlFor="name">Role Name</Label>
-                <select
-                  id="name"
-                  aria-label="Role Name"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-md"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value as RoleName })}
-                >
-                  {roleNameOptions.map(role => (
-                    <option key={role} value={role}>{role}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <Label htmlFor="description">Description</Label>
-                <Textarea
-                  id="description"
-                  placeholder="Enter role description..."
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  rows={3}
-                />
-              </div>
-              <div>
-                <Label htmlFor="permissions">Permissions</Label>
-                <div className="flex flex-wrap gap-2 mb-2">
-                  {formData.permissions.map((permission, index) => (
-                    <span
-                      key={index}
-                      className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm flex items-center gap-2"
-                    >
-                      {permission}
-                      <button
-                        onClick={() => removePermission(permission)}
-                        className="text-blue-700 hover:text-blue-900"
-                      >
-                        ×
-                      </button>
-                    </span>
-                  ))}
-                </div>
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="Enter permission (e.g., 'patients', 'reports')"
-                    value={newPermission}
-                    onChange={(e) => setNewPermission(e.target.value)}
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        addPermission();
-                      }
-                    }}
-                  />
-                  <Button type="button" onClick={addPermission}>Add</Button>
-                </div>
-              </div>
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>Cancel</Button>
-              <Button onClick={handleAddSubmit}>Add Role</Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-      </div>
-
-      <Card>
-        <CardContent className="p-6">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="text-left py-3 px-4 text-gray-700">Role Name</th>
-                  <th className="text-left py-3 px-4 text-gray-700">Description</th>
-                  <th className="text-left py-3 px-4 text-gray-700">Permissions</th>
-                  <th className="text-left py-3 px-4 text-gray-700">Created</th>
-                  <th className="text-left py-3 px-4 text-gray-700">Updated</th>
-                  <th className="text-left py-3 px-4 text-gray-700">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {roles.map((role) => (
-                  <tr key={role.id} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-2">
-                        <Shield className="size-4 text-blue-600" />
-                        <span className="text-gray-900 font-medium">{role.name}</span>
-                        {role.isSuperAdmin && (
-                          <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded text-xs font-semibold">
-                            Super Admin
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="py-3 px-4 text-gray-600">
-                      {role.description || (
-                        <span className="text-gray-400 italic">No description</span>
-                      )}
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="flex flex-wrap gap-1">
-                        {role.permissions && role.permissions.length > 0 ? (
-                          role.permissions.slice(0, 3).map((permission, index) => (
-                            <span
-                              key={index}
-                              className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-xs"
-                            >
-                              {permission}
-                            </span>
-                          ))
-                        ) : (
-                          <span className="text-gray-400 text-xs">No permissions</span>
-                        )}
-                        {role.permissions && role.permissions.length > 3 && (
-                          <span className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-xs">
-                            +{role.permissions.length - 3} more
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="py-3 px-4 text-gray-600 text-sm">
-                      {new Date(role.createdAt).toLocaleDateString()}
-                    </td>
-                    <td className="py-3 px-4 text-gray-600 text-sm">
-                      {new Date(role.updatedAt).toLocaleDateString()}
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="flex gap-2">
-                        <Button variant="ghost" size="sm" onClick={() => handleEdit(role)}>
-                          <Edit className="size-4" />
-                        </Button>
-                        <Button variant="ghost" size="sm" onClick={() => onDeleteRole(role.id)}>
-                          <Trash2 className="size-4 text-red-600" />
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {roles.length === 0 && (
-              <div className="text-center py-12 text-gray-500">
-                No roles found
-              </div>
-            )}
+  const headerActions = (
+    <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+      <DialogTrigger asChild>
+        <Button className="gap-2">
+          <Plus className="size-4" />
+          Add Role
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Add New Role</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          <div>
+            <Label htmlFor="name">Role Name</Label>
+            <Input
+              id="name"
+              placeholder="Enter role name (e.g., Superadmin, Doctor, Nurse)"
+              value={formData.RoleName}
+              onChange={(e) => setFormData({ ...formData, RoleName: e.target.value })}
+            />
           </div>
-        </CardContent>
-      </Card>
+          <div>
+            <Label htmlFor="description">Description</Label>
+            <Textarea
+              id="description"
+              placeholder="Enter role description..."
+              value={formData.RoleDescription}
+              onChange={(e) => setFormData({ ...formData, RoleDescription: e.target.value })}
+              rows={3}
+            />
+          </div>
+          <div>
+            <Label htmlFor="permissions">Permissions</Label>
+            <div className="flex flex-wrap gap-2 mb-2">
+              {formData.permissions.map((permission, index) => (
+                <span
+                  key={index}
+                  className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm flex items-center gap-2"
+                >
+                  {permission}
+                  <button
+                    onClick={() => removePermission(permission)}
+                    className="text-blue-700 hover:text-blue-900"
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <Input
+                placeholder="Enter permission (e.g., 'patients', 'reports')"
+                value={newPermission}
+                onChange={(e) => setNewPermission(e.target.value)}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    addPermission();
+                  }
+                }}
+              />
+              <Button type="button" onClick={addPermission}>Add</Button>
+            </div>
+          </div>
+        </div>
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>Cancel</Button>
+          <Button onClick={handleAddSubmit}>Add Role</Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+
+  return (
+    <>
+      <PageLayout
+        title="Role Management"
+        description="Manage user roles and permissions"
+        headerActions={headerActions}
+        scrollableContent={true}
+      >
+        <table className="w-full">
+          <thead className="sticky top-0 bg-white z-10 shadow-sm">
+            <tr className="border-b border-gray-200">
+              <th className="text-left py-3 px-4 text-gray-700 bg-white">Role Name</th>
+              <th className="text-left py-3 px-4 text-gray-700 bg-white">Description</th>
+              <th className="text-left py-3 px-4 text-gray-700 bg-white">Permissions</th>
+              <th className="text-left py-3 px-4 text-gray-700 bg-white">Created</th>
+              <th className="text-left py-3 px-4 text-gray-700 bg-white">Updated</th>
+              <th className="text-left py-3 px-4 text-gray-700 bg-white">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {roles.map((role) => (
+              <tr key={role.id} className="border-b border-gray-100 hover:bg-gray-50">
+                <td className="py-3 px-4">
+                  <div className="flex items-center gap-2">
+                    <Shield className="size-4 text-blue-600" />
+                    <span className="text-gray-900 font-medium">{role.name}</span>
+                    {role.isSuperAdmin && (
+                      <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded text-xs font-semibold">
+                        Super Admin
+                      </span>
+                    )}
+                  </div>
+                </td>
+                <td className="py-3 px-4 text-gray-600">
+                  {role.description || (
+                    <span className="text-gray-400 italic">No description</span>
+                  )}
+                </td>
+                <td className="py-3 px-4">
+                  <div className="flex flex-wrap gap-1">
+                    {role.permissions && role.permissions.length > 0 ? (
+                      role.permissions.slice(0, 3).map((permission, index) => (
+                        <span
+                          key={index}
+                          className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-xs"
+                        >
+                          {permission}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-gray-400 text-xs">No permissions</span>
+                    )}
+                    {role.permissions && role.permissions.length > 3 && (
+                      <span className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-xs">
+                        +{role.permissions.length - 3} more
+                      </span>
+                    )}
+                  </div>
+                </td>
+                <td className="py-3 px-4 text-gray-600 text-sm">
+                  {role.createdAt ? new Date(role.createdAt).toLocaleDateString() : '-'}
+                </td>
+                <td className="py-3 px-4 text-gray-600 text-sm">
+                  {role.updatedAt ? new Date(role.updatedAt).toLocaleDateString() : '-'}
+                </td>
+                <td className="py-3 px-4">
+                  <div className="flex gap-2">
+                    <Button variant="ghost" size="sm" onClick={() => handleEdit(role)}>
+                      <Edit className="size-4" />
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => onDeleteRole(role.id)}>
+                      <Trash2 className="size-4 text-red-600" />
+                    </Button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+            <tr>
+              <td className="py-3 px-4" colSpan={6}></td>
+            </tr>
+          </tbody>
+        </table>
+        {roles.length === 0 && (
+          <div className="text-center py-12 text-gray-500">
+            No roles found
+          </div>
+        )}
+      </PageLayout>
 
       {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
@@ -363,25 +346,20 @@ function RolesView({
           <div className="space-y-4 py-4">
             <div>
               <Label htmlFor="edit-name">Role Name</Label>
-              <select
+              <Input
                 id="edit-name"
-                aria-label="Role Name"
-                className="w-full px-3 py-2 border border-gray-200 rounded-md"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value as RoleName })}
-              >
-                {roleNameOptions.map(role => (
-                  <option key={role} value={role}>{role}</option>
-                ))}
-              </select>
+                placeholder="Enter role name (e.g., Superadmin, Doctor, Nurse)"
+                value={formData.RoleName}
+                onChange={(e) => setFormData({ ...formData, RoleName: e.target.value })}
+              />
             </div>
             <div>
               <Label htmlFor="edit-description">Description</Label>
               <Textarea
                 id="edit-description"
                 placeholder="Enter role description..."
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                value={formData.RoleDescription}
+                onChange={(e) => setFormData({ ...formData, RoleDescription: e.target.value })}
                 rows={3}
               />
             </div>
@@ -425,7 +403,7 @@ function RolesView({
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }
 

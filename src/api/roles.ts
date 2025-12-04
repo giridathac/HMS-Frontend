@@ -1,6 +1,6 @@
 // Roles API service
 import { apiRequest } from './base';
-import { Role, RoleName } from '../types/roles';
+import { Role, RoleName, RoleDto } from '../types/roles';
 
 // Default roles
 const defaultRoles: RoleName[] = [
@@ -16,19 +16,19 @@ const defaultRoles: RoleName[] = [
   'Pharmacyadmin',
 ];
 
-// Stub data
+// Stub data (for fallback/testing only - will be replaced by API)
 const stubRoles: Role[] = defaultRoles.map((name, index) => ({
-  id: index + 1,
+  id: `stub-${index + 1}`,
   name,
   description: getDefaultDescription(name),
   permissions: getDefaultPermissions(name),
   createdAt: new Date(2024, 0, 1).toISOString(),
   updatedAt: new Date(2024, 0, 1).toISOString(),
-      isSuperAdmin: name === 'Superadmin', // Superadmin role
+  isSuperAdmin: name.toLowerCase() === 'superadmin',
 }));
 
 function getDefaultDescription(name: RoleName): string {
-  const descriptions: Record<RoleName, string> = {
+  const descriptions: Record<string, string> = {
     'Superadmin': 'Full administrative access to all hospital systems and data (Super Administrator)',
     'Frontdeskadmin': 'Manage front desk operations, patient registration, and token generation',
     'Doctorinhouse': 'Inhouse doctor with access to patient consultations and medical records',
@@ -44,7 +44,7 @@ function getDefaultDescription(name: RoleName): string {
 }
 
 function getDefaultPermissions(name: RoleName): string[] {
-  const permissions: Record<RoleName, string[]> = {
+  const permissions: Record<string, string[]> = {
     'Superadmin': ['all'],
     'Frontdeskadmin': ['frontdesk', 'patients', 'tokens', 'appointments'],
     'Doctorinhouse': ['consultations', 'patients', 'prescriptions', 'lab-orders'],
@@ -62,75 +62,147 @@ function getDefaultPermissions(name: RoleName): string[] {
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 export interface CreateRoleDto {
-  name: RoleName;
-  description?: string;
-  permissions?: string[];
+  RoleName: string; // Required - must be unique
+  RoleDescription?: string; // Optional
+  CreatedBy?: number; // Optional - User ID who created this role
 }
 
 export interface UpdateRoleDto extends Partial<CreateRoleDto> {
-  id: number;
+  id: string; // uuid from backend
+}
+
+export interface ApiResponse<T> {
+  success: boolean;
+  message: string;
+  data: T;
+}
+
+export interface GetRoleResponse {
+  success: boolean;
+  data: RoleDto;
+}
+
+export interface GetRolesResponse {
+  success: boolean;
+  count: number;
+  data: RoleDto[];
 }
 
 export const rolesApi = {
   async getAll(): Promise<Role[]> {
-    // Replace with: return apiRequest<Role[]>('/roles');
-    await delay(300);
-    return Promise.resolve([...stubRoles]);
+    const response = await apiRequest<GetRolesResponse>('/roles', {
+      method: 'GET',
+    });
+    
+    if (!response.success) {
+      throw new Error('Failed to fetch roles');
+    }
+    
+    // Map backend DTO to frontend Role interface
+    return response.data.map((roleDto: RoleDto) => ({
+      id: roleDto.RoleId,
+      name: roleDto.RoleName,
+      description: roleDto.RoleDescription,
+      permissions: [], // Permissions not in response, will be empty initially
+      createdAt: roleDto.CreatedAt,
+      createdBy: roleDto.CreatedBy,
+      updatedAt: undefined, // Not in backend response
+      isSuperAdmin: roleDto.RoleName.toLowerCase() === 'superadmin', // Compute based on name
+    }));
   },
 
-  async getById(id: number): Promise<Role> {
-    // Replace with: return apiRequest<Role>(`/roles/${id}`);
-    await delay(200);
-    const role = stubRoles.find(r => r.id === id);
-    if (!role) {
-      throw new Error(`Role with id ${id} not found`);
+  async getById(id: string): Promise<Role> {
+    const response = await apiRequest<GetRoleResponse>(`/roles/${id}`, {
+      method: 'GET',
+    });
+    
+    if (!response.success) {
+      throw new Error('Failed to fetch role');
     }
-    return Promise.resolve(role);
+    
+    // Map backend DTO to frontend Role interface
+    const roleDto = response.data;
+    return {
+      id: roleDto.RoleId,
+      name: roleDto.RoleName,
+      description: roleDto.RoleDescription,
+      permissions: [],
+      createdAt: roleDto.CreatedAt,
+      createdBy: roleDto.CreatedBy,
+      updatedAt: undefined,
+      isSuperAdmin: roleDto.RoleName.toLowerCase() === 'superadmin',
+    };
   },
 
   async create(data: CreateRoleDto): Promise<Role> {
-    // Replace with: return apiRequest<Role>('/roles', { method: 'POST', body: JSON.stringify(data) });
-    await delay(400);
-    const now = new Date().toISOString();
-    const newRole: Role = {
-      id: stubRoles.length + 1,
-      name: data.name,
-      description: data.description || getDefaultDescription(data.name),
-      permissions: data.permissions || getDefaultPermissions(data.name),
-      createdAt: now,
-      updatedAt: now,
-      isSuperAdmin: data.name === 'Superadmin',
+    const response = await apiRequest<ApiResponse<RoleDto>>('/roles', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    
+    if (!response.success) {
+      throw new Error(response.message || 'Failed to create role');
+    }
+    
+    // Map backend DTO to frontend Role interface
+    const roleDto = response.data as RoleDto;
+    return {
+      id: roleDto.RoleId,
+      name: roleDto.RoleName,
+      description: roleDto.RoleDescription,
+      permissions: [],
+      createdAt: roleDto.CreatedAt,
+      createdBy: roleDto.CreatedBy,
+      updatedAt: undefined,
+      isSuperAdmin: roleDto.RoleName.toLowerCase() === 'superadmin',
     };
-    stubRoles.push(newRole);
-    return Promise.resolve(newRole);
   },
 
   async update(data: UpdateRoleDto): Promise<Role> {
-    // Replace with: return apiRequest<Role>(`/roles/${data.id}`, { method: 'PUT', body: JSON.stringify(data) });
-    await delay(400);
-    const index = stubRoles.findIndex(r => r.id === data.id);
-    if (index === -1) {
-      throw new Error(`Role with id ${data.id} not found`);
+    const { id, ...updateData } = data;
+    // Only include fields that are present (all optional in request body)
+    const requestBody: Partial<{ RoleName: string; RoleDescription: string }> = {};
+    if (updateData.RoleName !== undefined) {
+      requestBody.RoleName = updateData.RoleName;
     }
-    const roleName = data.name || stubRoles[index].name;
-    stubRoles[index] = {
-      ...stubRoles[index],
-      ...data,
-      updatedAt: new Date().toISOString(),
-      isSuperAdmin: roleName === 'Superadmin',
+    if (updateData.RoleDescription !== undefined) {
+      requestBody.RoleDescription = updateData.RoleDescription;
+    }
+    
+    const response = await apiRequest<ApiResponse<RoleDto>>(`/roles/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(requestBody),
+    });
+    
+    if (!response.success) {
+      throw new Error(response.message || 'Failed to update role');
+    }
+    
+    // Map backend DTO to frontend Role interface
+    const roleDto = response.data;
+    return {
+      id: roleDto.RoleId,
+      name: roleDto.RoleName,
+      description: roleDto.RoleDescription,
+      permissions: [],
+      createdAt: roleDto.CreatedAt,
+      createdBy: roleDto.CreatedBy,
+      updatedAt: undefined,
+      isSuperAdmin: roleDto.RoleName.toLowerCase() === 'superadmin',
     };
-    return Promise.resolve(stubRoles[index]);
   },
 
-  async delete(id: number): Promise<void> {
-    // Replace with: return apiRequest<void>(`/roles/${id}`, { method: 'DELETE' });
-    await delay(300);
-    const index = stubRoles.findIndex(r => r.id === id);
-    if (index === -1) {
-      throw new Error(`Role with id ${id} not found`);
+  async delete(id: string): Promise<void> {
+    const response = await apiRequest<ApiResponse<RoleDto>>(`/roles/${id}`, {
+      method: 'DELETE',
+    });
+    
+    if (!response.success) {
+      throw new Error(response.message || 'Failed to delete role');
     }
-    stubRoles.splice(index, 1);
-    return Promise.resolve();
+    
+    // DELETE endpoint returns the deleted role in response.data, but we don't need it
+    return;
   },
 };
 

@@ -44,10 +44,13 @@ export function StaffManagement() {
   const { staff: allStaff, loading, error, createStaff, updateStaff, deleteStaff } = useStaff();
   const { departments } = useDepartments(); // Fetch all departments
   const [selectedType, setSelectedType] = useState<StaffType | undefined>(undefined);
+  const [selectedStatus, setSelectedStatus] = useState<'active' | 'inactive' | 'on-leave' | 'all'>('active');
   
-  const staff = selectedType 
-    ? allStaff.filter(s => s.type === selectedType)
-    : allStaff;
+  const staff = allStaff.filter(s => {
+    const typeMatch = !selectedType || s.type === selectedType;
+    const statusMatch = selectedStatus === 'all' || s.status === selectedStatus;
+    return typeMatch && statusMatch;
+  });
 
   const handleCreateStaff = async (data: {
     name: string;
@@ -120,7 +123,9 @@ export function StaffManagement() {
       staff={allStaff}
       departments={departments}
       selectedType={selectedType}
+      selectedStatus={selectedStatus}
       onTypeFilterChange={setSelectedType}
+      onStatusFilterChange={setSelectedStatus}
       onCreateStaff={handleCreateStaff}
       onUpdateStaff={handleUpdateStaff}
       onDeleteStaff={handleDelete}
@@ -132,14 +137,18 @@ function StaffView({
   staff,
   departments,
   selectedType,
+  selectedStatus,
   onTypeFilterChange,
+  onStatusFilterChange,
   onCreateStaff,
   onUpdateStaff,
   onDeleteStaff,
 }: StaffViewProps & { 
   departments: Array<{ id: number; name: string; category: string }>;
-  selectedType?: StaffType; 
+  selectedType?: StaffType;
+  selectedStatus: 'active' | 'inactive' | 'on-leave' | 'all';
   onTypeFilterChange: (type: StaffType | undefined) => void;
+  onStatusFilterChange: (status: 'active' | 'inactive' | 'on-leave' | 'all') => void;
 }) {
   const allStaff = staff;
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -446,45 +455,69 @@ function StaffView({
         </Dialog>
       </div>
 
-      {/* Filter Tabs */}
+      {/* Status Filter Tabs */}
+      <div className="mb-4">
+        <Tabs 
+          value={selectedStatus} 
+          onValueChange={(value) => onStatusFilterChange(value as 'active' | 'inactive' | 'on-leave' | 'all')}
+          className="w-full"
+        >
+          <TabsList className="grid w-full max-w-md grid-cols-4">
+            <TabsTrigger value="all">
+              All ({allStaff.length})
+            </TabsTrigger>
+            <TabsTrigger value="active">
+              Active ({allStaff.filter(s => s.status === 'active').length})
+            </TabsTrigger>
+            <TabsTrigger value="inactive">
+              Inactive ({allStaff.filter(s => s.status === 'inactive').length})
+            </TabsTrigger>
+            <TabsTrigger value="on-leave">
+              On Leave ({allStaff.filter(s => s.status === 'on-leave').length})
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
+
+      {/* Type Filter Tabs */}
       <Tabs defaultValue="all" className="space-y-6" value={selectedType ? 
         selectedType === 'inhouse-doctor' ? 'inhouse-doctors' :
         selectedType === 'consulting-doctor' ? 'consulting-doctors' :
         selectedType === 'nurse' ? 'nurses' : 'other'
         : 'all'
       }>
-        <TabsList>
+        <TabsList className="w-full max-w-md">
           <TabsTrigger value="all" onClick={() => onTypeFilterChange(undefined)}>
-            All Staff ({allStaff.length})
+            All Staff ({allStaff.filter(s => selectedStatus === 'all' || s.status === selectedStatus).length})
           </TabsTrigger>
           <TabsTrigger value="inhouse-doctors" onClick={() => onTypeFilterChange('inhouse-doctor')}>
-            Inhouse Doctors ({allStaff.filter(s => s.type === 'inhouse-doctor').length})
+            Inhouse Doctors ({allStaff.filter(s => s.type === 'inhouse-doctor' && (selectedStatus === 'all' || s.status === selectedStatus)).length})
           </TabsTrigger>
           <TabsTrigger value="consulting-doctors" onClick={() => onTypeFilterChange('consulting-doctor')}>
-            Consulting Doctors ({allStaff.filter(s => s.type === 'consulting-doctor').length})
+            Consulting Doctors ({allStaff.filter(s => s.type === 'consulting-doctor' && (selectedStatus === 'all' || s.status === selectedStatus)).length})
           </TabsTrigger>
           <TabsTrigger value="nurses" onClick={() => onTypeFilterChange('nurse')}>
-            Nurses ({allStaff.filter(s => s.type === 'nurse').length})
+            Nurses ({allStaff.filter(s => s.type === 'nurse' && (selectedStatus === 'all' || s.status === selectedStatus)).length})
           </TabsTrigger>
           <TabsTrigger value="other" onClick={() => onTypeFilterChange('other')}>
-            Other ({allStaff.filter(s => s.type === 'other').length})
+            Other ({allStaff.filter(s => s.type === 'other' && (selectedStatus === 'all' || s.status === selectedStatus)).length})
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="all">
-          <StaffTable staff={allStaff} onEdit={handleEdit} onDelete={onDeleteStaff} getTypeBadgeColor={getTypeBadgeColor} getStatusBadgeColor={getStatusBadgeColor} />
+          <StaffTable staff={staff} onEdit={handleEdit} onDelete={onDeleteStaff} getTypeBadgeColor={getTypeBadgeColor} getStatusBadgeColor={getStatusBadgeColor} />
         </TabsContent>
         <TabsContent value="inhouse-doctors">
-          <StaffTable staff={allStaff.filter(s => s.type === 'inhouse-doctor')} onEdit={handleEdit} onDelete={onDeleteStaff} getTypeBadgeColor={getTypeBadgeColor} getStatusBadgeColor={getStatusBadgeColor} />
+          <StaffTable staff={staff} onEdit={handleEdit} onDelete={onDeleteStaff} getTypeBadgeColor={getTypeBadgeColor} getStatusBadgeColor={getStatusBadgeColor} />
         </TabsContent>
         <TabsContent value="consulting-doctors">
-          <StaffTable staff={allStaff.filter(s => s.type === 'consulting-doctor')} onEdit={handleEdit} onDelete={onDeleteStaff} getTypeBadgeColor={getTypeBadgeColor} getStatusBadgeColor={getStatusBadgeColor} />
+          <StaffTable staff={staff} onEdit={handleEdit} onDelete={onDeleteStaff} getTypeBadgeColor={getTypeBadgeColor} getStatusBadgeColor={getStatusBadgeColor} />
         </TabsContent>
         <TabsContent value="nurses">
-          <StaffTable staff={allStaff.filter(s => s.type === 'nurse')} onEdit={handleEdit} onDelete={onDeleteStaff} getTypeBadgeColor={getTypeBadgeColor} getStatusBadgeColor={getStatusBadgeColor} />
+          <StaffTable staff={staff} onEdit={handleEdit} onDelete={onDeleteStaff} getTypeBadgeColor={getTypeBadgeColor} getStatusBadgeColor={getStatusBadgeColor} />
         </TabsContent>
         <TabsContent value="other">
-          <StaffTable staff={allStaff.filter(s => s.type === 'other')} onEdit={handleEdit} onDelete={onDeleteStaff} getTypeBadgeColor={getTypeBadgeColor} getStatusBadgeColor={getStatusBadgeColor} />
+          <StaffTable staff={staff} onEdit={handleEdit} onDelete={onDeleteStaff} getTypeBadgeColor={getTypeBadgeColor} getStatusBadgeColor={getStatusBadgeColor} />
         </TabsContent>
       </Tabs>
 

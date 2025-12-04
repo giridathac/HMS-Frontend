@@ -57,7 +57,8 @@ export const staffApi = {
   },
 
   async create(data: CreateStaffDto): Promise<Staff> {
-    // Replace with: return apiRequest<Staff>('/staff', { method: 'POST', body: JSON.stringify(data) });
+    return apiRequest<Staff>('/users', { method: 'POST', body: JSON.stringify(data) });
+    /*
     await delay(400);
     const newStaff: Staff = {
       id: stubStaff.length + 1,
@@ -66,6 +67,7 @@ export const staffApi = {
     };
     stubStaff.push(newStaff);
     return Promise.resolve(newStaff);
+    */
   },
 
   async update(data: UpdateStaffDto): Promise<Staff> {

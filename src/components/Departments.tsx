@@ -1,14 +1,14 @@
 // Departments Management Component - Separated UI from logic
 import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
-import { Plus, Trash2, Edit, Building2, MapPin, Phone, Mail, User } from 'lucide-react';
+import { Plus, Trash2, Edit, Building2, Stethoscope, Users } from 'lucide-react';
 import { useDepartments } from '../hooks/useDepartments';
 import { Department, DepartmentCategory } from '../types/departments';
+import { PageLayout } from './layouts/PageLayout';
 
 interface DepartmentsViewProps {
   departments: Department[];
@@ -18,20 +18,16 @@ interface DepartmentsViewProps {
     name: string;
     category: DepartmentCategory;
     description?: string;
-    headOfDepartment?: string;
-    location?: string;
-    phone?: string;
-    email?: string;
+    specialisationDetails?: string;
+    noOfDoctors?: number;
     status?: 'active' | 'inactive';
   }) => Promise<void>;
   onUpdateDepartment: (id: number, data: Partial<{
     name: string;
     category: DepartmentCategory;
     description?: string;
-    headOfDepartment?: string;
-    location?: string;
-    phone?: string;
-    email?: string;
+    specialisationDetails?: string;
+    noOfDoctors?: number;
     status?: 'active' | 'inactive';
   }>) => Promise<void>;
   onDeleteDepartment: (id: number) => Promise<void>;
@@ -41,16 +37,15 @@ const categoryOptions: DepartmentCategory[] = ['Clinical', 'Surgical', 'Diagnost
 
 export function Departments() {
   const [selectedCategory, setSelectedCategory] = useState<DepartmentCategory | undefined>(undefined);
-  const { departments, loading, error, createDepartment, updateDepartment, deleteDepartment } = useDepartments(selectedCategory);
+  // Always fetch all departments, filter client-side
+  const { departments, loading, error, createDepartment, updateDepartment, deleteDepartment } = useDepartments();
 
   const handleCreateDepartment = async (data: {
     name: string;
     category: DepartmentCategory;
     description?: string;
-    headOfDepartment?: string;
-    location?: string;
-    phone?: string;
-    email?: string;
+    specialisationDetails?: string;
+    noOfDoctors?: number;
     status?: 'active' | 'inactive';
   }) => {
     try {
@@ -65,10 +60,8 @@ export function Departments() {
     name: string;
     category: DepartmentCategory;
     description?: string;
-    headOfDepartment?: string;
-    location?: string;
-    phone?: string;
-    email?: string;
+    specialisationDetails?: string;
+    noOfDoctors?: number;
     status?: 'active' | 'inactive';
   }>) => {
     try {
@@ -132,10 +125,8 @@ function DepartmentsView({
     name: '',
     category: 'Clinical' as DepartmentCategory,
     description: '',
-    headOfDepartment: '',
-    location: '',
-    phone: '',
-    email: '',
+    specialisationDetails: '',
+    noOfDoctors: 0,
     status: 'active' as 'active' | 'inactive',
   });
 
@@ -145,10 +136,8 @@ function DepartmentsView({
         name: formData.name,
         category: formData.category,
         description: formData.description || undefined,
-        headOfDepartment: formData.headOfDepartment || undefined,
-        location: formData.location || undefined,
-        phone: formData.phone || undefined,
-        email: formData.email || undefined,
+        specialisationDetails: formData.specialisationDetails || undefined,
+        noOfDoctors: formData.noOfDoctors || undefined,
         status: formData.status,
       });
       setIsAddDialogOpen(false);
@@ -156,10 +145,8 @@ function DepartmentsView({
         name: '',
         category: 'Clinical',
         description: '',
-        headOfDepartment: '',
-        location: '',
-        phone: '',
-        email: '',
+        specialisationDetails: '',
+        noOfDoctors: 0,
         status: 'active',
       });
     } catch (err) {
@@ -174,10 +161,8 @@ function DepartmentsView({
         name: formData.name,
         category: formData.category,
         description: formData.description || undefined,
-        headOfDepartment: formData.headOfDepartment || undefined,
-        location: formData.location || undefined,
-        phone: formData.phone || undefined,
-        email: formData.email || undefined,
+        specialisationDetails: formData.specialisationDetails || undefined,
+        noOfDoctors: formData.noOfDoctors || undefined,
         status: formData.status,
       });
       setIsEditDialogOpen(false);
@@ -186,10 +171,8 @@ function DepartmentsView({
         name: '',
         category: 'Clinical',
         description: '',
-        headOfDepartment: '',
-        location: '',
-        phone: '',
-        email: '',
+        specialisationDetails: '',
+        noOfDoctors: 0,
         status: 'active',
       });
     } catch (err) {
@@ -203,10 +186,8 @@ function DepartmentsView({
       name: department.name,
       category: department.category,
       description: department.description || '',
-      headOfDepartment: department.headOfDepartment || '',
-      location: department.location || '',
-      phone: department.phone || '',
-      email: department.email || '',
+      specialisationDetails: department.specialisationDetails || '',
+      noOfDoctors: department.noOfDoctors || 0,
       status: department.status,
     });
     setIsEditDialogOpen(true);
@@ -229,20 +210,35 @@ function DepartmentsView({
     }
   };
 
-  return (
-    <div className="p-8 bg-blue-100 min-h-full">
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-blue-900 mb-2">Departments Management</h1>
-          <p className="text-blue-600">Manage hospital departments by category</p>
-        </div>
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="gap-2">
-              <Plus className="size-4" />
-              Add Department
-            </Button>
-          </DialogTrigger>
+  // Filter departments client-side as fallback if API filtering doesn't work
+  const filteredDepartments = selectedCategory
+    ? departments.filter(dept => dept.category === selectedCategory)
+    : departments;
+
+  const headerActions = (
+    <div className="flex items-center gap-4">
+      <select
+        id="categoryFilter"
+        aria-label="Filter by Category"
+        className="px-4 py-2 border border-gray-200 rounded-md min-w-[200px] text-sm bg-white"
+        value={selectedCategory || ''}
+        onChange={(e) => {
+          const value = e.target.value;
+          onCategoryChange(value ? value as DepartmentCategory : undefined);
+        }}
+      >
+        <option value="">All Categories</option>
+        {categoryOptions.map(cat => (
+          <option key={cat} value={cat}>{cat}</option>
+        ))}
+      </select>
+      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+        <DialogTrigger asChild>
+          <Button className="gap-2">
+            <Plus className="size-4" />
+            Add Department
+          </Button>
+        </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Add New Department</DialogTitle>
@@ -283,46 +279,26 @@ function DepartmentsView({
                   rows={3}
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="headOfDepartment">Head of Department</Label>
-                  <Input
-                    id="headOfDepartment"
-                    placeholder="e.g., Dr. John Smith"
-                    value={formData.headOfDepartment}
-                    onChange={(e) => setFormData({ ...formData, headOfDepartment: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="location">Location</Label>
-                  <Input
-                    id="location"
-                    placeholder="e.g., Building A, Floor 2"
-                    value={formData.location}
-                    onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                  />
-                </div>
+              <div>
+                <Label htmlFor="specialisationDetails">Specialisation Details</Label>
+                <Textarea
+                  id="specialisationDetails"
+                  placeholder="e.g., Cardiology, Interventional Cardiology, Cardiac Rehabilitation"
+                  value={formData.specialisationDetails}
+                  onChange={(e) => setFormData({ ...formData, specialisationDetails: e.target.value })}
+                  rows={3}
+                />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="phone">Phone</Label>
-                  <Input
-                    id="phone"
-                    placeholder="Enter phone number"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="Enter email"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  />
-                </div>
+              <div>
+                <Label htmlFor="noOfDoctors">Number of Doctors</Label>
+                <Input
+                  id="noOfDoctors"
+                  type="number"
+                  min="0"
+                  placeholder="Enter number of doctors"
+                  value={formData.noOfDoctors}
+                  onChange={(e) => setFormData({ ...formData, noOfDoctors: parseInt(e.target.value) || 0 })}
+                />
               </div>
               <div>
                 <Label htmlFor="status">Status</Label>
@@ -345,171 +321,98 @@ function DepartmentsView({
           </DialogContent>
         </Dialog>
       </div>
+    );
 
-      {/* Category Filter */}
-      <Card className="mb-6">
-        <CardContent className="p-6">
-          <div className="flex items-center gap-4">
-            <Label htmlFor="categoryFilter" className="text-base font-medium">Filter by Category:</Label>
-            <select
-              id="categoryFilter"
-              aria-label="Filter by Category"
-              className="px-4 py-2 border border-gray-200 rounded-md min-w-[200px]"
-              value={selectedCategory || ''}
-              onChange={(e) => onCategoryChange(e.target.value ? e.target.value as DepartmentCategory : undefined)}
-            >
-              <option value="">All Categories</option>
-              {categoryOptions.map(cat => (
-                <option key={cat} value={cat}>{cat}</option>
-              ))}
-            </select>
-            {selectedCategory && (
-              <span className="text-sm text-gray-600">
-                Showing {departments.length} department{departments.length !== 1 ? 's' : ''} in {selectedCategory}
-              </span>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Departments List */}
-      <Card>
-        <CardContent className="p-6">
-          {selectedCategory ? (
-            <div>
-              <CardHeader className="px-0 pt-0 pb-4">
-                <CardTitle className="flex items-center gap-2">
-                  <Building2 className="size-5" />
-                  {selectedCategory} Departments
-                </CardTitle>
-              </CardHeader>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {departments.map((dept) => (
-                  <Card key={dept.id} className="hover:shadow-md transition-shadow">
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex-1">
-                          <h3 className="text-gray-900 font-semibold mb-1">{dept.name}</h3>
-                          <span className={`px-2 py-1 rounded text-xs ${getCategoryColor(dept.category)}`}>
-                            {dept.category}
-                          </span>
-                        </div>
-                        <div className="flex gap-1">
-                          <Button variant="ghost" size="sm" onClick={() => handleEdit(dept)}>
-                            <Edit className="size-4" />
-                          </Button>
-                          <Button variant="ghost" size="sm" onClick={() => onDeleteDepartment(dept.id)}>
-                            <Trash2 className="size-4 text-red-600" />
-                          </Button>
-                        </div>
-                      </div>
-                      {dept.description && (
-                        <p className="text-sm text-gray-600 mb-3">{dept.description}</p>
-                      )}
-                      <div className="space-y-2 text-sm">
-                        {dept.headOfDepartment && (
-                          <div className="flex items-center gap-2 text-gray-600">
-                            <User className="size-4" />
-                            <span>{dept.headOfDepartment}</span>
-                          </div>
-                        )}
-                        {dept.location && (
-                          <div className="flex items-center gap-2 text-gray-600">
-                            <MapPin className="size-4" />
-                            <span>{dept.location}</span>
-                          </div>
-                        )}
-                        {dept.phone && (
-                          <div className="flex items-center gap-2 text-gray-600">
-                            <Phone className="size-4" />
-                            <span>{dept.phone}</span>
-                          </div>
-                        )}
-                        {dept.email && (
-                          <div className="flex items-center gap-2 text-gray-600">
-                            <Mail className="size-4" />
-                            <span className="text-xs">{dept.email}</span>
-                          </div>
-                        )}
-                      </div>
-                      <div className="mt-3 pt-3 border-t border-gray-100">
-                        <span className={`px-2 py-1 rounded text-xs ${
-                          dept.status === 'active' 
-                            ? 'bg-green-100 text-green-700' 
-                            : 'bg-red-100 text-red-700'
-                        }`}>
-                          {dept.status === 'active' ? 'Active' : 'Inactive'}
-                        </span>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-              {departments.length === 0 && (
-                <div className="text-center py-12 text-gray-500">
-                  No departments found in {selectedCategory} category
-                </div>
-              )}
-            </div>
-          ) : (
-            <div>
-              <CardHeader className="px-0 pt-0 pb-4">
-                <CardTitle className="flex items-center gap-2">
-                  <Building2 className="size-5" />
-                  All Departments
-                </CardTitle>
-              </CardHeader>
-              <div className="space-y-4">
-                {categoryOptions.map((category) => {
-                  const categoryDepts = departments.filter(d => d.category === category);
-                  if (categoryDepts.length === 0) return null;
-                  
-                  return (
-                    <div key={category} className="border border-gray-200 rounded-lg p-4">
-                      <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                          <span className={`px-3 py-1 rounded text-sm ${getCategoryColor(category)}`}>
-                            {category}
-                          </span>
-                          <span className="text-gray-500 text-sm">({categoryDepts.length} departments)</span>
-                        </h3>
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                        {categoryDepts.map((dept) => (
-                          <div
-                            key={dept.id}
-                            className="p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
-                            onClick={() => onCategoryChange(category)}
-                          >
-                            <div className="flex items-center justify-between">
-                              <span className="text-gray-900 font-medium">{dept.name}</span>
-                              <span className={`px-2 py-0.5 rounded text-xs ${
-                                dept.status === 'active' 
-                                  ? 'bg-green-100 text-green-700' 
-                                  : 'bg-red-100 text-red-700'
-                              }`}>
-                                {dept.status}
-                              </span>
-                            </div>
-                            {dept.headOfDepartment && (
-                              <p className="text-xs text-gray-600 mt-1">{dept.headOfDepartment}</p>
-                            )}
-                          </div>
-                        ))}
-                      </div>
+  return (
+    <>
+      <PageLayout
+        title="Departments Management"
+        description="Manage hospital departments by category"
+        headerActions={headerActions}
+        scrollableContent={true}
+      >
+        <table className="w-full">
+          <thead className="sticky top-0 bg-white z-10 shadow-sm">
+            <tr className="border-b border-gray-200">
+              <th className="text-left py-3 px-4 text-gray-700 bg-white">Department Name</th>
+              <th className="text-left py-3 px-4 text-gray-700 bg-white">Category</th>
+              <th className="text-left py-3 px-4 text-gray-700 bg-white">Description</th>
+              <th className="text-left py-3 px-4 text-gray-700 bg-white">Specialisation</th>
+              <th className="text-left py-3 px-4 text-gray-700 bg-white">No. of Doctors</th>
+              <th className="text-left py-3 px-4 text-gray-700 bg-white">Status</th>
+              <th className="text-left py-3 px-4 text-gray-700 bg-white">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredDepartments.map((dept) => (
+              <tr key={dept.id} className="border-b border-gray-100 hover:bg-gray-50">
+                <td className="py-3 px-4">
+                  <div className="flex items-center gap-2">
+                    <Building2 className="size-4 text-blue-600" />
+                    <span className="text-gray-900 font-medium">{dept.name}</span>
+                  </div>
+                </td>
+                <td className="py-3 px-4">
+                  <span className={`px-2 py-1 rounded text-xs ${getCategoryColor(dept.category)}`}>
+                    {dept.category}
+                  </span>
+                </td>
+                <td className="py-3 px-4 text-gray-600">
+                  {dept.description || (
+                    <span className="text-gray-400 italic">No description</span>
+                  )}
+                </td>
+                <td className="py-3 px-4 text-gray-600 text-sm">
+                  {dept.specialisationDetails ? (
+                    <div className="flex items-start gap-2">
+                      <Stethoscope className="size-4 mt-0.5 flex-shrink-0" />
+                      <span className="text-xs">{dept.specialisationDetails}</span>
                     </div>
-                  );
-                })}
-              </div>
-              {departments.length === 0 && (
-                <div className="text-center py-12 text-gray-500">
-                  No departments found
-                </div>
-              )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                  ) : (
+                    <span className="text-gray-400 text-xs">Not specified</span>
+                  )}
+                </td>
+                <td className="py-3 px-4">
+                  <div className="flex items-center gap-2 text-gray-600">
+                    <Users className="size-4" />
+                    <span>{dept.noOfDoctors !== undefined ? dept.noOfDoctors : 0}</span>
+                  </div>
+                </td>
+                <td className="py-3 px-4">
+                  <span className={`px-2 py-1 rounded text-xs ${
+                    dept.status === 'active' 
+                      ? 'bg-green-100 text-green-700' 
+                      : 'bg-red-100 text-red-700'
+                  }`}>
+                    {dept.status === 'active' ? 'Active' : 'Inactive'}
+                  </span>
+                </td>
+                <td className="py-3 px-4">
+                  <div className="flex gap-2">
+                    <Button variant="ghost" size="sm" onClick={() => handleEdit(dept)}>
+                      <Edit className="size-4" />
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => onDeleteDepartment(dept.id)}>
+                      <Trash2 className="size-4 text-red-600" />
+                    </Button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+            <tr>
+              <td className="py-3 px-4" colSpan={7}></td>
+            </tr>
+          </tbody>
+        </table>
+        {filteredDepartments.length === 0 && (
+          <div className="text-center py-12 text-gray-500">
+            {selectedCategory 
+              ? `No departments found in ${selectedCategory} category`
+              : 'No departments found'
+            }
+          </div>
+        )}
+      </PageLayout>
 
       {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
@@ -553,46 +456,26 @@ function DepartmentsView({
                 rows={3}
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="edit-headOfDepartment">Head of Department</Label>
-                <Input
-                  id="edit-headOfDepartment"
-                  placeholder="e.g., Dr. John Smith"
-                  value={formData.headOfDepartment}
-                  onChange={(e) => setFormData({ ...formData, headOfDepartment: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label htmlFor="edit-location">Location</Label>
-                <Input
-                  id="edit-location"
-                  placeholder="e.g., Building A, Floor 2"
-                  value={formData.location}
-                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                />
-              </div>
+            <div>
+              <Label htmlFor="edit-specialisationDetails">Specialisation Details</Label>
+              <Textarea
+                id="edit-specialisationDetails"
+                placeholder="e.g., Cardiology, Interventional Cardiology, Cardiac Rehabilitation"
+                value={formData.specialisationDetails}
+                onChange={(e) => setFormData({ ...formData, specialisationDetails: e.target.value })}
+                rows={3}
+              />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="edit-phone">Phone</Label>
-                <Input
-                  id="edit-phone"
-                  placeholder="Enter phone number"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label htmlFor="edit-email">Email</Label>
-                <Input
-                  id="edit-email"
-                  type="email"
-                  placeholder="Enter email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                />
-              </div>
+            <div>
+              <Label htmlFor="edit-noOfDoctors">Number of Doctors</Label>
+              <Input
+                id="edit-noOfDoctors"
+                type="number"
+                min="0"
+                placeholder="Enter number of doctors"
+                value={formData.noOfDoctors}
+                onChange={(e) => setFormData({ ...formData, noOfDoctors: parseInt(e.target.value) || 0 })}
+              />
             </div>
             <div>
               <Label htmlFor="edit-status">Status</Label>
@@ -614,6 +497,6 @@ function DepartmentsView({
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }
