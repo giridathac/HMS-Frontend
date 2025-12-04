@@ -1,0 +1,219 @@
+import React, { useState, useEffect, Suspense, lazy } from 'react';
+import { 
+  LayoutDashboard, 
+  ClipboardList,
+  Stethoscope,
+  BedDouble,
+  Scissors,
+  HeartPulse,
+  TestTube,
+  Siren,
+  FileBarChart,
+  Activity,
+  Users,
+  UserCog,
+  Shield,
+  Building2,
+  UserPlus,
+  FlaskConical,
+  Receipt,
+  ChevronLeft,
+  ChevronRight,
+  Menu,
+  Calendar
+} from 'lucide-react';
+
+// Lazy load components for code splitting
+const Dashboard = lazy(() => import('./components/Dashboard').then(m => ({ default: m.Dashboard })));
+const FrontDesk = lazy(() => import('./components/FrontDesk').then(m => ({ default: m.FrontDesk })));
+const DoctorConsultation = lazy(() => import('./components/DoctorConsultation').then(m => ({ default: m.DoctorConsultation })));
+const Admissions = lazy(() => import('./components/Admissions').then(m => ({ default: m.Admissions })));
+const OTManagement = lazy(() => import('./components/OTManagement').then(m => ({ default: m.OTManagement })));
+const ICUManagement = lazy(() => import('./components/ICUManagement').then(m => ({ default: m.ICUManagement })));
+const Laboratory = lazy(() => import('./components/Laboratory').then(m => ({ default: m.Laboratory })));
+const Emergency = lazy(() => import('./components/Emergency').then(m => ({ default: m.Emergency })));
+const Reports = lazy(() => import('./components/Reports').then(m => ({ default: m.Reports })));
+const Doctors = lazy(() => import('./components/Doctors').then(m => ({ default: m.Doctors })));
+const StaffManagement = lazy(() => import('./components/Staff').then(m => ({ default: m.StaffManagement })));
+const Roles = lazy(() => import('./components/Roles').then(m => ({ default: m.Roles })));
+const Departments = lazy(() => import('./components/Departments').then(m => ({ default: m.Departments })));
+const PatientRegistration = lazy(() => import('./components/PatientRegistration').then(m => ({ default: m.PatientRegistration })));
+const RoomBeds = lazy(() => import('./components/RoomBeds').then(m => ({ default: m.RoomBeds })));
+const LabTests = lazy(() => import('./components/LabTests').then(m => ({ default: m.LabTests })));
+const BillManagement = lazy(() => import('./components/BillManagement').then(m => ({ default: m.BillManagement })));
+const PatientAppointmentManagement = lazy(() => import('./components/PatientAppointmentManagement').then(m => ({ default: m.PatientAppointmentManagement })));
+
+type View = 'dashboard' | 'frontdesk' | 'consultation' | 'admissions' | 'ot' | 'icu' | 'laboratory' | 'emergency' | 'reports' | 'doctors' | 'staff' | 'roles' | 'departments' | 'patientregistration' | 'roombeds' | 'labtests' | 'bills' | 'patientappointments';
+
+// Loading fallback component
+function LoadingFallback() {
+  return (
+    <div className="flex items-center justify-center h-full">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+        <p className="text-blue-600">Loading...</p>
+      </div>
+    </div>
+  );
+}
+
+export default function App() {
+  // Initialize from URL hash or default to dashboard
+  const getViewFromHash = (): View => {
+    const hash = window.location.hash.slice(1) || 'dashboard';
+    // Extract view from hash (handle query parameters like #ot?otId=...)
+    const viewName = hash.split('?')[0];
+    const validViews: View[] = ['dashboard', 'frontdesk', 'consultation', 'admissions', 'ot', 'icu', 'laboratory', 'emergency', 'reports', 'doctors', 'staff', 'roles', 'departments', 'patientregistration', 'roombeds', 'labtests', 'bills', 'patientappointments'];
+    return validViews.includes(viewName as View) ? (viewName as View) : 'dashboard';
+  };
+
+  const [currentView, setCurrentView] = useState<View>(getViewFromHash());
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+
+  // Sync URL hash with current view (preserve query parameters)
+  useEffect(() => {
+    const currentHash = window.location.hash.slice(1);
+    const hasQueryParams = currentHash.includes('?');
+    if (!hasQueryParams) {
+      window.location.hash = currentView;
+    }
+  }, [currentView]);
+
+  // Listen for hash changes (e.g., when opening in new tab)
+  useEffect(() => {
+    const handleHashChange = () => {
+      const view = getViewFromHash();
+      setCurrentView(view);
+    };
+
+    window.addEventListener('hashchange', handleHashChange);
+    // Also check on initial load for URL parameters
+    handleHashChange();
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
+  const navItems = [
+    { id: 'dashboard' as View, label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'frontdesk' as View, label: 'Front Desk', icon: ClipboardList },
+    { id: 'patientregistration' as View, label: 'Patient Registration', icon: UserPlus },
+    { id: 'doctors' as View, label: 'Doctors', icon: Users },
+    { id: 'staff' as View, label: 'Staff', icon: UserCog },
+    { id: 'roles' as View, label: 'Roles', icon: Shield },
+    { id: 'departments' as View, label: 'Departments', icon: Building2 },
+    { id: 'roombeds' as View, label: 'Room & Beds', icon: BedDouble },
+    { id: 'labtests' as View, label: 'Lab Tests', icon: FlaskConical },
+    { id: 'consultation' as View, label: 'Doctor Consultation', icon: Stethoscope },
+    { id: 'laboratory' as View, label: 'Laboratory', icon: TestTube },
+    { id: 'emergency' as View, label: 'Emergency', icon: Siren },
+    { id: 'admissions' as View, label: 'Admissions (IPD)', icon: BedDouble },
+    { id: 'ot' as View, label: 'OT Management', icon: Scissors },
+    { id: 'icu' as View, label: 'ICU Management', icon: HeartPulse },
+    { id: 'bills' as View, label: 'Bill Management', icon: Receipt },
+    { id: 'patientappointments' as View, label: 'Appointments', icon: Calendar },
+    { id: 'reports' as View, label: 'Reports', icon: FileBarChart },
+  ];
+
+  return (
+    <div className="flex h-screen bg-blue-50">
+      {/* Sidebar */}
+      <aside className={`${isSidebarCollapsed ? 'w-0' : 'w-64'} bg-blue-100 border-r border-blue-300 flex flex-col shadow-sm transition-all duration-300 overflow-hidden`}>
+        {!isSidebarCollapsed && (
+          <div className="p-6 border-b border-blue-300 bg-blue-200 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Activity className="size-8 text-blue-700" />
+              <div>
+                <h1 className="text-blue-900 font-semibold">MediCare HMS</h1>
+                <p className="text-sm text-blue-700">Hospital Management</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setIsSidebarCollapsed(true)}
+              className="ml-auto p-2 rounded-lg hover:bg-blue-300 transition-colors"
+              aria-label="Collapse sidebar"
+            >
+              <ChevronLeft className="size-5 text-blue-700" />
+            </button>
+          </div>
+        )}
+        
+        {!isSidebarCollapsed && (
+          <>
+            <nav className="flex-1 p-4 overflow-y-auto bg-blue-100">
+              <ul className="space-y-0.5">
+                {navItems.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <li key={item.id}>
+                      <a
+                        href={`#${item.id}`}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setCurrentView(item.id);
+                        }}
+                        className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg transition-colors ${
+                          currentView === item.id
+                            ? 'bg-blue-200 text-blue-900 shadow-sm'
+                            : 'text-blue-800 hover:bg-blue-200'
+                        }`}
+                      >
+                        <Icon className="size-5" />
+                        <span>{item.label}</span>
+                      </a>
+                    </li>
+                  );
+                })}
+              </ul>
+            </nav>
+
+            <div className="p-4 border-t border-blue-300 bg-blue-200">
+              <div className="flex items-center gap-3 px-4 py-3">
+                <div className="size-10 bg-blue-300 rounded-full flex items-center justify-center">
+                  <span className="text-blue-800 font-semibold">AD</span>
+                </div>
+                <div>
+                  <p className="text-sm text-blue-900 font-medium">Admin User</p>
+                  <p className="text-xs text-blue-700">Superadmin</p>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+      </aside>
+
+      {/* Expand Button (shown when sidebar is collapsed) */}
+      {isSidebarCollapsed && (
+        <button
+          onClick={() => setIsSidebarCollapsed(false)}
+          className="fixed left-0 top-1/2 -translate-y-1/2 z-50 bg-blue-100 hover:bg-blue-200 border-r border-y border-blue-300 rounded-r-lg p-2 shadow-lg transition-colors"
+          aria-label="Expand sidebar"
+        >
+          <ChevronRight className="size-5 text-blue-700" />
+        </button>
+      )}
+
+      {/* Main Content */}
+      <main className="flex-1 overflow-auto bg-blue-50 transition-all duration-300">
+        <Suspense fallback={<LoadingFallback />}>
+          {currentView === 'dashboard' && <Dashboard />}
+          {currentView === 'frontdesk' && <FrontDesk />}
+          {currentView === 'patientregistration' && <PatientRegistration />}
+          {currentView === 'doctors' && <Doctors />}
+          {currentView === 'staff' && <StaffManagement />}
+          {currentView === 'roles' && <Roles />}
+          {currentView === 'departments' && <Departments />}
+          {currentView === 'roombeds' && <RoomBeds />}
+          {currentView === 'labtests' && <LabTests />}
+          {currentView === 'consultation' && <DoctorConsultation />}
+          {currentView === 'admissions' && <Admissions />}
+          {currentView === 'ot' && <OTManagement />}
+          {currentView === 'icu' && <ICUManagement />}
+          {currentView === 'bills' && <BillManagement />}
+          {currentView === 'patientappointments' && <PatientAppointmentManagement />}
+          {currentView === 'laboratory' && <Laboratory />}
+          {currentView === 'emergency' && <Emergency />}
+          {currentView === 'reports' && <Reports />}
+        </Suspense>
+      </main>
+    </div>
+  );
+}
