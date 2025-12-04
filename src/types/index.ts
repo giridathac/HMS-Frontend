@@ -2,30 +2,30 @@
 
 export interface Patient {
   id: number;
-  patientId: string;
-  patientNo?: string;
-  patientName: string;
-  patientType?: string;
-  lastName?: string;
-  adhaarID?: string;
-  panCard?: string;
-  phoneNo: string;
-  gender: string;
-  age: number;
-  address?: string;
-  chiefComplaint?: string;
-  description?: string;
-  status?: string;
-  registeredBy?: string;
-  registeredDate?: string;
+  PatientId: string;
+  PatientNo?: string;
+  PatientName: string;
+  PatientType?: string;
+  LastName?: string;
+  AdhaarId?: string;
+  PANCard?: string;
+  PhoneNo: string;
+  Gender: string;
+  Age: number;
+  Address?: string;
+  ChiefComplaint?: string;
+  Description?: string;
+  Status?: string;
+  RegisteredBy?: string;
+  RegisteredDate?: string;
   // Legacy fields for backward compatibility
-  name?: string;
-  phone?: string;
-  email?: string;
-  bloodType?: string;
-  lastVisit?: string;
-  condition?: string;
-  followUpCount?: number;
+  //Name?: string;
+  //Phone?: string;
+  //Email?: string;
+  //BloodType?: string;
+  //LastVisit?: string;
+  //Condition?: string;
+  //FollowUpCount?: number;
 }
 
 export interface Token {
