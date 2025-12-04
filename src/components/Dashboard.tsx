@@ -22,7 +22,7 @@ interface DashboardProps {
 }
 
 const statConfig = [
-  { title: 'OPD Patients Today hii', key: 'opdPatientsToday' as const, change: '+12', icon: Users, color: 'bg-blue-500' },
+  { title: 'OPD Patients Today', key: 'opdPatientsToday' as const, change: '+12', icon: Users, color: 'bg-blue-500' },
   { title: 'Active Tokens', key: 'activeTokens' as const, change: 'Live', icon: ClipboardList, color: 'bg-green-500' },
   { title: 'IPD Admissions', key: 'ipdAdmissions' as const, change: '15 Available', icon: BedDouble, color: 'bg-purple-500' },
   { title: 'OT Scheduled', key: 'otScheduled' as const, change: '3 Ongoing', icon: Scissors, color: 'bg-orange-500' },

@@ -148,27 +148,28 @@ export const patientsApi = {
     }
   },
 
-  async create(data: CreatePatientDto): Promise<Patient> {
+  async create(data: CreatePatientDto | any): Promise<Patient> {
     // Replace with: return apiRequest<Patient>('/patients', { method: 'POST', body: JSON.stringify(data) });
     await delay(400);
+    // Handle both camelCase (from component) and PascalCase (from DTO) inputs
     const newPatient: Patient = {
       id: stubPatients.length + 1,
       PatientId: generatePatientId(),
-      PatientNo: data.patientNo,
-      PatientName: data.patientName,
-      PatientType: data.patientType,
-      LastName: data.lastName,
-      AdhaarId: data.adhaarID,
-      PANCard: data.panCard,
-      PhoneNo: data.phoneNo,
-      Gender: data.gender,
-      Age: data.age,
-      Address: data.address,
-      ChiefComplaint: data.chiefComplaint,
-      Description: data.description,
-      Status: data.status || 'Active',
-      RegisteredBy: data.registeredBy,
-      RegisteredDate: data.registeredDate || new Date().toISOString().split('T')[0],
+      PatientNo: data.PatientNo || data.patientNo,
+      PatientName: data.PatientName || data.patientName,
+      PatientType: data.PatientType || data.patientType,
+      LastName: data.LastName || data.lastName,
+      AdhaarId: data.AdhaarId || data.adhaarID,
+      PANCard: data.PANCard || data.panCard,
+      PhoneNo: data.PhoneNo || data.phoneNo,
+      Gender: data.Gender || data.gender,
+      Age: data.Age || data.age,
+      Address: data.Address || data.address,
+      ChiefComplaint: data.ChiefComplaint || data.chiefComplaint,
+      Description: data.Description || data.description,
+      Status: data.Status || data.status || 'Active',
+      RegisteredBy: data.RegisteredBy || data.registeredBy,
+      RegisteredDate: data.RegisteredDate || data.registeredDate || new Date().toISOString().split('T')[0],
     };
     stubPatients.push(newPatient);
     return Promise.resolve(newPatient);
