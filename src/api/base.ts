@@ -56,6 +56,7 @@ export async function apiRequest<T>(
 
   try {
     const response = await fetch(url, config);
+    console.log(`apiRequest - Response status for ${url}:`, response.status);
     return handleResponse<T>(response);
   } catch (error) {
     if (error instanceof ApiError) {

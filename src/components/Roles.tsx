@@ -1,15 +1,14 @@
 // Role Management Component - Separated UI from logic
 import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { Card, CardContent } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
-import { Plus, Trash2, Edit, Shield, Info } from 'lucide-react';
+import { Plus, Trash2, Edit, Shield } from 'lucide-react';
 import { useRoles } from '../hooks/useRoles';
-import { Role, RoleName } from '../types/roles';
-import { PageLayout } from './layouts/PageLayout';
+import { Role } from '../types/roles';
 
 interface RolesViewProps {
   roles: Role[];
@@ -100,8 +99,8 @@ function RolesView({
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
   const [formData, setFormData] = useState({
-    name: '' as RoleName,
-    description: '',
+    RoleName: '',
+    RoleDescription: '',
     permissions: [] as string[],
   });
   const [newPermission, setNewPermission] = useState('');
@@ -150,8 +149,8 @@ function RolesView({
   const handleEdit = (role: Role) => {
     setSelectedRole(role);
     setFormData({
-      name: role.name,
-      description: role.description || '',
+      RoleName: role.name,
+      RoleDescription: role.description || '',
       permissions: role.permissions || [],
     });
     setIsEditDialogOpen(true);
@@ -174,14 +173,21 @@ function RolesView({
     });
   };
 
-  const headerActions = (
-    <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-      <DialogTrigger asChild>
-        <Button className="gap-2">
-          <Plus className="size-4" />
-          Add Role
-        </Button>
-      </DialogTrigger>
+  return (
+    <>
+      <div className="px-4 pt-4 pb-0 bg-blue-100 h-full flex flex-col overflow-hidden">
+        <div className="flex items-center justify-between mb-4 flex-shrink-0">
+          <div>
+            <h1 className="text-gray-900 mb-0 text-xl">Role Management</h1>
+            <p className="text-gray-500 text-sm">Manage user roles and permissions</p>
+          </div>
+          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="gap-2">
+                <Plus className="size-4" />
+                Add Role
+              </Button>
+            </DialogTrigger>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add New Role</DialogTitle>
@@ -246,96 +252,97 @@ function RolesView({
         </div>
       </DialogContent>
     </Dialog>
-  );
+        </div>
 
-  return (
-    <>
-      <PageLayout
-        title="Role Management"
-        description="Manage user roles and permissions"
-        headerActions={headerActions}
-        scrollableContent={true}
-      >
-        <table className="w-full">
-          <thead className="sticky top-0 bg-white z-10 shadow-sm">
-            <tr className="border-b border-gray-200">
-              <th className="text-left py-3 px-4 text-gray-700 bg-white">Role Name</th>
-              <th className="text-left py-3 px-4 text-gray-700 bg-white">Description</th>
-              <th className="text-left py-3 px-4 text-gray-700 bg-white">Permissions</th>
-              <th className="text-left py-3 px-4 text-gray-700 bg-white">Created</th>
-              <th className="text-left py-3 px-4 text-gray-700 bg-white">Updated</th>
-              <th className="text-left py-3 px-4 text-gray-700 bg-white">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {roles.map((role) => (
-              <tr key={role.id} className="border-b border-gray-100 hover:bg-gray-50">
-                <td className="py-3 px-4">
-                  <div className="flex items-center gap-2">
-                    <Shield className="size-4 text-blue-600" />
-                    <span className="text-gray-900 font-medium">{role.name}</span>
-                    {role.isSuperAdmin && (
-                      <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded text-xs font-semibold">
-                        Super Admin
-                      </span>
-                    )}
-                  </div>
-                </td>
-                <td className="py-3 px-4 text-gray-600">
-                  {role.description || (
-                    <span className="text-gray-400 italic">No description</span>
+        <Card className="flex-1 flex flex-col overflow-hidden min-h-0">
+          <CardContent className="p-0 flex-1 overflow-hidden flex flex-col min-h-0">
+            <div className="overflow-x-auto overflow-y-scroll border border-gray-200 rounded flex-1" style={{ maxHeight: 'calc(100vh - 200px)' }}>
+              <table className="w-full">
+                <thead className="sticky top-0 bg-white z-10 shadow-sm">
+                  <tr className="border-b border-gray-200">
+                    <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">Role Name</th>
+                    <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">Description</th>
+                    <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">Permissions</th>
+                    <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">Created</th>
+                    <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">Updated</th>
+                    <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {roles.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="text-center py-8 text-gray-500">
+                        No roles found
+                      </td>
+                    </tr>
+                  ) : (
+                    roles.map((role) => (
+                      <tr key={role.id} className="border-b border-gray-100 hover:bg-gray-50">
+                        <td className="py-1 px-4">
+                          <div className="flex items-center gap-2">
+                            <Shield className="size-4 text-blue-600" />
+                            <span className="text-gray-900 font-medium">{role.name}</span>
+                            {role.isSuperAdmin && (
+                              <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded text-xs font-semibold">
+                                Super Admin
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="py-1 px-4 text-gray-600">
+                          {role.description || (
+                            <span className="text-gray-400 italic">No description</span>
+                          )}
+                        </td>
+                        <td className="py-1 px-4">
+                          <div className="flex flex-wrap gap-1">
+                            {role.permissions && role.permissions.length > 0 ? (
+                              role.permissions.slice(0, 3).map((permission, index) => (
+                                <span
+                                  key={index}
+                                  className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-xs"
+                                >
+                                  {permission}
+                                </span>
+                              ))
+                            ) : (
+                              <span className="text-gray-400 text-xs">No permissions</span>
+                            )}
+                            {role.permissions && role.permissions.length > 3 && (
+                              <span className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-xs">
+                                +{role.permissions.length - 3} more
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="py-1 px-4 text-gray-600 text-sm">
+                          {role.createdAt ? new Date(role.createdAt).toLocaleDateString() : '-'}
+                        </td>
+                        <td className="py-1 px-4 text-gray-600 text-sm">
+                          {role.updatedAt ? new Date(role.updatedAt).toLocaleDateString() : '-'}
+                        </td>
+                        <td className="py-1 px-4">
+                          <div className="flex gap-2">
+                            <Button variant="ghost" size="sm" onClick={() => handleEdit(role)}>
+                              <Edit className="size-4" />
+                            </Button>
+                            <Button variant="ghost" size="sm" onClick={() => onDeleteRole(role.id)}>
+                              <Trash2 className="size-4 text-red-600" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
                   )}
-                </td>
-                <td className="py-3 px-4">
-                  <div className="flex flex-wrap gap-1">
-                    {role.permissions && role.permissions.length > 0 ? (
-                      role.permissions.slice(0, 3).map((permission, index) => (
-                        <span
-                          key={index}
-                          className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-xs"
-                        >
-                          {permission}
-                        </span>
-                      ))
-                    ) : (
-                      <span className="text-gray-400 text-xs">No permissions</span>
-                    )}
-                    {role.permissions && role.permissions.length > 3 && (
-                      <span className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-xs">
-                        +{role.permissions.length - 3} more
-                      </span>
-                    )}
-                  </div>
-                </td>
-                <td className="py-3 px-4 text-gray-600 text-sm">
-                  {role.createdAt ? new Date(role.createdAt).toLocaleDateString() : '-'}
-                </td>
-                <td className="py-3 px-4 text-gray-600 text-sm">
-                  {role.updatedAt ? new Date(role.updatedAt).toLocaleDateString() : '-'}
-                </td>
-                <td className="py-3 px-4">
-                  <div className="flex gap-2">
-                    <Button variant="ghost" size="sm" onClick={() => handleEdit(role)}>
-                      <Edit className="size-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => onDeleteRole(role.id)}>
-                      <Trash2 className="size-4 text-red-600" />
-                    </Button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-            <tr>
-              <td className="py-3 px-4" colSpan={6}></td>
-            </tr>
-          </tbody>
-        </table>
-        {roles.length === 0 && (
-          <div className="text-center py-12 text-gray-500">
-            No roles found
-          </div>
-        )}
-      </PageLayout>
+                  <tr>
+                    <td className="py-1 px-4" colSpan={6}></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>

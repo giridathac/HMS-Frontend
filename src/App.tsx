@@ -17,9 +17,6 @@ import {
   UserPlus,
   FlaskConical,
   Receipt,
-  ChevronLeft,
-  ChevronRight,
-  Menu,
   Calendar
 } from 'lucide-react';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from './components/ui/resizable';
@@ -60,6 +57,10 @@ function LoadingFallback() {
 }
 
 export default function App() {
+  // Check if we're in standalone mode (no sidebar) via URL parameter
+  const urlParams = new URLSearchParams(window.location.search);
+  const isStandalone = urlParams.get('standalone') === 'true';
+
   // Initialize from URL hash or default to dashboard
   const getViewFromHash = (): View => {
     const hash = window.location.hash.slice(1) || 'dashboard';
@@ -71,7 +72,7 @@ export default function App() {
 
   const [currentView, setCurrentView] = useState<View>(getViewFromHash());
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [sidebarSize, setSidebarSize] = useState(16); // Default 16% of width
+  const [sidebarSize, setSidebarSize] = useState(isStandalone ? 0 : 16); // Default 16% of width, 0 if standalone
 
   // Sync URL hash with current view (preserve query parameters)
   useEffect(() => {
@@ -116,115 +117,99 @@ export default function App() {
     { id: 'reports' as View, label: 'Reports', icon: FileBarChart },
   ];
 
-  const handleCollapse = () => {
-    setSidebarSize(0);
-    setIsSidebarCollapsed(true);
-  };
-
-  const handleExpand = () => {
-    setSidebarSize(16); // Restore to default 16%
-    setIsSidebarCollapsed(false);
-  };
 
   return (
     <div className="flex h-screen bg-blue-50 overflow-x-hidden">
       <ResizablePanelGroup direction="horizontal" className="h-full">
-        {/* Sidebar Panel */}
-        <ResizablePanel
-          size={sidebarSize}
-          minSize={8}
-          maxSize={30}
-          collapsible={true}
-          collapsedSize={0}
-          onResize={(size) => {
-            setSidebarSize(size);
-            setIsSidebarCollapsed(size === 0);
-          }}
-          className={`bg-blue-100 border-r border-blue-300 flex flex-col shadow-sm transition-all duration-300 overflow-hidden`}
-        >
-          {!isSidebarCollapsed && (
-            <>
-              <div className="p-6 border-b border-blue-300 bg-blue-200 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Activity className="size-8 text-blue-700" />
-                  <div>
-                    <h1 className="text-blue-900 font-semibold">MediCare HMS</h1>
-                    <p className="text-sm text-blue-700">Hospital Management</p>
+        {/* Sidebar Panel - Hidden in standalone mode */}
+        {!isStandalone && (
+          <>
+            <ResizablePanel
+              size={sidebarSize}
+              minSize={8}
+              maxSize={30}
+              collapsible={true}
+              collapsedSize={0}
+              onResize={(size) => {
+                setSidebarSize(size);
+                setIsSidebarCollapsed(size === 0);
+              }}
+              className={`bg-blue-100 border-r border-blue-300 flex flex-col shadow-sm transition-all duration-300 overflow-hidden`}
+            >
+              {!isSidebarCollapsed && (
+                <>
+                  <div className="p-6 border-b border-blue-300 bg-blue-200 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Activity className="size-8 text-blue-700" />
+                      <div>
+                        <h1 className="text-blue-900 font-semibold">MediCare HMS</h1>
+                        <p className="text-sm text-blue-700">Hospital Management</p>
+                      </div>
+                    </div>
                   </div>
-                </div>
-                <button
-                  onClick={handleCollapse}
-                  className="ml-auto p-2 rounded-lg hover:bg-blue-300 transition-colors"
-                  aria-label="Collapse sidebar"
-                >
-                  <ChevronLeft className="size-5 text-blue-700" />
-                </button>
-              </div>
-              
-              <nav className="flex-1 p-4 overflow-y-auto overflow-x-hidden bg-blue-100">
-                <ul className="space-y-0.5">
-                  {navItems.map((item) => {
-                    const Icon = item.icon;
-                    return (
-                      <li key={item.id}>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <a
-                              href={`#${item.id}`}
-                              onClick={(e) => {
-                                e.preventDefault();
-                                setCurrentView(item.id);
-                              }}
-                              className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg transition-colors ${
-                                currentView === item.id
-                                  ? 'bg-blue-200 text-blue-900 shadow-sm'
-                                  : 'text-blue-800 hover:bg-blue-200'
-                              }`}
-                            >
-                              <Icon className="size-5 flex-shrink-0" />
-                              <span className="truncate">{item.label}</span>
-                            </a>
-                          </TooltipTrigger>
-                          <TooltipContent side="right" className="bg-gray-100 text-gray-900 border border-gray-300">
-                            {item.label}
-                          </TooltipContent>
-                        </Tooltip>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </nav>
+                  
+                  <nav className="flex-1 p-4 overflow-y-auto overflow-x-hidden bg-blue-100">
+                    <ul className="space-y-0.5">
+                      {navItems.map((item) => {
+                        const Icon = item.icon;
+                        return (
+                          <li key={item.id}>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <a
+                                  href={`${window.location.origin}${window.location.pathname}?standalone=true#${item.id}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => {
+                                    // Allow default behavior to open in new tab
+                                    // Also update current view if clicked in same tab
+                                    if (!e.ctrlKey && !e.metaKey) {
+                                      e.preventDefault();
+                                      setCurrentView(item.id);
+                                    }
+                                  }}
+                                  className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg transition-colors ${
+                                    currentView === item.id
+                                      ? 'bg-blue-200 text-blue-900 shadow-sm'
+                                      : 'text-blue-800 hover:bg-blue-200'
+                                  }`}
+                                >
+                                  <Icon className="size-5 flex-shrink-0" />
+                                  <span className="truncate">{item.label}</span>
+                                </a>
+                              </TooltipTrigger>
+                              <TooltipContent side="right" className="bg-gray-100 text-gray-900 border border-gray-300">
+                                {item.label}
+                              </TooltipContent>
+                            </Tooltip>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </nav>
 
-              <div className="p-4 border-t border-blue-300 bg-blue-200">
-                <div className="flex items-center gap-3 px-4 py-3">
-                  <div className="size-10 bg-blue-300 rounded-full flex items-center justify-center">
-                    <span className="text-blue-800 font-semibold">AD</span>
+                  <div className="p-4 border-t border-blue-300 bg-blue-200">
+                    <div className="flex items-center gap-3 px-4 py-3">
+                      <div className="size-10 bg-blue-300 rounded-full flex items-center justify-center">
+                        <span className="text-blue-800 font-semibold">AD</span>
+                      </div>
+                      <div>
+                        <p className="text-sm text-blue-900 font-medium">Admin User</p>
+                        <p className="text-xs text-blue-700">Superadmin</p>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm text-blue-900 font-medium">Admin User</p>
-                    <p className="text-xs text-blue-700">Superadmin</p>
-                  </div>
-                </div>
-              </div>
-            </>
-          )}
-        </ResizablePanel>
+                </>
+              )}
+            </ResizablePanel>
 
-        {/* Resize Handle - Thin Divider */}
-        <ResizableHandle className="w-px bg-blue-300 hover:bg-blue-400 transition-colors cursor-col-resize" />
+            {/* Resize Handle - Thin Divider */}
+            <ResizableHandle className="w-px bg-blue-300 hover:bg-blue-400 transition-colors cursor-col-resize" />
+          </>
+        )}
 
         {/* Main Content Panel */}
-        <ResizablePanel defaultSize={84} minSize={70}>
-          {/* Expand Button (shown when sidebar is collapsed) */}
-          {isSidebarCollapsed && (
-            <button
-              onClick={handleExpand}
-              className="fixed left-0 top-1/2 -translate-y-1/2 z-50 bg-blue-100 hover:bg-blue-200 border-r border-y border-blue-300 rounded-r-lg p-2 shadow-lg transition-colors"
-              aria-label="Expand sidebar"
-            >
-              <ChevronRight className="size-5 text-blue-700" />
-            </button>
-          )}
+        <ResizablePanel defaultSize={isStandalone ? 100 : 84} minSize={70}>
 
           <main className="h-full overflow-auto overflow-x-hidden bg-blue-50 transition-all duration-300">
             <Suspense fallback={<LoadingFallback />}>

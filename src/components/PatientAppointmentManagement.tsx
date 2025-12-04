@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { Card, CardContent } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -279,13 +279,14 @@ export function PatientAppointmentManagement() {
   }
 
   return (
-    <div className="p-8 bg-blue-100 min-h-full">
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-gray-900 mb-2">Patient Appointments</h1>
-          <p className="text-gray-500">Manage patient appointments and consultations</p>
-        </div>
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+    <>
+      <div className="px-4 pt-4 pb-0 bg-blue-100 h-full flex flex-col overflow-hidden">
+        <div className="flex items-center justify-between mb-4 flex-shrink-0">
+          <div>
+            <h1 className="text-gray-900 mb-0 text-xl">Patient Appointments</h1>
+            <p className="text-gray-500 text-sm">Manage patient appointments and consultations</p>
+          </div>
+          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
             <Button className="gap-2">
               <Plus className="size-4" />
@@ -531,92 +532,89 @@ export function PatientAppointmentManagement() {
             </div>
           </DialogContent>
         </Dialog>
-      </div>
+        </div>
 
-      {/* Appointments Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Calendar className="size-5" />
-            Patient Appointments List ({patientAppointments.length})
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Appointment ID</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Patient ID</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Doctor ID</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Date</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Time</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Token No</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Status</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Charge (₹)</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Diagnosis</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">To Be Admitted</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {patientAppointments.length === 0 ? (
-                  <tr>
-                    <td colSpan={11} className="text-center py-8 text-gray-500">
-                      No appointments found. Add a new appointment to get started.
-                    </td>
+        <Card className="flex-1 flex flex-col overflow-hidden min-h-0">
+          <CardContent className="p-0 flex-1 overflow-hidden flex flex-col min-h-0">
+            <div className="overflow-x-auto overflow-y-scroll border border-gray-200 rounded flex-1" style={{ maxHeight: 'calc(100vh - 200px)' }}>
+              <table className="w-full">
+                <thead className="sticky top-0 bg-white z-10 shadow-sm">
+                  <tr className="border-b border-gray-200">
+                    <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">Appointment ID</th>
+                    <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">Patient ID</th>
+                    <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">Doctor ID</th>
+                    <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">Date</th>
+                    <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">Time</th>
+                    <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">Token No</th>
+                    <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">Status</th>
+                    <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">Charge (₹)</th>
+                    <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">Diagnosis</th>
+                    <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">To Be Admitted</th>
+                    <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">Actions</th>
                   </tr>
-                ) : (
-                  patientAppointments.map((appointment) => (
-                    <tr key={appointment.id} className="border-b border-gray-100 hover:bg-gray-50">
-                      <td className="py-3 px-4 text-sm text-gray-900 font-mono font-medium whitespace-nowrap">{appointment.patientAppointmentId}</td>
-                      <td className="py-3 px-4 text-sm text-gray-700 font-mono whitespace-nowrap">{appointment.patientId}</td>
-                      <td className="py-3 px-4 text-sm text-gray-700">{appointment.doctorId}</td>
-                      <td className="py-3 px-4 text-sm text-gray-700">{new Date(appointment.appointmentDate).toLocaleDateString()}</td>
-                      <td className="py-3 px-4 text-sm text-gray-700">{appointment.appointmentTime}</td>
-                      <td className="py-3 px-4 text-sm text-gray-900 font-mono font-medium">{appointment.tokenNo}</td>
-                      <td className="py-3 px-4 text-sm">{getStatusBadge(appointment.appointmentStatus)}</td>
-                      <td className="py-3 px-4 text-sm text-gray-900 font-semibold">
-                        ₹{appointment.consultationCharge.toFixed(2)}
-                      </td>
-                      <td className="py-3 px-4 text-sm text-gray-700 max-w-xs truncate" title={appointment.diagnosis}>{appointment.diagnosis || '-'}</td>
-                      <td className="py-3 px-4 text-sm">
-                        {appointment.toBeAdmitted ? (
-                          <Badge variant="outline" className="bg-red-100 text-red-700 border-red-300">
-                            <Hospital className="size-3 mr-1" />Yes
-                          </Badge>
-                        ) : (
-                          <span className="text-gray-500">No</span>
-                        )}
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEdit(appointment)}
-                            className="h-8 w-8 p-0"
-                          >
-                            <Edit className="size-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDeleteAppointment(appointment.id)}
-                            className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                          >
-                            <Trash2 className="size-4" />
-                          </Button>
-                        </div>
+                </thead>
+                <tbody>
+                  {patientAppointments.length === 0 ? (
+                    <tr>
+                      <td colSpan={11} className="text-center py-8 text-gray-500">
+                        No appointments found. Add a new appointment to get started.
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
+                  ) : (
+                    patientAppointments.map((appointment) => (
+                      <tr key={appointment.id} className="border-b border-gray-100 hover:bg-gray-50">
+                        <td className="py-1 px-4 text-gray-900 font-mono font-medium whitespace-nowrap">{appointment.patientAppointmentId}</td>
+                        <td className="py-1 px-4 text-gray-600 font-mono whitespace-nowrap">{appointment.patientId}</td>
+                        <td className="py-1 px-4 text-gray-600">{appointment.doctorId}</td>
+                        <td className="py-1 px-4 text-gray-600">{new Date(appointment.appointmentDate).toLocaleDateString()}</td>
+                        <td className="py-1 px-4 text-gray-600">{appointment.appointmentTime}</td>
+                        <td className="py-1 px-4 text-gray-900 font-mono font-medium">{appointment.tokenNo}</td>
+                        <td className="py-1 px-4">{getStatusBadge(appointment.appointmentStatus)}</td>
+                        <td className="py-1 px-4 text-gray-900 font-semibold">
+                          ₹{appointment.consultationCharge.toFixed(2)}
+                        </td>
+                        <td className="py-1 px-4 text-gray-600 max-w-xs truncate" title={appointment.diagnosis}>{appointment.diagnosis || '-'}</td>
+                        <td className="py-1 px-4">
+                          {appointment.toBeAdmitted ? (
+                            <Badge variant="outline" className="bg-red-100 text-red-700 border-red-300">
+                              <Hospital className="size-3 mr-1" />Yes
+                            </Badge>
+                          ) : (
+                            <span className="text-gray-500">No</span>
+                          )}
+                        </td>
+                        <td className="py-1 px-4">
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEdit(appointment)}
+                              className="h-8 w-8 p-0"
+                            >
+                              <Edit className="size-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteAppointment(appointment.id)}
+                              className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <Trash2 className="size-4" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                  <tr>
+                    <td className="py-1 px-4" colSpan={11}></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
@@ -1023,7 +1021,7 @@ export function PatientAppointmentManagement() {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }
 

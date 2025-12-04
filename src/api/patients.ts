@@ -90,40 +90,70 @@ function mapPatientFromBackend(backendPatient: any, index: number): any {
 export const patientsApi = {
   async getAll(): Promise<Patient[]> {
     try {
+      console.log('Fetching patients from API endpoint: /patients');
       const response = await apiRequest<any>('/patients');
-      // Handle different response structures: { data: [...] } or direct array
-      const patientsData = response?.data || response || [];
+      console.log('Raw API response:', response);
       
-      if (Array.isArray(patientsData) && patientsData.length > 0) {
-        // Map each patient from backend format to frontend format
-        const mappedPatients = patientsData.map((patient, index) => mapPatientFromBackend(patient, index));
-        
-        // Check for duplicate IDs and warn
-        const idCounts = new Map();
-        mappedPatients.forEach((p, idx) => {
-          const key = p.id || p.patientId || idx;
-          if (idCounts.has(key)) {
-            console.warn(`Duplicate key detected: ${key} at indices ${idCounts.get(key)} and ${idx}`);
-            // Make the ID unique by appending index
-            p.id = `${key}-${idx}`;
-          } else {
-            idCounts.set(key, idx);
-          }
-        });
-        
-        console.log('Mapped patients:', mappedPatients);
-        return mappedPatients as any; // Type assertion needed due to type mismatch
+      // Handle different response structures:
+      // 1. { success: true, data: [...] } - standard API response
+      // 2. { data: [...] } - data wrapper
+      // 3. [...] - direct array
+      let patientsData: any[] = [];
+      
+      if (response?.success && Array.isArray(response.data)) {
+        patientsData = response.data;
+        console.log('Found patients in response.data:', patientsData.length);
+      } else if (Array.isArray(response?.data)) {
+        patientsData = response.data;
+        console.log('Found patients in response.data (no success field):', patientsData.length);
+      } else if (Array.isArray(response)) {
+        patientsData = response;
+        console.log('Found patients as direct array:', patientsData.length);
+      } else {
+        console.warn('Unexpected response structure:', response);
+        return [];
       }
       
-      // Fallback to stub data if no data received
-      console.warn('No patients data received, using stub data');
-      await delay(300);
-      return Promise.resolve([...stubPatients]);
+      if (patientsData.length === 0) {
+        console.log('API returned empty array');
+        return [];
+      }
+      
+      // Map each patient from backend format to frontend format
+      const mappedPatients = patientsData.map((patient, index) => {
+        try {
+          return mapPatientFromBackend(patient, index);
+        } catch (err) {
+          console.error(`Error mapping patient at index ${index}:`, err, patient);
+          // Return a minimal patient object to prevent crashes
+          return {
+            id: `error-${index}`,
+            patientId: `PAT-ERROR-${index}`,
+            patientName: 'Error loading patient',
+            status: 'Error',
+          };
+        }
+      });
+      
+      // Check for duplicate IDs and warn
+      const idCounts = new Map();
+      mappedPatients.forEach((p, idx) => {
+        const key = p.id || p.patientId || idx;
+        if (idCounts.has(key)) {
+          console.warn(`Duplicate key detected: ${key} at indices ${idCounts.get(key)} and ${idx}`);
+          // Make the ID unique by appending index
+          p.id = `${key}-${idx}`;
+        } else {
+          idCounts.set(key, idx);
+        }
+      });
+      
+      console.log(`Successfully mapped ${mappedPatients.length} patients`);
+      return mappedPatients as any;
     } catch (error) {
       console.error('Error fetching patients:', error);
-      // Fallback to stub data on error
-      await delay(300);
-      return Promise.resolve([...stubPatients]);
+      // Return empty array to show "No patients found" message instead of crashing
+      return [];
     }
   },
 

@@ -55,7 +55,7 @@ export interface CreateDepartmentRequestDto {
 
 // Backend response DTO (what the API returns)
 export interface DepartmentDto {
-  DepartmentId: number;
+  DoctorDepartmentId: number; // Changed from DepartmentId to DoctorDepartmentId
   DepartmentName: string;
   DepartmentCategory: string;
   Description?: string | null;
@@ -99,8 +99,8 @@ export interface UpdateDepartmentDto extends Partial<CreateDepartmentDto> {
 
 // Helper function to map backend DTO to frontend Department
 function mapDepartmentDtoToDepartment(dto: DepartmentDto): Department {
-  return {
-    id: dto.DepartmentId,
+  const mapped = {
+    id: dto.DoctorDepartmentId, // Changed from DepartmentId to DoctorDepartmentId
     name: dto.DepartmentName,
     category: dto.DepartmentCategory as DepartmentCategory,
     description: dto.Description || undefined,
@@ -108,19 +108,28 @@ function mapDepartmentDtoToDepartment(dto: DepartmentDto): Department {
     noOfDoctors: dto.NoOfDoctors,
     status: dto.Status.toLowerCase() === 'active' ? 'active' : 'inactive',
   };
+  return mapped;
 }
 
 export const departmentsApi = {
   async getAll(): Promise<Department[]> {
-    const response = await apiRequest<GetDepartmentsResponse>('/doctor-departments', {
-      method: 'GET',
-    });
+    try {
+      console.log('departmentsApi.getAll() - Calling /api/doctor-departments');
+      const response = await apiRequest<GetDepartmentsResponse>('/doctor-departments', {
+        method: 'GET',
+      });
+      console.log('departmentsApi.getAll() - Response received:', response);
 
-    if (!response.success) {
-      throw new Error('Failed to fetch departments');
+      if (!response.success || !response.data) {
+        throw new Error('Failed to fetch departments');
+      }
+
+      const mapped = response.data.map(mapDepartmentDtoToDepartment);
+      return mapped;
+    } catch (error) {
+      console.error('Error fetching departments from /api/doctor-departments:', error);
+      throw error;
     }
-
-    return response.data.map(mapDepartmentDtoToDepartment);
   },
 
   async getByCategory(category: DepartmentCategory): Promise<Department[]> {
