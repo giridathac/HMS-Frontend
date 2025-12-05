@@ -42,7 +42,7 @@ export function useICUBeds() {
     try {
       setError(null);
       const updatedICUBed = await icuBedsApi.update(data);
-      setIcuBeds(prev => prev.map(b => b.id === data.id ? updatedICUBed : b));
+      setIcuBeds(prev => prev.map(b => b.icuId === data.icuId ? updatedICUBed : b));
       return updatedICUBed;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to update ICU bed';
@@ -51,11 +51,11 @@ export function useICUBeds() {
     }
   }, []);
 
-  const deleteICUBed = useCallback(async (id: number) => {
+  const deleteICUBed = useCallback(async (icuBedId: number) => {
     try {
       setError(null);
-      await icuBedsApi.delete(id);
-      setIcuBeds(prev => prev.filter(b => b.id !== id));
+      await icuBedsApi.delete(icuBedId);
+      setIcuBeds(prev => prev.filter(b => b.icuBedId !== icuBedId));
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to delete ICU bed';
       setError(errorMessage);

@@ -19,14 +19,14 @@ interface LabTestsViewProps {
     charges: number;
     status?: 'active' | 'inactive';
   }) => Promise<void>;
-  onUpdateLabTest: (id: number, data: Partial<{
+  onUpdateLabTest: (labTestId: number, data: Partial<{
     testName: string;
     testCategory: string;
     description?: string;
     charges: number;
     status?: 'active' | 'inactive';
   }>) => Promise<void>;
-  onDeleteLabTest: (id: number) => Promise<void>;
+  onDeleteLabTest: (labTestId: number) => Promise<void>;
 }
 
 const testCategoryOptions = ['BloodTest', 'Imaging', 'Radiology', 'UrineTest', 'Ultrasound'];
@@ -50,7 +50,7 @@ export function LabTests() {
     }
   };
 
-  const handleUpdateLabTest = async (id: number, data: Partial<{
+  const handleUpdateLabTest = async (labTestId: number, data: Partial<{
     testName: string;
     testCategory: string;
     description?: string;
@@ -58,17 +58,17 @@ export function LabTests() {
     status?: 'active' | 'inactive';
   }>) => {
     try {
-      await updateLabTest({ id, ...data });
+      await updateLabTest({ labTestId, ...data });
     } catch (err) {
       console.error('Failed to update lab test:', err);
       throw err;
     }
   };
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (labTestId: number) => {
     if (confirm('Are you sure you want to delete this lab test? This action cannot be undone.')) {
       try {
-        await deleteLabTest(id);
+        await deleteLabTest(labTestId);
       } catch (err) {
         console.error('Failed to delete lab test:', err);
       }
@@ -110,6 +110,7 @@ function LabTestsView({
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedLabTest, setSelectedLabTest] = useState<LabTest | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     testName: '',
     testCategory: 'BloodTest',
@@ -119,8 +120,9 @@ function LabTestsView({
   });
 
   const handleAddSubmit = async () => {
+    setSubmitError(null);
     if (!formData.testName || formData.charges < 0) {
-      alert('Please fill in all required fields with valid values.');
+      setSubmitError('Please fill in all required fields with valid values.');
       return;
     }
     try {
@@ -132,6 +134,7 @@ function LabTestsView({
         status: formData.status,
       });
       setIsAddDialogOpen(false);
+      setSubmitError(null);
       setFormData({
         testName: '',
         testCategory: 'BloodTest',
@@ -140,18 +143,21 @@ function LabTestsView({
         status: 'active',
       });
     } catch (err) {
-      // Error handled in parent
+      const errorMessage = err instanceof Error ? err.message : 'Failed to create lab test. Please try again.';
+      setSubmitError(errorMessage);
+      console.error('Failed to create lab test:', err);
     }
   };
 
   const handleEditSubmit = async () => {
     if (!selectedLabTest) return;
+    setSubmitError(null);
     if (!formData.testName || formData.charges < 0) {
-      alert('Please fill in all required fields with valid values.');
+      setSubmitError('Please fill in all required fields with valid values.');
       return;
     }
     try {
-      await onUpdateLabTest(selectedLabTest.id, {
+      await onUpdateLabTest(selectedLabTest.labTestId, {
         testName: formData.testName,
         testCategory: formData.testCategory,
         description: formData.description || undefined,
@@ -160,6 +166,7 @@ function LabTestsView({
       });
       setIsEditDialogOpen(false);
       setSelectedLabTest(null);
+      setSubmitError(null);
       setFormData({
         testName: '',
         testCategory: 'BloodTest',
@@ -168,12 +175,15 @@ function LabTestsView({
         status: 'active',
       });
     } catch (err) {
-      // Error handled in parent
+      const errorMessage = err instanceof Error ? err.message : 'Failed to update lab test. Please try again.';
+      setSubmitError(errorMessage);
+      console.error('Failed to update lab test:', err);
     }
   };
 
   const handleEdit = (labTest: LabTest) => {
     setSelectedLabTest(labTest);
+    setSubmitError(null);
     setFormData({
       testName: labTest.testName,
       testCategory: labTest.testCategory,
@@ -355,7 +365,7 @@ function LabTestsView({
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => onDeleteLabTest(labTest.id)}
+                            onClick={() => onDeleteLabTest(labTest.labTestId)}
                             className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
                           >
                             <Trash2 className="size-4" />
@@ -379,6 +389,11 @@ function LabTestsView({
           </DialogHeader>
           <div className="flex-1 overflow-y-auto px-6 pb-1 patient-list-scrollable min-h-0">
             <div className="space-y-4 py-4">
+            {submitError && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
+                {submitError}
+              </div>
+            )}
             {selectedLabTest && (
               <div>
                 <Label>Display Test ID</Label>

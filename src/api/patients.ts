@@ -1,5 +1,5 @@
 // Patient API service
-import { apiRequest } from './base';
+import { apiRequest, ApiError } from './base';
 import { Patient } from '../types';
 
 // Stub data - replace with actual API calls
@@ -21,7 +21,7 @@ export interface CreatePatientDto {
   PatientName: string;
   PatientType?: string;
   LastName?: string;
-  AdhaarId?: string;
+  AdhaarID?: string;
   PANCard?: string;
   PhoneNo: string;
   Gender: string;
@@ -30,7 +30,7 @@ export interface CreatePatientDto {
   ChiefComplaint?: string;
   Description?: string;
   Status?: string;
-  RegisteredBy?: string;
+  RegisteredBy?: number;
   RegisteredDate?: string;
 }
 
@@ -179,30 +179,158 @@ export const patientsApi = {
   },
 
   async create(data: CreatePatientDto | any): Promise<Patient> {
-    // Replace with: return apiRequest<Patient>('/patients', { method: 'POST', body: JSON.stringify(data) });
-    await delay(400);
-    // Handle both camelCase (from component) and PascalCase (from DTO) inputs
-    const newPatient: Patient = {
-      id: stubPatients.length + 1,
-      PatientId: generatePatientId(),
-      PatientNo: data.PatientNo || data.patientNo,
-      PatientName: data.PatientName || data.patientName,
-      PatientType: data.PatientType || data.patientType,
-      LastName: data.LastName || data.lastName,
-      AdhaarId: data.AdhaarId || data.adhaarID,
-      PANCard: data.PANCard || data.panCard,
-      PhoneNo: data.PhoneNo || data.phoneNo,
-      Gender: data.Gender || data.gender,
-      Age: data.Age || data.age,
-      Address: data.Address || data.address,
-      ChiefComplaint: data.ChiefComplaint || data.chiefComplaint,
-      Description: data.Description || data.description,
-      Status: data.Status || data.status || 'Active',
-      RegisteredBy: data.RegisteredBy || data.registeredBy,
-      RegisteredDate: data.RegisteredDate || data.registeredDate || new Date().toISOString().split('T')[0],
-    };
-    stubPatients.push(newPatient);
-    return Promise.resolve(newPatient);
+    try {
+      // Convert camelCase to PascalCase for backend API
+      const backendData: any = {};
+      
+      // Helper function to clean and add values (removes empty strings, null, undefined)
+      const addIfValid = (key: string, value: any) => {
+        // Only add if value is not empty string, null, or undefined
+        if (value !== undefined && value !== null && value !== '') {
+          // Trim strings
+          if (typeof value === 'string') {
+            const trimmed = value.trim();
+            if (trimmed !== '') {
+              backendData[key] = trimmed;
+            }
+          } else {
+            backendData[key] = value;
+          }
+        }
+      };
+      
+      // Map camelCase fields to PascalCase for backend
+      // Required fields - these must be present
+      const patientName = data.PatientName || data.patientName;
+      const phoneNo = data.PhoneNo || data.phoneNo;
+      const gender = data.Gender || data.gender;
+      const ageValue = data.Age !== undefined ? data.Age : (data.age !== undefined ? data.age : undefined);
+      
+      // Validate required fields
+      if (!patientName || (typeof patientName === 'string' && patientName.trim() === '')) {
+        throw new Error('Patient Name is required');
+      }
+      if (!phoneNo || (typeof phoneNo === 'string' && phoneNo.trim() === '')) {
+        throw new Error('Phone Number is required');
+      }
+      if (!gender || (typeof gender === 'string' && gender.trim() === '')) {
+        throw new Error('Gender is required');
+      }
+      if (ageValue === undefined || ageValue === null || isNaN(Number(ageValue)) || Number(ageValue) <= 0) {
+        throw new Error('Age must be a valid positive number');
+      }
+      
+      // Set required fields (always include these)
+      backendData.PatientName = typeof patientName === 'string' ? patientName.trim() : patientName;
+      backendData.PhoneNo = typeof phoneNo === 'string' ? phoneNo.trim() : phoneNo;
+      backendData.Gender = typeof gender === 'string' ? gender.trim() : gender;
+      backendData.Age = Number(ageValue);
+      
+      // Optional fields - only add if they have valid values
+      addIfValid('PatientNo', data.PatientNo || data.patientNo);
+      addIfValid('PatientType', data.PatientType || data.patientType);
+      addIfValid('LastName', data.LastName || data.lastName);
+      // AdhaarID - handle both camelCase (adhaarID) and PascalCase (AdhaarID/AdhaarId)
+      // Check explicitly for all possible cases to ensure we capture the value
+      const adhaarID = data.AdhaarID !== undefined && data.AdhaarID !== null 
+        ? data.AdhaarID 
+        : (data.AdhaarId !== undefined && data.AdhaarId !== null 
+          ? data.AdhaarId 
+          : (data.adhaarID !== undefined && data.adhaarID !== null ? data.adhaarID : undefined));
+      
+      if (adhaarID !== undefined && adhaarID !== null) {
+        const trimmedAdhaarID = typeof adhaarID === 'string' ? adhaarID.trim() : String(adhaarID).trim();
+        if (trimmedAdhaarID !== '') {
+          // Backend expects AdhaarId (with lowercase 'd') based on stub data
+          backendData.AdhaarID = trimmedAdhaarID;
+          console.log('AdhaarID captured from form and added as AdhaarId:', trimmedAdhaarID);
+        } else {
+          console.log('AdhaarID was empty after trim, not adding');
+        }
+      } else {
+        console.log('AdhaarID not provided in data:', { 
+          AdhaarID: data.AdhaarID, 
+          AdhaarId: data.AdhaarId,
+          adhaarID: data.adhaarID 
+        });
+      }
+       
+      addIfValid('PANCard', data.PANCard || data.panCard);
+      addIfValid('Address', data.Address || data.address);
+      addIfValid('ChiefComplaint', data.ChiefComplaint || data.chiefComplaint);
+      addIfValid('Description', data.Description || data.description);
+      
+      // RegisteredBy - send as integer (default to 1 if not provided, or get from auth context)
+      // TODO: Replace with actual user ID from authentication context
+      const registeredBy = data.RegisteredBy !== undefined ? data.RegisteredBy : (data.registeredBy !== undefined ? data.registeredBy : 1);
+      // Ensure it's a number
+      const registeredById = typeof registeredBy === 'number' ? registeredBy : (typeof registeredBy === 'string' ? parseInt(registeredBy) || 1 : 1);
+      backendData.RegisteredBy = registeredById;
+      
+      // Status and RegisteredDate are not sent - backend will set defaults
+
+      // Final validation - ensure all required fields are present
+      if (!backendData.PatientName || !backendData.PhoneNo || !backendData.Gender || !backendData.Age) {
+        throw new Error('Missing required fields: PatientName, PhoneNo, Gender, and Age are required');
+      }
+      console.log('Creating patient with data:', JSON.stringify(backendData, null, 2));
+      console.log('Request payload size:', JSON.stringify(backendData).length, 'bytes');
+      
+      // Call the actual API endpoint
+      const response = await apiRequest<any>('/patients', {
+        method: 'POST',
+        body: JSON.stringify(backendData),
+      });
+      
+      console.log('Create patient API response:', response);
+      
+      // Handle different response structures: { data: {...} } or direct object
+      const patientData = response?.data || response;
+      console.log('Patient data***************:', patientData);
+      if (!patientData) {
+        throw new Error('No patient data received from API');
+      }
+      
+      // Map the response back to Patient type
+      return mapPatientFromBackend(patientData, 0);
+    } catch (error: any) {
+      console.error('Error creating patient:', error);
+      console.error('Error details:', {
+        message: error.message,
+        status: error.status,
+        data: error.data,
+        stack: error.stack
+      });
+      
+      // Re-throw API errors with detailed message
+      if (error instanceof ApiError) {
+        // Extract error message from API response
+        const errorData = error.data as any;
+        const errorMessage = errorData?.message || errorData?.error || error.message || 'Failed to create patient';
+        const errorDetails = errorData?.errors || errorData?.details;
+        
+        let fullErrorMessage = errorMessage;
+        if (errorDetails) {
+          if (Array.isArray(errorDetails)) {
+            fullErrorMessage += ': ' + errorDetails.join(', ');
+          } else if (typeof errorDetails === 'object') {
+            fullErrorMessage += ': ' + JSON.stringify(errorDetails);
+          } else {
+            fullErrorMessage += ': ' + errorDetails;
+          }
+        }
+        
+        throw new Error(fullErrorMessage);
+      }
+      
+      // Re-throw validation errors
+      if (error instanceof Error) {
+        throw error;
+      }
+      
+      // Fallback error
+      throw new Error('Failed to create patient. Please check the console for details.');
+    }
   },
 
   async update(data: UpdatePatientDto | any): Promise<Patient> {
@@ -236,8 +364,8 @@ export const patientsApi = {
       if (data.lastName !== undefined || data.LastName !== undefined) {
         backendData.LastName = data.LastName || data.lastName;
       }
-      if (data.adhaarID !== undefined || data.AdhaarId !== undefined) {
-        backendData.AdhaarId = data.AdhaarId || data.adhaarID;
+      if (data.adhaarID !== undefined || data.AdhaarID !== undefined) {
+        backendData.AdhaarID = data.AdhaarID || data.adhaarID;
       }
       if (data.panCard !== undefined || data.PANCard !== undefined) {
         backendData.PANCard = data.PANCard || data.panCard;

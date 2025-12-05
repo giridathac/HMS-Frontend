@@ -37,7 +37,21 @@ async function handleResponse<T>(response: Response): Promise<T> {
       errorData
     );
   }
-  return response.json();
+  
+  // Handle 204 No Content (common for DELETE requests) - no body to parse
+  if (response.status === 204) {
+    return undefined as T;
+  }
+  
+  // Check if response has content to parse
+  const contentType = response.headers.get('content-type');
+  if (contentType && contentType.includes('application/json')) {
+    const text = await response.text();
+    return text ? JSON.parse(text) : undefined as T;
+  }
+  
+  // For empty responses or non-JSON, return undefined
+  return undefined as T;
 }
 
 export async function apiRequest<T>(
