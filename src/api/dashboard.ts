@@ -39,9 +39,38 @@ const stubDoctorQueue: DoctorQueue[] = [
 
 export const dashboardApi = {
   async getStats(): Promise<DashboardStats> {
-    // Replace with: return apiRequest<DashboardStats>('/dashboard/stats');
-    await delay(300);
-    return Promise.resolve(stubStats);
+    try {
+      const response = await apiRequest<any>('/patient-appointments/count/today-active');
+      console.log('Dashboard stats fetched from API:', response);
+      
+      // Handle different response structures: { data: {...} } or direct object
+      const statsData = response?.data || response;
+      
+      if (statsData) {
+        // Map backend response to DashboardStats interface
+        // Map 'count' field from response to opdPatientsToday
+        const mappedStats: DashboardStats = {
+          opdPatientsToday: Number(statsData.count || statsData.Count || statsData.opdPatientsToday || statsData.OpdPatientsToday || statsData.opdPatients || statsData.OpdPatients || 0),
+          activeTokens: Number(statsData.activeTokens || statsData.ActiveTokens || statsData.tokens || statsData.Tokens || 0),
+          ipdAdmissions: Number(statsData.ipdAdmissions || statsData.IpdAdmissions || statsData.ipd || statsData.Ipd || 0),
+          otScheduled: Number(statsData.otScheduled || statsData.OtScheduled || statsData.ot || statsData.Ot || 0),
+          icuOccupied: statsData.icuOccupied || statsData.IcuOccupied || statsData.icu || statsData.Icu || '0/0',
+          totalPatients: Number(statsData.totalPatients || statsData.TotalPatients || statsData.total || statsData.Total || 0),
+        };
+        console.log('Mapped dashboard stats:', mappedStats);
+        return mappedStats;
+      }
+      
+      // Fallback to stub data if no data received
+      console.warn('No dashboard stats data received, using stub data');
+      await delay(300);
+      return Promise.resolve(stubStats);
+    } catch (error) {
+      console.error('Error fetching dashboard stats:', error);
+      // Fallback to stub data on error
+      await delay(300);
+      return Promise.resolve(stubStats);
+    }
   },
 
   async getOpdData(): Promise<ChartData[]> {

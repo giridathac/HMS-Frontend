@@ -5,104 +5,228 @@ import { Department, DepartmentCategory } from '../types/departments';
 // Stub data
 const stubDepartments: Department[] = [
   // Clinical Departments
-  { id: 1, name: 'Medicine', category: 'Clinical', description: 'General medicine and internal medicine', headOfDepartment: 'Dr. Emily Davis', location: 'Building A, Floor 2', phone: '555-2001', email: 'medicine@hospital.com', status: 'active' },
-  { id: 2, name: 'Pediatrics', category: 'Clinical', description: 'Child healthcare and pediatrics', headOfDepartment: 'Dr. Robert Lee', location: 'Building A, Floor 3', phone: '555-2002', email: 'pediatrics@hospital.com', status: 'active' },
-  { id: 3, name: 'ENT', category: 'Clinical', description: 'Ear, Nose, and Throat department', headOfDepartment: 'Dr. Maria Garcia', location: 'Building A, Floor 2', phone: '555-2003', email: 'ent@hospital.com', status: 'active' },
-  { id: 4, name: 'Dermatology', category: 'Clinical', description: 'Skin and dermatological conditions', headOfDepartment: 'Dr. David Wilson', location: 'Building A, Floor 2', phone: '555-2004', email: 'dermatology@hospital.com', status: 'active' },
-  { id: 5, name: 'Cardiology', category: 'Clinical', description: 'Heart and cardiovascular care', headOfDepartment: 'Dr. Sarah Johnson', location: 'Building B, Floor 1', phone: '555-2005', email: 'cardiology@hospital.com', status: 'active' },
-  { id: 6, name: 'Neurology', category: 'Clinical', description: 'Brain and nervous system disorders', headOfDepartment: 'Dr. James Miller', location: 'Building B, Floor 2', phone: '555-2006', email: 'neurology@hospital.com', status: 'active' },
+  { id: 1, name: 'Medicine', category: 'Clinical', description: 'General medicine and internal medicine', specialisationDetails: 'General Medicine, Internal Medicine, Family Medicine', noOfDoctors: 12, status: 'active' },
+  { id: 2, name: 'Pediatrics', category: 'Clinical', description: 'Child healthcare and pediatrics', specialisationDetails: 'Pediatric Care, Neonatology, Child Development', noOfDoctors: 8, status: 'active' },
+  { id: 3, name: 'ENT', category: 'Clinical', description: 'Ear, Nose, and Throat department', specialisationDetails: 'Otolaryngology, Head and Neck Surgery', noOfDoctors: 5, status: 'active' },
+  { id: 4, name: 'Dermatology', category: 'Clinical', description: 'Skin and dermatological conditions', specialisationDetails: 'Dermatology, Cosmetic Dermatology, Skin Surgery', noOfDoctors: 4, status: 'active' },
+  { id: 5, name: 'Cardiology', category: 'Clinical', description: 'Heart and cardiovascular care', specialisationDetails: 'Cardiology, Interventional Cardiology, Cardiac Rehabilitation', noOfDoctors: 10, status: 'active' },
+  { id: 6, name: 'Neurology', category: 'Clinical', description: 'Brain and nervous system disorders', specialisationDetails: 'Neurology, Neurophysiology, Stroke Care', noOfDoctors: 7, status: 'active' },
   
   // Surgical Departments
-  { id: 7, name: 'General Surgery', category: 'Surgical', description: 'General surgical procedures', headOfDepartment: 'Dr. Michael Chen', location: 'Building C, Floor 1', phone: '555-3001', email: 'surgery@hospital.com', status: 'active' },
-  { id: 8, name: 'Orthopedics', category: 'Surgical', description: 'Bone and joint surgery', headOfDepartment: 'Dr. Michael Chen', location: 'Building C, Floor 2', phone: '555-3002', email: 'orthopedics@hospital.com', status: 'active' },
-  { id: 9, name: 'Neurosurgery', category: 'Surgical', description: 'Brain and spine surgery', headOfDepartment: 'Dr. James Miller', location: 'Building C, Floor 3', phone: '555-3003', email: 'neurosurgery@hospital.com', status: 'active' },
-  { id: 10, name: 'Cardiac Surgery', category: 'Surgical', description: 'Heart surgery and procedures', headOfDepartment: 'Dr. Sarah Johnson', location: 'Building C, Floor 1', phone: '555-3004', email: 'cardiacsurgery@hospital.com', status: 'active' },
+  { id: 7, name: 'General Surgery', category: 'Surgical', description: 'General surgical procedures', specialisationDetails: 'General Surgery, Laparoscopic Surgery, Trauma Surgery', noOfDoctors: 15, status: 'active' },
+  { id: 8, name: 'Orthopedics', category: 'Surgical', description: 'Bone and joint surgery', specialisationDetails: 'Orthopedic Surgery, Joint Replacement, Sports Medicine', noOfDoctors: 12, status: 'active' },
+  { id: 9, name: 'Neurosurgery', category: 'Surgical', description: 'Brain and spine surgery', specialisationDetails: 'Neurosurgery, Spine Surgery, Neuro-oncology', noOfDoctors: 6, status: 'active' },
+  { id: 10, name: 'Cardiac Surgery', category: 'Surgical', description: 'Heart surgery and procedures', specialisationDetails: 'Cardiac Surgery, Heart Transplant, Vascular Surgery', noOfDoctors: 8, status: 'active' },
   
   // Diagnostic Departments
-  { id: 11, name: 'Radiology', category: 'Diagnostic', description: 'Medical imaging and radiology', headOfDepartment: 'Dr. Lisa Anderson', location: 'Building D, Floor 1', phone: '555-4001', email: 'radiology@hospital.com', status: 'active' },
-  { id: 12, name: 'Laboratory', category: 'Diagnostic', description: 'Clinical laboratory and pathology', headOfDepartment: 'Dr. John Smith', location: 'Building D, Floor 2', phone: '555-4002', email: 'laboratory@hospital.com', status: 'active' },
+  { id: 11, name: 'Radiology', category: 'Diagnostic', description: 'Medical imaging and radiology', specialisationDetails: 'Radiology, CT Scan, MRI, Ultrasound, X-Ray', noOfDoctors: 9, status: 'active' },
+  { id: 12, name: 'Laboratory', category: 'Diagnostic', description: 'Clinical laboratory and pathology', specialisationDetails: 'Pathology, Clinical Chemistry, Hematology, Microbiology', noOfDoctors: 11, status: 'active' },
   
   // Support Departments
-  { id: 13, name: 'Pharmacy', category: 'Support', description: 'Pharmacy and medication dispensing', headOfDepartment: 'Emma Taylor', location: 'Building E, Floor 1', phone: '555-5001', email: 'pharmacy@hospital.com', status: 'active' },
-  { id: 14, name: 'Emergency', category: 'Support', description: 'Emergency and trauma care', headOfDepartment: 'Dr. Robert Brown', location: 'Building A, Ground Floor', phone: '555-5002', email: 'emergency@hospital.com', status: 'active' },
+  { id: 13, name: 'Pharmacy', category: 'Support', description: 'Pharmacy and medication dispensing', specialisationDetails: 'Pharmacy Services, Medication Management, Clinical Pharmacy', noOfDoctors: 3, status: 'active' },
+  { id: 14, name: 'Emergency', category: 'Support', description: 'Emergency and trauma care', specialisationDetails: 'Emergency Medicine, Trauma Care, Critical Care', noOfDoctors: 20, status: 'active' },
   
   // Administrative Departments
-  { id: 15, name: 'Administration', category: 'Administrative', description: 'Hospital administration', headOfDepartment: 'Admin User', location: 'Building E, Floor 3', phone: '555-6001', email: 'admin@hospital.com', status: 'active' },
-  { id: 16, name: 'Front Desk', category: 'Administrative', description: 'Front desk and reception', headOfDepartment: 'Lisa Anderson', location: 'Building A, Ground Floor', phone: '555-6002', email: 'frontdesk@hospital.com', status: 'active' },
+  { id: 15, name: 'Administration', category: 'Administrative', description: 'Hospital administration', specialisationDetails: 'Hospital Administration, Management, Operations', noOfDoctors: 0, status: 'active' },
+  { id: 16, name: 'Front Desk', category: 'Administrative', description: 'Front desk and reception', specialisationDetails: 'Patient Registration, Reception Services, Appointment Scheduling', noOfDoctors: 0, status: 'active' },
 ];
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
+// Frontend DTO (what the component uses)
 export interface CreateDepartmentDto {
   name: string;
   category: DepartmentCategory;
   description?: string;
-  headOfDepartment?: string;
-  location?: string;
-  phone?: string;
-  email?: string;
+  specialisationDetails?: string;
+  noOfDoctors?: number;
   status?: 'active' | 'inactive';
+}
+
+// Backend request DTO (what the API expects)
+export interface CreateDepartmentRequestDto {
+  DepartmentName: string;
+  DepartmentCategory?: string;
+  SpecialisationDetails?: string;
+  NoOfDoctors?: number;
+  Status?: string;
+  CreatedBy?: number;
+}
+
+// Backend response DTO (what the API returns)
+export interface DepartmentDto {
+  DoctorDepartmentId: number; // Changed from DepartmentId to DoctorDepartmentId
+  DepartmentName: string;
+  DepartmentCategory: string;
+  Description?: string | null;
+  SpecialisationDetails?: string | null;
+  NoOfDoctors?: number;
+  Status: string;
+  CreatedAt?: string;
+  CreatedBy?: number | null;
+}
+
+export interface ApiResponse<T> {
+  success: boolean;
+  message: string;
+  data: T;
+}
+
+// Backend update request DTO
+export interface UpdateDepartmentRequestDto {
+  DepartmentName?: string;
+  DepartmentCategory?: string;
+  Description?: string;
+  SpecialisationDetails?: string;
+  NoOfDoctors?: number;
+  Status?: string;
+}
+
+export interface GetDepartmentsResponse {
+  success: boolean;
+  count?: number;
+  data: DepartmentDto[];
+}
+
+export interface GetDepartmentResponse {
+  success: boolean;
+  data: DepartmentDto;
 }
 
 export interface UpdateDepartmentDto extends Partial<CreateDepartmentDto> {
   id: number;
 }
 
+// Helper function to map backend DTO to frontend Department
+function mapDepartmentDtoToDepartment(dto: DepartmentDto): Department {
+  const mapped = {
+    id: dto.DoctorDepartmentId, // Changed from DepartmentId to DoctorDepartmentId
+    name: dto.DepartmentName,
+    category: dto.DepartmentCategory as DepartmentCategory,
+    description: dto.Description || undefined,
+    specialisationDetails: dto.SpecialisationDetails || undefined,
+    noOfDoctors: dto.NoOfDoctors,
+    status: dto.Status.toLowerCase() === 'active' ? 'active' : 'inactive',
+  };
+  return mapped;
+}
+
 export const departmentsApi = {
   async getAll(): Promise<Department[]> {
-    // Replace with: return apiRequest<Department[]>('/departments');
-    await delay(300);
-    return Promise.resolve([...stubDepartments]);
+    try {
+      console.log('departmentsApi.getAll() - Calling /api/doctor-departments');
+      const response = await apiRequest<GetDepartmentsResponse>('/doctor-departments', {
+        method: 'GET',
+      });
+      console.log('departmentsApi.getAll() - Response received:', response);
+
+      if (!response.success || !response.data) {
+        throw new Error('Failed to fetch departments');
+      }
+
+      const mapped = response.data.map(mapDepartmentDtoToDepartment);
+      return mapped;
+    } catch (error) {
+      console.error('Error fetching departments from /api/doctor-departments:', error);
+      throw error;
+    }
   },
 
   async getByCategory(category: DepartmentCategory): Promise<Department[]> {
-    // Replace with: return apiRequest<Department[]>(`/departments?category=${category}`);
-    await delay(200);
-    return Promise.resolve(stubDepartments.filter(d => d.category === category));
+    const response = await apiRequest<GetDepartmentsResponse>(`/doctor-departments?category=${category}`, {
+      method: 'GET',
+    });
+
+    if (!response.success) {
+      throw new Error('Failed to fetch departments by category');
+    }
+
+    return response.data.map(mapDepartmentDtoToDepartment);
   },
 
   async getById(id: number): Promise<Department> {
-    // Replace with: return apiRequest<Department>(`/departments/${id}`);
-    await delay(200);
-    const department = stubDepartments.find(d => d.id === id);
-    if (!department) {
-      throw new Error(`Department with id ${id} not found`);
+    const response = await apiRequest<GetDepartmentResponse>(`/doctor-departments/${id}`, {
+      method: 'GET',
+    });
+
+    if (!response.success) {
+      throw new Error('Failed to fetch department');
     }
-    return Promise.resolve(department);
+
+    return mapDepartmentDtoToDepartment(response.data);
   },
 
   async create(data: CreateDepartmentDto): Promise<Department> {
-    // Replace with: return apiRequest<Department>('/departments', { method: 'POST', body: JSON.stringify(data) });
-    await delay(400);
-    const newDepartment: Department = {
-      id: stubDepartments.length + 1,
-      status: 'active',
-      ...data,
+    // Map frontend DTO to backend DTO
+    const requestBody: CreateDepartmentRequestDto = {
+      DepartmentName: data.name,
+      DepartmentCategory: data.category,
+      SpecialisationDetails: data.specialisationDetails,
+      NoOfDoctors: data.noOfDoctors,
+      Status: data.status === 'active' ? 'Active' : 'Inactive',
+      // CreatedBy can be added later if user context is available
     };
-    stubDepartments.push(newDepartment);
-    return Promise.resolve(newDepartment);
+
+    const response = await apiRequest<ApiResponse<DepartmentDto>>('/doctor-departments', {
+      method: 'POST',
+      body: JSON.stringify(requestBody),
+    });
+
+    if (!response.success) {
+      throw new Error(response.message || 'Failed to create department');
+    }
+
+    // Map backend DTO to frontend Department interface
+    return mapDepartmentDtoToDepartment(response.data);
   },
 
   async update(data: UpdateDepartmentDto): Promise<Department> {
-    // Replace with: return apiRequest<Department>(`/departments/${data.id}`, { method: 'PUT', body: JSON.stringify(data) });
-    await delay(400);
-    const index = stubDepartments.findIndex(d => d.id === data.id);
-    if (index === -1) {
-      throw new Error(`Department with id ${data.id} not found`);
+    const { id, ...updateData } = data;
+    
+    // Map frontend DTO to backend DTO (only include fields that are present)
+    const requestBody: UpdateDepartmentRequestDto = {};
+    if (updateData.name !== undefined) {
+      requestBody.DepartmentName = updateData.name;
     }
-    stubDepartments[index] = { ...stubDepartments[index], ...data };
-    return Promise.resolve(stubDepartments[index]);
+    if (updateData.category !== undefined) {
+      requestBody.DepartmentCategory = updateData.category;
+    }
+    if (updateData.description !== undefined) {
+      requestBody.Description = updateData.description;
+    }
+    if (updateData.specialisationDetails !== undefined) {
+      requestBody.SpecialisationDetails = updateData.specialisationDetails;
+    }
+    if (updateData.noOfDoctors !== undefined) {
+      requestBody.NoOfDoctors = updateData.noOfDoctors;
+    }
+    if (updateData.status !== undefined) {
+      requestBody.Status = updateData.status === 'active' ? 'Active' : 'Inactive';
+    }
+
+    const response = await apiRequest<ApiResponse<DepartmentDto>>(`/doctor-departments/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(requestBody),
+    });
+
+    if (!response.success) {
+      throw new Error(response.message || 'Failed to update department');
+    }
+
+    return mapDepartmentDtoToDepartment(response.data);
   },
 
   async delete(id: number): Promise<void> {
-    // Replace with: return apiRequest<void>(`/departments/${id}`, { method: 'DELETE' });
-    await delay(300);
-    const index = stubDepartments.findIndex(d => d.id === id);
-    if (index === -1) {
-      throw new Error(`Department with id ${id} not found`);
+    const response = await apiRequest<ApiResponse<DepartmentDto>>(`/doctor-departments/${id}`, {
+      method: 'DELETE',
+    });
+
+    if (!response.success) {
+      throw new Error(response.message || 'Failed to delete department');
     }
-    stubDepartments.splice(index, 1);
-    return Promise.resolve();
+
+    // DELETE endpoint returns the deleted department in response.data, but we don't need it
+    return;
   },
 };
 

@@ -42,7 +42,7 @@ export function useRoomBeds() {
     try {
       setError(null);
       const updatedRoomBed = await roomBedsApi.update(data);
-      setRoomBeds(prev => prev.map(r => r.id === data.id ? updatedRoomBed : r));
+      setRoomBeds(prev => prev.map(r => r.roomBedId === data.roomBedId ? updatedRoomBed : r));
       return updatedRoomBed;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to update room bed';
@@ -51,11 +51,11 @@ export function useRoomBeds() {
     }
   }, []);
 
-  const deleteRoomBed = useCallback(async (id: number) => {
+  const deleteRoomBed = useCallback(async (roomBedId: number) => {
     try {
       setError(null);
-      await roomBedsApi.delete(id);
-      setRoomBeds(prev => prev.filter(r => r.id !== id));
+      await roomBedsApi.delete(roomBedId);
+      setRoomBeds(prev => prev.filter(r => r.roomBedId !== roomBedId));
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to delete room bed';
       setError(errorMessage);

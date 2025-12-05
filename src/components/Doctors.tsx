@@ -1,56 +1,55 @@
-// Doctors Management Component - Separated UI from logic
-import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+// Doctors Management Component - Fetch from /api/users and filter doctors/surgeons
+import React, { useMemo, useState } from 'react';
+import { Card, CardContent } from './ui/card';
 import { Button } from './ui/button';
-import { Input } from './ui/input';
-import { Label } from './ui/label';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { Plus, Trash2, Edit, UserCheck, Calendar, Clock } from 'lucide-react';
-import { useDoctorsManagement } from '../hooks/useDoctorsManagement';
-import { Doctor } from '../types';
+import { UserCheck, Users } from 'lucide-react';
+import { useStaff } from '../hooks/useStaff';
+import { useRoles } from '../hooks/useRoles';
+import { useDepartments } from '../hooks/useDepartments';
+import { Staff } from '../types/staff';
 import { AttendanceRecord } from '../api/doctors';
 
 interface DoctorsViewProps {
-  doctors: Doctor[];
+  doctors: Staff[];
+  roles: Array<{ id: string; name: string }>;
+  departments: Array<{ id: number; name: string }>;
   attendance: AttendanceRecord[];
-  onCreateDoctor: (data: { name: string; specialty: string; type: 'inhouse' | 'consulting' }) => Promise<void>;
-  onUpdateDoctor: (id: number, data: Partial<{ name: string; specialty: string; type: 'inhouse' | 'consulting' }>) => Promise<void>;
-  onDeleteDoctor: (id: number) => Promise<void>;
+  selectedStatus: 'Active' | 'InActive' | 'all';
+  onStatusFilterChange: (status: 'Active' | 'InActive' | 'all') => void;
   onCreateAttendance: (data: { doctorId: number; date: string; status: 'present' | 'absent' | 'on-leave' | 'half-day'; checkIn?: string; checkOut?: string; notes?: string }) => Promise<void>;
   onUpdateAttendance: (id: number, data: Partial<{ status: 'present' | 'absent' | 'on-leave' | 'half-day'; checkIn?: string; checkOut?: string; notes?: string }>) => Promise<void>;
 }
 
 export function Doctors() {
-  const { doctors, attendance, loading, error, createDoctor, updateDoctor, deleteDoctor, createAttendanceRecord, updateAttendanceRecord } = useDoctorsManagement();
+  const { staff, loading, error } = useStaff();
+  const { roles } = useRoles();
+  const { departments } = useDepartments();
+  const [selectedStatus, setSelectedStatus] = useState<'Active' | 'InActive' | 'all'>('all');
 
-  const handleCreateDoctor = async (data: { name: string; specialty: string; type: 'inhouse' | 'consulting' }) => {
-    try {
-      await createDoctor(data);
-    } catch (err) {
-      console.error('Failed to create doctor:', err);
-      throw err;
-    }
-  };
+  // Filter to show only doctors and surgeons
+  const allDoctors = useMemo(() => {
+    if (!staff || !roles) return [];
+    
+    return staff.filter((member) => {
+      if (!member.RoleId) return false;
+      const role = roles.find(r => r.id === member.RoleId);
+      if (!role || !role.name) return false;
+      const roleNameLower = role.name.toLowerCase();
+      return roleNameLower.includes('doctor') || roleNameLower.includes('surgeon');
+    });
+  }, [staff, roles]);
 
-  const handleUpdateDoctor = async (id: number, data: Partial<{ name: string; specialty: string; type: 'inhouse' | 'consulting' }>) => {
-    try {
-      await updateDoctor({ id, ...data });
-    } catch (err) {
-      console.error('Failed to update doctor:', err);
-      throw err;
-    }
-  };
+  // Filter by status
+  const doctors = useMemo(() => {
+    return allDoctors.filter(d => {
+      const statusMatch = selectedStatus === 'all' || d.Status === selectedStatus;
+      return statusMatch;
+    });
+  }, [allDoctors, selectedStatus]);
 
-  const handleDelete = async (id: number) => {
-    if (confirm('Are you sure you want to delete this doctor? This action cannot be undone.')) {
-      try {
-        await deleteDoctor(id);
-      } catch (err) {
-        console.error('Failed to delete doctor:', err);
-      }
-    }
-  };
+  // Mock attendance data - you can replace this with actual attendance API later
+  const attendance: AttendanceRecord[] = [];
 
   if (loading) {
     return (
@@ -69,30 +68,22 @@ export function Doctors() {
   }
 
   const handleCreateAttendance = async (data: { doctorId: number; date: string; status: 'present' | 'absent' | 'on-leave' | 'half-day'; checkIn?: string; checkOut?: string; notes?: string }) => {
-    try {
-      await createAttendanceRecord(data);
-    } catch (err) {
-      console.error('Failed to create attendance:', err);
-      throw err;
-    }
+    console.log('Create attendance:', data);
   };
 
   const handleUpdateAttendance = async (id: number, data: Partial<{ status: 'present' | 'absent' | 'on-leave' | 'half-day'; checkIn?: string; checkOut?: string; notes?: string }>) => {
-    try {
-      await updateAttendanceRecord(id, data);
-    } catch (err) {
-      console.error('Failed to update attendance:', err);
-      throw err;
-    }
+    console.log('Update attendance:', id, data);
   };
 
   return (
     <DoctorsView
       doctors={doctors}
+      allDoctors={allDoctors}
+      roles={roles}
+      departments={departments}
       attendance={attendance}
-      onCreateDoctor={handleCreateDoctor}
-      onUpdateDoctor={handleUpdateDoctor}
-      onDeleteDoctor={handleDelete}
+      selectedStatus={selectedStatus}
+      onStatusFilterChange={setSelectedStatus}
       onCreateAttendance={handleCreateAttendance}
       onUpdateAttendance={handleUpdateAttendance}
     />
@@ -101,53 +92,37 @@ export function Doctors() {
 
 function DoctorsView({
   doctors,
+  allDoctors,
+  roles,
+  departments,
   attendance,
-  onCreateDoctor,
-  onUpdateDoctor,
-  onDeleteDoctor,
+  selectedStatus,
+  onStatusFilterChange,
   onCreateAttendance,
   onUpdateAttendance,
-}: DoctorsViewProps) {
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
-  const [formData, setFormData] = useState({
-    name: '',
-    specialty: '',
-    type: 'inhouse' as 'inhouse' | 'consulting',
-  });
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+}: DoctorsViewProps & { allDoctors: Staff[] }) {
+  const [selectedDate, setSelectedDate] = React.useState(new Date().toISOString().split('T')[0]);
 
-  const handleAddSubmit = async () => {
-    try {
-      await onCreateDoctor(formData);
-      setIsAddDialogOpen(false);
-      setFormData({ name: '', specialty: '', type: 'inhouse' });
-    } catch (err) {
-      // Error handled in parent
-    }
+  const getRoleName = (roleId: string) => {
+    const role = roles.find(r => r.id === roleId);
+    return role?.name || '-';
   };
 
-  const handleEditSubmit = async () => {
-    if (!selectedDoctor) return;
-    try {
-      await onUpdateDoctor(selectedDoctor.id, formData);
-      setIsEditDialogOpen(false);
-      setSelectedDoctor(null);
-      setFormData({ name: '', specialty: '', type: 'inhouse' });
-    } catch (err) {
-      // Error handled in parent
-    }
+  const getDepartmentName = (departmentId?: string) => {
+    if (!departmentId) return '-';
+    const dept = departments.find(d => d.id.toString() === departmentId);
+    return dept?.name || '-';
   };
 
-  const handleEdit = (doctor: Doctor) => {
-    setSelectedDoctor(doctor);
-    setFormData({
-      name: doctor.name,
-      specialty: doctor.specialty,
-      type: doctor.type,
-    });
-    setIsEditDialogOpen(true);
+  const getStatusBadgeColor = (status?: string) => {
+    switch (status) {
+      case 'Active':
+        return 'bg-green-100 text-green-700';
+      case 'InActive':
+        return 'bg-red-100 text-red-700';
+      default:
+        return 'bg-gray-100 text-gray-700';
+    }
   };
 
   const getAttendanceForDoctor = (doctorId: number) => {
@@ -167,299 +142,197 @@ function DoctorsView({
   const todayAttendance = attendance.filter(a => a.date === selectedDate);
 
   return (
-    <div className="p-8 bg-blue-100 min-h-full">
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-blue-900 mb-2">Doctors Management</h1>
-          <p className="text-gray-500">Manage doctors and track attendance</p>
+    <>
+      <div className="px-4 pt-4 pb-0 bg-blue-100 h-full flex flex-col overflow-hidden">
+        <div className="flex items-center justify-between mb-4 flex-shrink-0">
+          <div>
+            <h1 className="text-gray-900 mb-0 text-xl">Doctors Management</h1>
+            <p className="text-gray-500 text-sm">Manage doctors and track attendance</p>
+          </div>
         </div>
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="gap-2">
-              <Plus className="size-4" />
-              Add Doctor
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add New Doctor</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div>
-                <Label htmlFor="name">Doctor Name</Label>
-                <Input
-                  id="name"
-                  placeholder="e.g., Dr. John Smith"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label htmlFor="specialty">Specialty</Label>
-                <Input
-                  id="specialty"
-                  placeholder="e.g., Cardiology"
-                  value={formData.specialty}
-                  onChange={(e) => setFormData({ ...formData, specialty: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label htmlFor="type">Type</Label>
-                <select
-                  id="type"
-                  aria-label="Type"
-                  title="Type"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-md"
-                  value={formData.type}
-                  onChange={(e) => setFormData({ ...formData, type: e.target.value as 'inhouse' | 'consulting' })}
-                >
-                  <option value="inhouse">Inhouse</option>
-                  <option value="consulting">Consulting</option>
-                </select>
-              </div>
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>Cancel</Button>
-              <Button onClick={handleAddSubmit}>Add Doctor</Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-      </div>
 
-      <Tabs defaultValue="doctors" className="space-y-6">
-        <TabsList>
-          <TabsTrigger value="doctors">Doctors List</TabsTrigger>
-          <TabsTrigger value="attendance">Attendance</TabsTrigger>
-        </TabsList>
+        {/* Status Filter Tabs */}
+        <div className="mb-0 flex-shrink-0">
+          <Tabs 
+            value={selectedStatus} 
+            onValueChange={(value) => onStatusFilterChange(value as 'Active' | 'InActive' | 'all')}
+            className="w-full"
+          >
+            <TabsList className="grid w-full max-w-md grid-cols-3">
+              <TabsTrigger value="all">
+                All ({allDoctors.length})
+              </TabsTrigger>
+              <TabsTrigger value="Active">
+                Active ({allDoctors.filter(d => d.Status === 'Active').length})
+              </TabsTrigger>
+              <TabsTrigger value="InActive">
+                InActive ({allDoctors.filter(d => d.Status === 'InActive').length})
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
 
-        <TabsContent value="doctors">
-          <Card>
-            <CardContent className="p-6">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-gray-200">
-                      <th className="text-left py-3 px-4 text-gray-700">Name</th>
-                      <th className="text-left py-3 px-4 text-gray-700">Specialty</th>
-                      <th className="text-left py-3 px-4 text-gray-700">Type</th>
-                      <th className="text-left py-3 px-4 text-gray-700">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {doctors.map((doctor) => (
-                      <tr key={doctor.id} className="border-b border-gray-100 hover:bg-gray-50">
-                        <td className="py-3 px-4 text-gray-900">{doctor.name}</td>
-                        <td className="py-3 px-4 text-gray-600">{doctor.specialty}</td>
-                        <td className="py-3 px-4">
-                          <span className={`px-2 py-1 rounded text-xs ${
-                            doctor.type === 'inhouse' 
-                              ? 'bg-blue-100 text-blue-700' 
-                              : 'bg-purple-100 text-purple-700'
-                          }`}>
-                            {doctor.type === 'inhouse' ? 'Inhouse' : 'Consulting'}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4">
-                          <div className="flex gap-2">
-                            <Button variant="ghost" size="sm" onClick={() => handleEdit(doctor)}>
-                              <Edit className="size-4" />
-                            </Button>
-                            <Button variant="ghost" size="sm" onClick={() => onDeleteDoctor(doctor.id)}>
-                              <Trash2 className="size-4 text-red-600" />
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+        <Tabs defaultValue="doctors" className="flex-1 flex flex-col overflow-hidden min-h-0 gap-0">
+          <TabsList className="mb-0 flex-shrink-0">
+            <TabsTrigger value="doctors">Doctors List</TabsTrigger>
+            <TabsTrigger value="attendance">Attendance</TabsTrigger>
+          </TabsList>
 
-        <TabsContent value="attendance">
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2">
-                    <Calendar className="size-5" />
-                    Attendance Management
-                  </CardTitle>
-                  <div className="flex items-center gap-2">
-                    <Label htmlFor="attendanceDate">Date:</Label>
-                    <Input
-                      id="attendanceDate"
-                      type="date"
-                      value={selectedDate}
-                      onChange={(e) => setSelectedDate(e.target.value)}
-                      className="w-auto"
-                    />
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="overflow-x-auto">
+          <TabsContent value="doctors" className="flex-1 flex flex-col overflow-hidden min-h-0 mt-0">
+            <Card className="flex-1 flex flex-col overflow-hidden min-h-0">
+              <CardContent className="p-0 flex-1 overflow-hidden flex flex-col min-h-0">
+                <div className="overflow-x-auto overflow-y-scroll border border-gray-200 rounded flex-1" style={{ maxHeight: 'calc(100vh - 200px)' }}>
                   <table className="w-full">
-                    <thead>
+                    <thead className="sticky top-0 bg-white z-10 shadow-sm">
                       <tr className="border-b border-gray-200">
-                        <th className="text-left py-3 px-4 text-gray-700">Doctor</th>
-                        <th className="text-left py-3 px-4 text-gray-700">Specialty</th>
-                        <th className="text-left py-3 px-4 text-gray-700">Status</th>
-                        <th className="text-left py-3 px-4 text-gray-700">Check In</th>
-                        <th className="text-left py-3 px-4 text-gray-700">Check Out</th>
-                        <th className="text-left py-3 px-4 text-gray-700">Actions</th>
+                        <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">User Name</th>
+                        <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">Role</th>
+                        <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">Department</th>
+                        <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">Qualification</th>
+                        <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">Type</th>
+                        <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">Phone</th>
+                        <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">Email</th>
+                        <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">Status</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {doctors.map((doctor) => {
-                        const attendanceRecord = getAttendanceForDoctor(doctor.id);
-                        return (
-                          <tr key={doctor.id} className="border-b border-gray-100 hover:bg-gray-50">
-                            <td className="py-3 px-4 text-gray-900">{doctor.name}</td>
-                            <td className="py-3 px-4 text-gray-600">{doctor.specialty}</td>
-                            <td className="py-3 px-4">
-                              {attendanceRecord ? (
-                                <span className={`px-2 py-1 rounded text-xs ${getAttendanceStatusBadge(attendanceRecord.status)}`}>
-                                  {attendanceRecord.status.charAt(0).toUpperCase() + attendanceRecord.status.slice(1).replace('-', ' ')}
-                                </span>
-                              ) : (
-                                <span className="px-2 py-1 rounded text-xs bg-gray-100 text-gray-700">Not Marked</span>
-                              )}
+                      {doctors.length === 0 ? (
+                        <tr>
+                          <td colSpan={8} className="text-center py-8 text-gray-500">
+                            No doctors found
+                          </td>
+                        </tr>
+                      ) : (
+                        doctors.map((doctor) => (
+                          <tr key={doctor.UserId || `doctor-${Math.random()}`} className="border-b border-gray-100 hover:bg-gray-50">
+                            <td className="py-1 px-4">
+                              <div className="flex items-center gap-2">
+                                <Users className="size-4 text-blue-600" />
+                                <span className="text-gray-900 font-medium">{doctor.UserName || '-'}</span>
+                              </div>
                             </td>
-                            <td className="py-3 px-4 text-gray-600">
-                              {attendanceRecord?.checkIn || '-'}
+                            <td className="py-1 px-4 text-gray-600">{getRoleName(doctor.RoleId)}</td>
+                            <td className="py-1 px-4 text-gray-600">{getDepartmentName(doctor.DoctorDepartmentId)}</td>
+                            <td className="py-1 px-4 text-gray-600">{doctor.DoctorQualification || '-'}</td>
+                            <td className="py-1 px-4">
+                              <span className={`px-2 py-1 rounded text-xs ${
+                                doctor.DoctorType === 'INHOUSE' 
+                                  ? 'bg-blue-100 text-blue-700' 
+                                  : doctor.DoctorType === 'VISITING'
+                                  ? 'bg-purple-100 text-purple-700'
+                                  : 'bg-gray-100 text-gray-700'
+                              }`}>
+                                {doctor.DoctorType === 'INHOUSE' ? 'Inhouse' : doctor.DoctorType === 'VISITING' ? 'Visiting' : '-'}
+                              </span>
                             </td>
-                            <td className="py-3 px-4 text-gray-600">
-                              {attendanceRecord?.checkOut || '-'}
-                            </td>
-                            <td className="py-3 px-4">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  const currentStatus = attendanceRecord?.status || 'present';
-                                  const statuses: Array<'present' | 'absent' | 'on-leave' | 'half-day'> = ['present', 'absent', 'on-leave', 'half-day'];
-                                  const currentIndex = statuses.indexOf(currentStatus);
-                                  const nextStatus = statuses[(currentIndex + 1) % statuses.length];
-                                  
-                                  if (attendanceRecord) {
-                                    onUpdateAttendance(attendanceRecord.id, { status: nextStatus });
-                                  } else {
-                                    // Create new attendance record
-                                    const now = new Date();
-                                    const checkIn = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-                                    onCreateAttendance({
-                                      doctorId: doctor.id,
-                                      date: selectedDate,
-                                      status: nextStatus,
-                                      checkIn: nextStatus === 'present' || nextStatus === 'half-day' ? checkIn : undefined,
-                                    });
-                                  }
-                                }}
-                              >
-                                <UserCheck className="size-4 mr-2" />
-                                {attendanceRecord ? 'Update' : 'Mark'}
-                              </Button>
+                            <td className="py-1 px-4 text-gray-600">{doctor.PhoneNo || '-'}</td>
+                            <td className="py-1 px-4 text-gray-600">{doctor.EmailId || '-'}</td>
+                            <td className="py-1 px-4">
+                              <span className={`px-2 py-1 rounded text-xs ${getStatusBadgeColor(doctor.Status)}`}>
+                                {doctor.Status || 'Active'}
+                              </span>
                             </td>
                           </tr>
-                        );
-                      })}
+                        ))
+                      )}
+                      <tr>
+                        <td className="py-1 px-4" colSpan={8}></td>
+                      </tr>
                     </tbody>
                   </table>
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
 
-            {/* Attendance Summary */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Clock className="size-5" />
-                  Attendance Summary - {new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="p-4 bg-green-50 rounded-lg">
-                    <p className="text-sm text-gray-500">Present</p>
-                    <p className="text-2xl font-bold text-green-700">
-                      {todayAttendance.filter(a => a.status === 'present').length}
-                    </p>
-                  </div>
-                  <div className="p-4 bg-red-50 rounded-lg">
-                    <p className="text-sm text-gray-500">Absent</p>
-                    <p className="text-2xl font-bold text-red-700">
-                      {todayAttendance.filter(a => a.status === 'absent').length}
-                    </p>
-                  </div>
-                  <div className="p-4 bg-yellow-50 rounded-lg">
-                    <p className="text-sm text-gray-500">On Leave</p>
-                    <p className="text-2xl font-bold text-yellow-700">
-                      {todayAttendance.filter(a => a.status === 'on-leave').length}
-                    </p>
-                  </div>
-                  <div className="p-4 bg-blue-50 rounded-lg">
-                    <p className="text-sm text-gray-500">Half Day</p>
-                    <p className="text-2xl font-bold text-blue-700">
-                      {todayAttendance.filter(a => a.status === 'half-day').length}
-                    </p>
-                  </div>
+          <TabsContent value="attendance" className="flex-1 flex flex-col overflow-hidden min-h-0 mt-0">
+            <Card className="flex-1 flex flex-col overflow-hidden min-h-0">
+              <CardContent className="p-0 flex-1 overflow-hidden flex flex-col min-h-0">
+                <div className="overflow-x-auto overflow-y-scroll border border-gray-200 rounded flex-1" style={{ maxHeight: 'calc(100vh - 200px)' }}>
+                  <table className="w-full">
+                    <thead className="sticky top-0 bg-white z-10 shadow-sm">
+                      <tr className="border-b border-gray-200">
+                        <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">Doctor</th>
+                        <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">Qualification</th>
+                        <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">Status</th>
+                        <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">Check In</th>
+                        <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">Check Out</th>
+                        <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {doctors.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="text-center py-8 text-gray-500">
+                            No doctors found
+                          </td>
+                        </tr>
+                      ) : (
+                        doctors.map((doctor) => {
+                          const attendanceRecord = getAttendanceForDoctor(doctor.UserId || 0);
+                          return (
+                            <tr key={doctor.UserId} className="border-b border-gray-100 hover:bg-gray-50">
+                              <td className="py-1 px-4 text-gray-900">{doctor.UserName}</td>
+                              <td className="py-1 px-4 text-gray-600">{doctor.DoctorQualification || '-'}</td>
+                              <td className="py-1 px-4">
+                                {attendanceRecord ? (
+                                  <span className={`px-2 py-1 rounded text-xs ${getAttendanceStatusBadge(attendanceRecord.status)}`}>
+                                    {attendanceRecord.status.charAt(0).toUpperCase() + attendanceRecord.status.slice(1).replace('-', ' ')}
+                                  </span>
+                                ) : (
+                                  <span className="px-2 py-1 rounded text-xs bg-gray-100 text-gray-700">Not Marked</span>
+                                )}
+                              </td>
+                              <td className="py-1 px-4 text-gray-600">
+                                {attendanceRecord?.checkIn || '-'}
+                              </td>
+                              <td className="py-1 px-4 text-gray-600">
+                                {attendanceRecord?.checkOut || '-'}
+                              </td>
+                              <td className="py-1 px-4">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    const currentStatus = attendanceRecord?.status || 'present';
+                                    const statuses: Array<'present' | 'absent' | 'on-leave' | 'half-day'> = ['present', 'absent', 'on-leave', 'half-day'];
+                                    const currentIndex = statuses.indexOf(currentStatus);
+                                    const nextStatus = statuses[(currentIndex + 1) % statuses.length];
+                                    
+                                    if (attendanceRecord) {
+                                      onUpdateAttendance(attendanceRecord.id, { status: nextStatus });
+                                    } else {
+                                      // Create new attendance record
+                                      const now = new Date();
+                                      const checkIn = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                                      onCreateAttendance({
+                                        doctorId: doctor.UserId || 0,
+                                        date: selectedDate,
+                                        status: nextStatus,
+                                        checkIn: nextStatus === 'present' || nextStatus === 'half-day' ? checkIn : undefined,
+                                      });
+                                    }
+                                  }}
+                                >
+                                  <UserCheck className="size-4 mr-2" />
+                                  {attendanceRecord ? 'Update' : 'Mark'}
+                                </Button>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                      <tr>
+                        <td className="py-1 px-4" colSpan={6}></td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
               </CardContent>
             </Card>
-          </div>
-        </TabsContent>
-      </Tabs>
-
-      {/* Edit Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit Doctor</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div>
-              <Label htmlFor="edit-name">Doctor Name</Label>
-              <Input
-                id="edit-name"
-                placeholder="e.g., Dr. John Smith"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label htmlFor="edit-specialty">Specialty</Label>
-              <Input
-                id="edit-specialty"
-                placeholder="e.g., Cardiology"
-                value={formData.specialty}
-                onChange={(e) => setFormData({ ...formData, specialty: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label htmlFor="edit-type">Type</Label>
-              <select
-                id="edit-type"
-                aria-label="Type"
-                title="Type"
-                className="w-full px-3 py-2 border border-gray-200 rounded-md"
-                value={formData.type}
-                onChange={(e) => setFormData({ ...formData, type: e.target.value as 'inhouse' | 'consulting' })}
-              >
-                <option value="inhouse">Inhouse</option>
-                <option value="consulting">Consulting</option>
-              </select>
-            </div>
-          </div>
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleEditSubmit}>Update Doctor</Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </div>
+          </TabsContent>
+        </Tabs>
+      </div>
+    </>
   );
 }
-

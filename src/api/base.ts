@@ -32,12 +32,26 @@ async function handleResponse<T>(response: Response): Promise<T> {
     });
     
     throw new ApiError(
-      errorMessage,
+      errorData.message || `HTTP error! status: ${response.status}`,
       response.status,
       errorData
     );
   }
-  return response.json();
+  
+  // Handle 204 No Content (common for DELETE requests) - no body to parse
+  if (response.status === 204) {
+    return undefined as T;
+  }
+  
+  // Check if response has content to parse
+  const contentType = response.headers.get('content-type');
+  if (contentType && contentType.includes('application/json')) {
+    const text = await response.text();
+    return text ? JSON.parse(text) : undefined as T;
+  }
+  
+  // For empty responses or non-JSON, return undefined
+  return undefined as T;
 }
 
 export async function apiRequest<T>(
@@ -56,6 +70,7 @@ export async function apiRequest<T>(
 
   try {
     const response = await fetch(url, config);
+    console.log(`apiRequest - Response status for ${url}:`, response.status);
     return handleResponse<T>(response);
   } catch (error) {
     if (error instanceof ApiError) {

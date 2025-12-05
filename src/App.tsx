@@ -17,11 +17,10 @@ import {
   UserPlus,
   FlaskConical,
   Receipt,
-  ChevronLeft,
-  ChevronRight,
-  Menu,
   Calendar
 } from 'lucide-react';
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from './components/ui/resizable';
+import { Tooltip, TooltipTrigger, TooltipContent } from './components/ui/tooltip';
 
 // Lazy load components for code splitting
 const Dashboard = lazy(() => import('./components/Dashboard').then(m => ({ default: m.Dashboard })));
@@ -58,6 +57,10 @@ function LoadingFallback() {
 }
 
 export default function App() {
+  // Check if we're in standalone mode (no sidebar) via URL parameter
+  const urlParams = new URLSearchParams(window.location.search);
+  const isStandalone = urlParams.get('standalone') === 'true';
+
   // Initialize from URL hash or default to dashboard
   const getViewFromHash = (): View => {
     const hash = window.location.hash.slice(1) || 'dashboard';
@@ -69,6 +72,7 @@ export default function App() {
 
   const [currentView, setCurrentView] = useState<View>(getViewFromHash());
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [sidebarSize, setSidebarSize] = useState(isStandalone ? 0 : 16); // Default 16% of width, 0 if standalone
 
   // Sync URL hash with current view (preserve query parameters)
   useEffect(() => {
@@ -97,123 +101,142 @@ export default function App() {
     { id: 'frontdesk' as View, label: 'Front Desk', icon: ClipboardList },
     { id: 'patientregistration' as View, label: 'Patient Registration', icon: UserPlus },
     { id: 'doctors' as View, label: 'Doctors', icon: Users },
-    { id: 'staff' as View, label: 'Staff', icon: UserCog },
-    { id: 'roles' as View, label: 'Roles', icon: Shield },
-    { id: 'departments' as View, label: 'Departments', icon: Building2 },
-    { id: 'roombeds' as View, label: 'Room & Beds', icon: BedDouble },
-    { id: 'labtests' as View, label: 'Lab Tests', icon: FlaskConical },
+    { id: 'patientappointments' as View, label: 'Appointments', icon: Calendar },
     { id: 'consultation' as View, label: 'Doctor Consultation', icon: Stethoscope },
-    { id: 'laboratory' as View, label: 'Laboratory', icon: TestTube },
-    { id: 'emergency' as View, label: 'Emergency', icon: Siren },
+    { id: 'laboratory' as View, label: 'Laboratory', icon: TestTube },    
     { id: 'admissions' as View, label: 'Admissions (IPD)', icon: BedDouble },
     { id: 'ot' as View, label: 'OT Management', icon: Scissors },
     { id: 'icu' as View, label: 'ICU Management', icon: HeartPulse },
-    { id: 'bills' as View, label: 'Bill Management', icon: Receipt },
-    { id: 'patientappointments' as View, label: 'Appointments', icon: Calendar },
+    { id: 'bills' as View, label: 'Bill Management', icon: Receipt },   
+    
+    { id: 'roles' as View, label: 'Roles', icon: Shield },
+    { id: 'departments' as View, label: 'Departments', icon: Building2 },  
+    { id: 'staff' as View, label: 'Staff', icon: UserCog },   
+    { id: 'roombeds' as View, label: 'Room & Beds', icon: BedDouble },
+    { id: 'labtests' as View, label: 'Lab Tests', icon: FlaskConical },    
+    { id: 'emergency' as View, label: 'Emergency', icon: Siren },
+     
     { id: 'reports' as View, label: 'Reports', icon: FileBarChart },
   ];
 
-  return (
-    <div className="flex h-screen bg-blue-50">
-      {/* Sidebar */}
-      <aside className={`${isSidebarCollapsed ? 'w-0' : 'w-64'} bg-blue-100 border-r border-blue-300 flex flex-col shadow-sm transition-all duration-300 overflow-hidden`}>
-        {!isSidebarCollapsed && (
-          <div className="p-6 border-b border-blue-300 bg-blue-200 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Activity className="size-8 text-blue-700" />
-              <div>
-                <h1 className="text-blue-900 font-semibold">MediCare HMS</h1>
-                <p className="text-sm text-blue-700">Hospital Management</p>
-              </div>
-            </div>
-            <button
-              onClick={() => setIsSidebarCollapsed(true)}
-              className="ml-auto p-2 rounded-lg hover:bg-blue-300 transition-colors"
-              aria-label="Collapse sidebar"
-            >
-              <ChevronLeft className="size-5 text-blue-700" />
-            </button>
-          </div>
-        )}
-        
-        {!isSidebarCollapsed && (
-          <>
-            <nav className="flex-1 p-4 overflow-y-auto bg-blue-100">
-              <ul className="space-y-0.5">
-                {navItems.map((item) => {
-                  const Icon = item.icon;
-                  return (
-                    <li key={item.id}>
-                      <a
-                        href={`#${item.id}`}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          setCurrentView(item.id);
-                        }}
-                        className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg transition-colors ${
-                          currentView === item.id
-                            ? 'bg-blue-200 text-blue-900 shadow-sm'
-                            : 'text-blue-800 hover:bg-blue-200'
-                        }`}
-                      >
-                        <Icon className="size-5" />
-                        <span>{item.label}</span>
-                      </a>
-                    </li>
-                  );
-                })}
-              </ul>
-            </nav>
 
-            <div className="p-4 border-t border-blue-300 bg-blue-200">
-              <div className="flex items-center gap-3 px-4 py-3">
-                <div className="size-10 bg-blue-300 rounded-full flex items-center justify-center">
-                  <span className="text-blue-800 font-semibold">AD</span>
-                </div>
-                <div>
-                  <p className="text-sm text-blue-900 font-medium">Admin User</p>
-                  <p className="text-xs text-blue-700">Superadmin</p>
-                </div>
-              </div>
-            </div>
+  return (
+    <div className="flex h-screen bg-blue-50 overflow-x-hidden">
+      <ResizablePanelGroup direction="horizontal" className="h-full">
+        {/* Sidebar Panel - Hidden in standalone mode */}
+        {!isStandalone && (
+          <>
+            <ResizablePanel
+              size={sidebarSize}
+              minSize={8}
+              maxSize={30}
+              collapsible={true}
+              collapsedSize={0}
+              onResize={(size) => {
+                setSidebarSize(size);
+                setIsSidebarCollapsed(size === 0);
+              }}
+              className={`bg-blue-100 border-r border-blue-300 flex flex-col shadow-sm transition-all duration-300 overflow-hidden`}
+            >
+              {!isSidebarCollapsed && (
+                <>
+                  <div className="p-6 border-b border-blue-300 bg-blue-200 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Activity className="size-8 text-blue-700" />
+                      <div>
+                        <h1 className="text-blue-900 font-semibold">MediCare HMS</h1>
+                        <p className="text-sm text-blue-700">Hospital Management</p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <nav className="flex-1 p-4 overflow-y-auto overflow-x-hidden bg-blue-100">
+                    <ul className="space-y-0.5">
+                      {navItems.map((item) => {
+                        const Icon = item.icon;
+                        return (
+                          <li key={item.id}>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <a
+                                  href={`${window.location.origin}${window.location.pathname}?standalone=true#${item.id}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => {
+                                    // Allow default behavior to open in new tab
+                                    // Also update current view if clicked in same tab
+                                    if (!e.ctrlKey && !e.metaKey) {
+                                      e.preventDefault();
+                                      setCurrentView(item.id);
+                                    }
+                                  }}
+                                  className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg transition-colors ${
+                                    currentView === item.id
+                                      ? 'bg-blue-200 text-blue-900 shadow-sm'
+                                      : 'text-blue-800 hover:bg-blue-200'
+                                  }`}
+                                >
+                                  <Icon className="size-5 flex-shrink-0" />
+                                  <span className="truncate">{item.label}</span>
+                                </a>
+                              </TooltipTrigger>
+                              <TooltipContent side="right" className="bg-gray-100 text-gray-900 border border-gray-300">
+                                {item.label}
+                              </TooltipContent>
+                            </Tooltip>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </nav>
+
+                  <div className="p-4 border-t border-blue-300 bg-blue-200">
+                    <div className="flex items-center gap-3 px-4 py-3">
+                      <div className="size-10 bg-blue-300 rounded-full flex items-center justify-center">
+                        <span className="text-blue-800 font-semibold">AD</span>
+                      </div>
+                      <div>
+                        <p className="text-sm text-blue-900 font-medium">Admin User</p>
+                        <p className="text-xs text-blue-700">Superadmin</p>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+            </ResizablePanel>
+
+            {/* Resize Handle - Thin Divider */}
+            <ResizableHandle className="w-px bg-blue-300 hover:bg-blue-400 transition-colors cursor-col-resize" />
           </>
         )}
-      </aside>
 
-      {/* Expand Button (shown when sidebar is collapsed) */}
-      {isSidebarCollapsed && (
-        <button
-          onClick={() => setIsSidebarCollapsed(false)}
-          className="fixed left-0 top-1/2 -translate-y-1/2 z-50 bg-blue-100 hover:bg-blue-200 border-r border-y border-blue-300 rounded-r-lg p-2 shadow-lg transition-colors"
-          aria-label="Expand sidebar"
-        >
-          <ChevronRight className="size-5 text-blue-700" />
-        </button>
-      )}
+        {/* Main Content Panel */}
+        <ResizablePanel defaultSize={isStandalone ? 100 : 84} minSize={70}>
 
-      {/* Main Content */}
-      <main className="flex-1 overflow-auto bg-blue-50 transition-all duration-300">
-        <Suspense fallback={<LoadingFallback />}>
-          {currentView === 'dashboard' && <Dashboard />}
-          {currentView === 'frontdesk' && <FrontDesk />}
-          {currentView === 'patientregistration' && <PatientRegistration />}
-          {currentView === 'doctors' && <Doctors />}
-          {currentView === 'staff' && <StaffManagement />}
-          {currentView === 'roles' && <Roles />}
-          {currentView === 'departments' && <Departments />}
-          {currentView === 'roombeds' && <RoomBeds />}
-          {currentView === 'labtests' && <LabTests />}
-          {currentView === 'consultation' && <DoctorConsultation />}
-          {currentView === 'admissions' && <Admissions />}
-          {currentView === 'ot' && <OTManagement />}
-          {currentView === 'icu' && <ICUManagement />}
-          {currentView === 'bills' && <BillManagement />}
-          {currentView === 'patientappointments' && <PatientAppointmentManagement />}
-          {currentView === 'laboratory' && <Laboratory />}
-          {currentView === 'emergency' && <Emergency />}
-          {currentView === 'reports' && <Reports />}
-        </Suspense>
-      </main>
+          <main className="h-full overflow-auto overflow-x-hidden bg-blue-50 transition-all duration-300">
+            <Suspense fallback={<LoadingFallback />}>
+              {currentView === 'dashboard' && <Dashboard />}
+              {currentView === 'frontdesk' && <FrontDesk />}
+              {currentView === 'patientregistration' && <PatientRegistration />}
+              {currentView === 'doctors' && <Doctors />}
+              {currentView === 'staff' && <StaffManagement />}
+              {currentView === 'roles' && <Roles />}
+              {currentView === 'departments' && <Departments />}
+              {currentView === 'roombeds' && <RoomBeds />}
+              {currentView === 'labtests' && <LabTests />}
+              {currentView === 'consultation' && <DoctorConsultation />}
+              {currentView === 'admissions' && <Admissions />}
+              {currentView === 'ot' && <OTManagement />}
+              {currentView === 'icu' && <ICUManagement />}
+              {currentView === 'bills' && <BillManagement />}
+              {currentView === 'patientappointments' && <PatientAppointmentManagement />}
+              {currentView === 'laboratory' && <Laboratory />}
+              {currentView === 'emergency' && <Emergency />}
+              {currentView === 'reports' && <Reports />}
+            </Suspense>
+          </main>
+        </ResizablePanel>
+      </ResizablePanelGroup>
     </div>
   );
 }

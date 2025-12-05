@@ -42,7 +42,7 @@ export function useLabTests() {
     try {
       setError(null);
       const updatedLabTest = await labTestsApi.update(data);
-      setLabTests(prev => prev.map(t => t.id === data.id ? updatedLabTest : t));
+      setLabTests(prev => prev.map(t => t.labTestId === data.labTestId ? updatedLabTest : t));
       return updatedLabTest;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to update lab test';
@@ -51,11 +51,11 @@ export function useLabTests() {
     }
   }, []);
 
-  const deleteLabTest = useCallback(async (id: number) => {
+  const deleteLabTest = useCallback(async (labTestId: number) => {
     try {
       setError(null);
-      await labTestsApi.delete(id);
-      setLabTests(prev => prev.filter(t => t.id !== id));
+      await labTestsApi.delete(labTestId);
+      setLabTests(prev => prev.filter(t => t.labTestId !== labTestId));
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to delete lab test';
       setError(errorMessage);

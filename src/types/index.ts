@@ -109,19 +109,21 @@ export interface DoctorQueue {
 
 export interface RoomBed {
   id: number;
+  roomBedId: number; // Integer primary key
   bedNo: string;
   roomNo: string;
   roomCategory: string;
   roomType: string;
   numberOfBeds: number;
   chargesPerDay: number;
-  status: 'active' | 'inactive' | 'occupied' | 'maintenance';
+  status: 'Active' | 'Inactive';
   createdBy: string;
   createdAt: string;
 }
 
 export interface LabTest {
   id: number;
+  labTestId: number; // Integer primary key
   displayTestId: string;
   testName: string;
   testCategory: string;
@@ -132,7 +134,8 @@ export interface LabTest {
 
 export interface ICUBed {
   id: number;
-  icuId: string;
+  icuBedId: number; // Integer primary key
+  icuId: number;
   icuBedNo: string;
   icuType: string;
   icuRoomNameNo: string;
@@ -140,6 +143,7 @@ export interface ICUBed {
   isVentilatorAttached: boolean;
   status: 'active' | 'inactive';
   createdAt: string;
+  createdDate?: string;
 }
 
 export interface OTRoom {

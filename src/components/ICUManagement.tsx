@@ -7,7 +7,7 @@ import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { HeartPulse, Activity, Thermometer, Wind, Droplet, Brain, Plus, Trash2, Edit, CheckCircle2, XCircle, Wrench, Clock } from 'lucide-react';
+import { HeartPulse, Activity, Thermometer, Wind, Droplet, Brain, Plus, Edit, CheckCircle2, XCircle, Wrench, Clock } from 'lucide-react';
 import { useICUBeds } from '../hooks/useICUBeds';
 import { ICUBed } from '../types';
 
@@ -158,8 +158,8 @@ export function ICUManagement() {
 
       <Tabs defaultValue="patients" className="space-y-6">
         <TabsList>
-          <TabsTrigger value="patients">Patient Management</TabsTrigger>
-          <TabsTrigger value="beds">Bed Management</TabsTrigger>
+          <TabsTrigger value="patients">ICU Patient Management</TabsTrigger>
+          <TabsTrigger value="beds">ICU Bed Management</TabsTrigger>
         </TabsList>
 
         <TabsContent value="patients" className="space-y-6">
@@ -508,7 +508,7 @@ function ICUBedsManagement() {
     }
   };
 
-  const handleUpdateICUBed = async (id: number, data: Partial<{
+  const handleUpdateICUBed = async (icuId: number, data: Partial<{
     icuBedNo: string;
     icuType: string;
     icuRoomNameNo: string;
@@ -517,17 +517,17 @@ function ICUBedsManagement() {
     status?: 'active' | 'inactive';
   }>) => {
     try {
-      await updateICUBed({ id, ...data });
+      await updateICUBed({ icuId, ...data });
     } catch (err) {
       console.error('Failed to update ICU bed:', err);
       throw err;
     }
   };
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (icuBedId: number) => {
     if (confirm('Are you sure you want to delete this ICU bed? This action cannot be undone.')) {
       try {
-        await deleteICUBed(id);
+        await deleteICUBed(icuBedId);
       } catch (err) {
         console.error('Failed to delete ICU bed:', err);
       }
@@ -540,12 +540,14 @@ function ICUBedsManagement() {
       return;
     }
     try {
+      console.log('Creating ICU bed with formData:', formData);
+      console.log('isVentilatorAttached value:', formData.isVentilatorAttached, 'type:', typeof formData.isVentilatorAttached);
       await handleCreateICUBed({
         icuBedNo: formData.icuBedNo,
         icuType: formData.icuType,
         icuRoomNameNo: formData.icuRoomNameNo,
         icuDescription: formData.icuDescription || undefined,
-        isVentilatorAttached: formData.isVentilatorAttached,
+        isVentilatorAttached: Boolean(formData.isVentilatorAttached),
         status: formData.status,
       });
       setIsAddDialogOpen(false);
@@ -568,13 +570,23 @@ function ICUBedsManagement() {
       alert('Please fill in all required fields.');
       return;
     }
+    // Validate icuId before attempting update
+    if (!selectedICUBed.icuId || selectedICUBed.icuId <= 0) {
+      console.error('Invalid ICU ID:', selectedICUBed.icuId, 'Full ICU bed data:', selectedICUBed);
+      alert('Invalid ICU ID. Cannot update this record.');
+      return;
+    }
     try {
-      await handleUpdateICUBed(selectedICUBed.id, {
+      console.log('Submitting edit with formData:', formData);
+      console.log('isVentilatorAttached value:', formData.isVentilatorAttached, 'type:', typeof formData.isVentilatorAttached);
+      const isVentilatorAttachedValue = Boolean(formData.isVentilatorAttached);
+      console.log('isVentilatorAttached converted to boolean:', isVentilatorAttachedValue);
+      await handleUpdateICUBed(selectedICUBed.icuId, {
         icuBedNo: formData.icuBedNo,
         icuType: formData.icuType,
         icuRoomNameNo: formData.icuRoomNameNo,
         icuDescription: formData.icuDescription || undefined,
-        isVentilatorAttached: formData.isVentilatorAttached,
+        isVentilatorAttached: isVentilatorAttachedValue,
         status: formData.status,
       });
       setIsEditDialogOpen(false);
@@ -588,11 +600,18 @@ function ICUBedsManagement() {
         status: 'active',
       });
     } catch (err) {
-      // Error handled in parent
+      console.error('Error updating ICU bed:', err);
+      alert(err instanceof Error ? err.message : 'Failed to update ICU bed. Please check the console for details.');
     }
   };
 
   const handleEdit = (icuBed: ICUBed) => {
+    // Validate icuId before allowing edit
+    if (!icuBed.icuId || icuBed.icuId <= 0) {
+      console.error('Invalid ICU ID for edit:', icuBed.icuId, 'Full ICU bed data:', icuBed);
+      alert('Invalid ICU ID. Cannot edit this record.');
+      return;
+    }
     setSelectedICUBed(icuBed);
     setFormData({
       icuBedNo: icuBed.icuBedNo,
@@ -749,11 +768,11 @@ function ICUBedsManagement() {
               <thead>
                 <tr className="border-b border-gray-200">
                   <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">ICU ID</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Bed No</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Type</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Room Name/No</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Description</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Ventilator</th>
+                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">ICU Bed No</th>
+                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">ICU Type</th>
+                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">ICU Room Name/No</th>
+                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">ICU Description</th>
+                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Is Ventilator Attached</th>
                   <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Status</th>
                   <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Created At</th>
                   <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Actions</th>
@@ -778,24 +797,14 @@ function ICUBedsManagement() {
                       <td className="py-3 px-4 text-sm">{getStatusBadge(icuBed.status)}</td>
                       <td className="py-3 px-4 text-sm text-gray-500">{new Date(icuBed.createdAt).toLocaleDateString()}</td>
                       <td className="py-3 px-4">
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEdit(icuBed)}
-                            className="h-8 w-8 p-0"
-                          >
-                            <Edit className="size-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDelete(icuBed.id)}
-                            className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                          >
-                            <Trash2 className="size-4" />
-                          </Button>
-                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleEdit(icuBed)}
+                          className="h-8 w-8 p-0"
+                        >
+                          <Edit className="size-4" />
+                        </Button>
                       </td>
                     </tr>
                   ))
