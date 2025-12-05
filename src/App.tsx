@@ -211,7 +211,11 @@ export default function App() {
         {/* Main Content Panel */}
         <ResizablePanel defaultSize={isStandalone ? 100 : 84} minSize={70}>
 
-          <main className="h-full overflow-auto overflow-x-hidden bg-blue-50 transition-all duration-300">
+          <main className={`h-full bg-blue-50 transition-all duration-300 flex flex-col ${
+            currentView === 'dashboard' || currentView === 'frontdesk' || currentView === 'ot' || currentView === 'icu'
+              ? 'overflow-hidden' 
+              : 'overflow-auto overflow-x-hidden'
+          }`}>
             <Suspense fallback={<LoadingFallback />}>
               {currentView === 'dashboard' && <Dashboard />}
               {currentView === 'frontdesk' && <FrontDesk />}

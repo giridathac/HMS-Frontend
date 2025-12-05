@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -109,12 +109,13 @@ export function OTManagement() {
   const completed = surgeries.filter(s => s.status === 'Completed');
 
   return (
-    <div className="p-8 bg-blue-100 min-h-full">
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-gray-900 mb-2">Operation Theater Management</h1>
-          <p className="text-gray-500">Schedule and monitor surgical procedures</p>
-        </div>
+    <div className="flex-1 bg-blue-100 flex flex-col overflow-hidden min-h-0">
+      <div className="px-4 pt-4 pb-0 flex-shrink-0">
+        <div className="flex items-center justify-between mb-4 flex-shrink-0">
+          <div>
+            <h1 className="text-gray-900 mb-0 text-xl">Operation Theater Management</h1>
+            <p className="text-gray-500 text-sm">Schedule and monitor surgical procedures</p>
+          </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button className="gap-2">
@@ -188,8 +189,9 @@ export function OTManagement() {
             </div>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
-
+      <div className="overflow-y-auto overflow-x-hidden px-4 pb-8 ot-scrollable" style={{ maxHeight: 'calc(100vh - 120px)', minHeight: 0 }}>
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <Card>
@@ -306,6 +308,7 @@ export function OTManagement() {
           <OTRoomsManagement />
         </TabsContent>
       </Tabs>
+      </div>
     </div>
   );
 }
@@ -404,11 +407,15 @@ function SurgeryList({ surgeries }: { surgeries: Surgery[] }) {
 }
 
 function OTRoomsManagement() {
-  const { otRooms, loading, error, createOTRoom, updateOTRoom, deleteOTRoom } = useOTRooms();
+  // Fixed limit: load 5 records per page
+  const initialLimit = 5;
+  const { otRooms, loading, loadingMore, error, hasMore, total, createOTRoom, updateOTRoom, deleteOTRoom, loadMore } = useOTRooms(initialLimit);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedOTRoom, setSelectedOTRoom] = useState<OTRoom | null>(null);
   const [selectedOTId, setSelectedOTId] = useState<string | null>(null);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // Check URL for otId parameter (for opening in new tab)
   useEffect(() => {
@@ -418,6 +425,64 @@ function OTRoomsManagement() {
       setSelectedOTId(otIdFromUrl);
     }
   }, []);
+
+  // Intersection Observer for infinite scroll
+  useEffect(() => {
+    // Find the scrollable container (parent with ot-scrollable class)
+    const scrollContainer = document.querySelector('.ot-scrollable') as HTMLElement;
+    
+    if (!scrollContainer) {
+      console.warn('Scroll container not found');
+      return;
+    }
+
+    const handleScroll = () => {
+      if (!hasMore || loadingMore || loading) return;
+      
+      const container = scrollContainer;
+      const scrollTop = container.scrollTop;
+      const scrollHeight = container.scrollHeight;
+      const clientHeight = container.clientHeight;
+      const distanceFromBottom = scrollHeight - (scrollTop + clientHeight);
+      
+      // Load more when within 100px of bottom
+      if (distanceFromBottom < 100) {
+        console.log('Scroll detected near bottom - Loading more...', { distanceFromBottom, hasMore, loadingMore });
+        loadMore();
+      }
+    };
+
+    // Try Intersection Observer first
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (entry.isIntersecting && hasMore && !loadingMore && !loading) {
+          console.log('Intersection detected - Loading more OT rooms...');
+          loadMore();
+        }
+      },
+      {
+        root: scrollContainer,
+        rootMargin: '50px',
+        threshold: 0.1,
+      }
+    );
+
+    const currentRef = loadMoreRef.current;
+    if (currentRef) {
+      observer.observe(currentRef);
+    }
+
+    // Fallback: scroll event listener
+    scrollContainer.addEventListener('scroll', handleScroll);
+
+    return () => {
+      if (currentRef) {
+        observer.unobserve(currentRef);
+      }
+      scrollContainer.removeEventListener('scroll', handleScroll);
+    };
+  }, [hasMore, loadingMore, loading, loadMore]);
   const [formData, setFormData] = useState({
     otNo: '',
     otType: 'General',
@@ -425,7 +490,7 @@ function OTRoomsManagement() {
     otDescription: '',
     startTimeofDay: '08:00',
     endTimeofDay: '20:00',
-    createdBy: '1',
+    // createdBy will be auto-filled
     status: 'active' as OTRoom['status'],
   });
 
@@ -490,7 +555,7 @@ function OTRoomsManagement() {
         otDescription: formData.otDescription || undefined,
         startTimeofDay: formData.startTimeofDay,
         endTimeofDay: formData.endTimeofDay,
-        createdBy: formData.createdBy,
+        createdBy: '1', // Auto-filled from current user
         status: formData.status,
       });
       setIsAddDialogOpen(false);
@@ -501,7 +566,7 @@ function OTRoomsManagement() {
         otDescription: '',
         startTimeofDay: '08:00',
         endTimeofDay: '20:00',
-        createdBy: '1',
+        // createdBy will be auto-filled,
         status: 'active',
       });
     } catch (err) {
@@ -523,7 +588,7 @@ function OTRoomsManagement() {
         otDescription: formData.otDescription || undefined,
         startTimeofDay: formData.startTimeofDay,
         endTimeofDay: formData.endTimeofDay,
-        createdBy: formData.createdBy,
+        createdBy: selectedOTRoom.createdBy, // Keep original value
         status: formData.status,
       });
       setIsEditDialogOpen(false);
@@ -535,7 +600,7 @@ function OTRoomsManagement() {
         otDescription: '',
         startTimeofDay: '08:00',
         endTimeofDay: '20:00',
-        createdBy: '1',
+        // createdBy will be auto-filled,
         status: 'active',
       });
     } catch (err) {
@@ -674,19 +739,8 @@ function OTRoomsManagement() {
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="createdBy">Created By (User ID)</Label>
-                  <Input
-                    id="createdBy"
-                    type="text"
-                    placeholder="e.g., 1"
-                    value={formData.createdBy}
-                    onChange={(e) => setFormData({ ...formData, createdBy: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="status">Status</Label>
+              <div>
+                <Label htmlFor="status">Status</Label>
                   <select
                     id="status"
                     aria-label="Status"
@@ -697,7 +751,6 @@ function OTRoomsManagement() {
                     <option value="active">Active</option>
                     <option value="inactive">Inactive</option>
                   </select>
-                </div>
               </div>
               <div className="flex justify-end gap-2 pt-4">
                 <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>Cancel</Button>
@@ -713,7 +766,7 @@ function OTRoomsManagement() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Scissors className="size-5" />
-            OT Rooms List ({otRooms.length})
+            OT Rooms List ({total > 0 ? `${otRooms.length} of ${total}` : otRooms.length})
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -791,6 +844,21 @@ function OTRoomsManagement() {
               </tbody>
             </table>
           </div>
+          {/* Infinite scroll trigger */}
+          {hasMore && (
+            <div ref={loadMoreRef} className="py-4 text-center">
+              {loadingMore ? (
+                <div className="text-blue-600">Loading more rooms...</div>
+              ) : (
+                <div className="text-gray-400 text-sm">Scroll for more</div>
+              )}
+            </div>
+          )}
+          {!hasMore && otRooms.length > 0 && (
+            <div className="py-4 text-center text-gray-500 text-sm">
+              All {total} rooms loaded
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -882,18 +950,8 @@ function OTRoomsManagement() {
                 />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="edit-createdBy">Created By (User ID)</Label>
-                <Input
-                  id="edit-createdBy"
-                  type="text"
-                  placeholder="e.g., 1"
-                  value={formData.createdBy}
-                  onChange={(e) => setFormData({ ...formData, createdBy: e.target.value })}
-                />
-              </div>
-              <div>
+            <div>
+                
                 <Label htmlFor="edit-status">Status</Label>
                 <select
                   id="edit-status"
@@ -905,7 +963,6 @@ function OTRoomsManagement() {
                   <option value="active">Active</option>
                   <option value="inactive">Inactive</option>
                 </select>
-              </div>
             </div>
             <div className="flex justify-end gap-2 pt-4">
               <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancel</Button>
@@ -918,7 +975,8 @@ function OTRoomsManagement() {
       {/* OT Slots Dialog */}
       {selectedOTId && (
         <OTSlotsManagement 
-          otId={selectedOTId} 
+          otId={selectedOTId}
+          otRoom={otRooms.find(r => r.otId === selectedOTId) || null}
           onClose={() => setSelectedOTId(null)} 
         />
       )}
@@ -926,7 +984,7 @@ function OTRoomsManagement() {
   );
 }
 
-function OTSlotsManagement({ otId, onClose }: { otId: string; onClose: () => void }) {
+function OTSlotsManagement({ otId, otRoom, onClose }: { otId: string; otRoom: OTRoom | null; onClose: () => void }) {
   const { otSlots, loading, error, createOTSlot, updateOTSlot, deleteOTSlot } = useOTSlots(otId);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -1053,35 +1111,17 @@ function OTSlotsManagement({ otId, onClose }: { otId: string; onClose: () => voi
   if (loading) {
     return (
       <Dialog open={true} onOpenChange={onClose}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <div className="text-center py-12 text-blue-600">Loading OT slots...</div>
-        </DialogContent>
-      </Dialog>
-    );
-  }
-
-  if (error) {
-    return (
-      <Dialog open={true} onOpenChange={onClose}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <div className="text-center py-12 text-red-500">Error: {error}</div>
-        </DialogContent>
-      </Dialog>
-    );
-  }
-
-  return (
-    <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Button variant="ghost" size="sm" onClick={onClose} className="h-8 w-8 p-0">
-                <ArrowLeft className="size-4" />
-              </Button>
-              <DialogTitle>OT Slots for {otId}</DialogTitle>
-            </div>
-            <DialogTrigger asChild>
+        <DialogContent className="p-0 gap-0 large-dialog max-w-4xl">
+          <DialogHeader className="px-6 pt-4 pb-3 flex-shrink-0">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Button variant="ghost" size="sm" onClick={onClose} className="h-8 w-8 p-0">
+                  <ArrowLeft className="size-4" />
+                </Button>
+                <DialogTitle>
+                  {otRoom ? `OT Slots for ${otRoom.otName} (${otId})` : `OT Slots for ${otId}`}
+                </DialogTitle>
+              </div>
               <Button className="gap-2" onClick={(e) => {
                 e.stopPropagation();
                 setIsAddDialogOpen(true);
@@ -1089,211 +1129,251 @@ function OTSlotsManagement({ otId, onClose }: { otId: string; onClose: () => voi
                 <Plus className="size-4" />
                 Add OT Slot
               </Button>
-            </DialogTrigger>
+            </div>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto px-6 pb-1 patient-list-scrollable min-h-0">
+            <div className="text-center py-12 text-blue-600">Loading OT slots...</div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  // On error, show blank screen with header and add button
+  // (error is logged to console but not displayed to user)
+
+  return (
+    <Dialog open={true} onOpenChange={onClose}>
+      <DialogContent className="p-0 gap-0 large-dialog max-w-4xl">
+        <DialogHeader className="px-6 pt-4 pb-3 flex-shrink-0">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Button variant="ghost" size="sm" onClick={onClose} className="h-8 w-8 p-0">
+                <ArrowLeft className="size-4" />
+              </Button>
+              <DialogTitle>
+                {otRoom ? `OT Slots for ${otRoom.otName} (${otId})` : `OT Slots for ${otId}`}
+              </DialogTitle>
+            </div>
+            <Button className="gap-2" onClick={(e) => {
+              e.stopPropagation();
+              setIsAddDialogOpen(true);
+            }}>
+              <Plus className="size-4" />
+              Add OT Slot
+            </Button>
           </div>
         </DialogHeader>
-        <div className="space-y-4 py-4">
-          {/* OT Slots Table */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Clock className="size-5" />
-                OT Slots List ({otSlots.length})
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-gray-200">
-                      <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">OT Slot ID</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">OT ID</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">OT Slot No</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Slot Start Time</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Slot End Time</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Status</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {otSlots.length === 0 ? (
-                      <tr>
-                        <td colSpan={7} className="text-center py-8 text-gray-500">
-                          No OT slots found. Add a new OT slot to get started.
-                        </td>
+        <div className="flex-1 overflow-y-auto px-6 pb-1 patient-list-scrollable min-h-0">
+          <div className="space-y-4 py-4">
+          {/* Show table only if no error and not loading */}
+          {!error && !loading && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Clock className="size-5" />
+                  OT Slots List ({otSlots.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-gray-200">
+                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">OT Slot ID</th>
+                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">OT ID</th>
+                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">OT Slot No</th>
+                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Slot Start Time</th>
+                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Slot End Time</th>
+                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Status</th>
+                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Actions</th>
                       </tr>
-                    ) : (
-                      otSlots.map((otSlot) => (
-                        <tr key={otSlot.id} className="border-b border-gray-100 hover:bg-gray-50">
-                          <td className="py-3 px-4 text-sm text-gray-900 font-mono font-medium whitespace-nowrap">{otSlot.otSlotId}</td>
-                          <td className="py-3 px-4 text-sm text-gray-900 font-mono font-medium whitespace-nowrap">{otSlot.otId}</td>
-                          <td className="py-3 px-4 text-sm text-gray-900 font-medium">{otSlot.otSlotNo}</td>
-                          <td className="py-3 px-4 text-sm text-gray-700">{otSlot.slotStartTime}</td>
-                          <td className="py-3 px-4 text-sm text-gray-700">{otSlot.slotEndTime}</td>
-                          <td className="py-3 px-4 text-sm">{getStatusBadge(otSlot.status)}</td>
-                          <td className="py-3 px-4">
-                            <div className="flex items-center gap-2">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleEdit(otSlot)}
-                                className="h-8 w-8 p-0"
-                              >
-                                <Edit className="size-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDelete(otSlot.id)}
-                                className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                              >
-                                <Trash2 className="size-4" />
-                              </Button>
-                            </div>
+                    </thead>
+                    <tbody>
+                      {otSlots.length === 0 ? (
+                        <tr>
+                          <td colSpan={7} className="text-center py-8 text-gray-500">
+                            No OT slots found. Add a new OT slot to get started.
                           </td>
                         </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
+                      ) : (
+                        otSlots.map((otSlot) => (
+                          <tr key={otSlot.id} className="border-b border-gray-100 hover:bg-gray-50">
+                            <td className="py-3 px-4 text-sm text-gray-900 font-mono font-medium whitespace-nowrap">{otSlot.otSlotId}</td>
+                            <td className="py-3 px-4 text-sm text-gray-900 font-mono font-medium whitespace-nowrap">{otSlot.otId}</td>
+                            <td className="py-3 px-4 text-sm text-gray-900 font-medium">{otSlot.otSlotNo}</td>
+                            <td className="py-3 px-4 text-sm text-gray-700">{otSlot.slotStartTime}</td>
+                            <td className="py-3 px-4 text-sm text-gray-700">{otSlot.slotEndTime}</td>
+                            <td className="py-3 px-4 text-sm">{getStatusBadge(otSlot.status)}</td>
+                            <td className="py-3 px-4">
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleEdit(otSlot)}
+                                  className="h-8 w-8 p-0"
+                                >
+                                  <Edit className="size-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDelete(otSlot.id)}
+                                  className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                >
+                                  <Trash2 className="size-4" />
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+          </div>
         </div>
 
         {/* Add Dialog */}
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
+          <DialogContent className="p-0 gap-0 large-dialog max-w-2xl">
+            <DialogHeader className="px-6 pt-4 pb-3 flex-shrink-0">
               <DialogTitle>Add New OT Slot</DialogTitle>
             </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div>
-                <Label htmlFor="otSlotNo">OT Slot No *</Label>
-                <Input
-                  id="otSlotNo"
-                  placeholder="e.g., SL01"
-                  value={formData.otSlotNo}
-                  onChange={(e) => setFormData({ ...formData, otSlotNo: e.target.value })}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
+            <div className="flex-1 overflow-y-auto px-6 pb-1 patient-list-scrollable min-h-0">
+              <div className="space-y-4 py-4">
                 <div>
-                  <Label htmlFor="slotStartTime" className="flex items-center gap-2">
-                    <Clock className="size-4" />
-                    Slot Start Time *
-                  </Label>
+                  <Label htmlFor="otSlotNo">OT Slot No *</Label>
                   <Input
-                    id="slotStartTime"
-                    placeholder="e.g., 9:00 AM"
-                    value={formData.slotStartTime}
-                    onChange={(e) => setFormData({ ...formData, slotStartTime: e.target.value })}
+                    id="otSlotNo"
+                    placeholder="e.g., SL01"
+                    value={formData.otSlotNo}
+                    onChange={(e) => setFormData({ ...formData, otSlotNo: e.target.value })}
                   />
                 </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="slotStartTime" className="flex items-center gap-2">
+                      <Clock className="size-4" />
+                      Slot Start Time *
+                    </Label>
+                    <Input
+                      id="slotStartTime"
+                      placeholder="e.g., 9:00 AM"
+                      value={formData.slotStartTime}
+                      onChange={(e) => setFormData({ ...formData, slotStartTime: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="slotEndTime" className="flex items-center gap-2">
+                      <Clock className="size-4" />
+                      Slot End Time *
+                    </Label>
+                    <Input
+                      id="slotEndTime"
+                      placeholder="e.g., 10:00 AM"
+                      value={formData.slotEndTime}
+                      onChange={(e) => setFormData({ ...formData, slotEndTime: e.target.value })}
+                    />
+                  </div>
+                </div>
                 <div>
-                  <Label htmlFor="slotEndTime" className="flex items-center gap-2">
-                    <Clock className="size-4" />
-                    Slot End Time *
-                  </Label>
-                  <Input
-                    id="slotEndTime"
-                    placeholder="e.g., 10:00 AM"
-                    value={formData.slotEndTime}
-                    onChange={(e) => setFormData({ ...formData, slotEndTime: e.target.value })}
-                  />
+                  <Label htmlFor="status">Status</Label>
+                  <select
+                    id="status"
+                    aria-label="Status"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                    value={formData.status}
+                    onChange={(e) => setFormData({ ...formData, status: e.target.value as OTSlot['status'] })}
+                  >
+                    <option value="Active">Active</option>
+                    <option value="Inactive">Inactive</option>
+                  </select>
                 </div>
               </div>
-              <div>
-                <Label htmlFor="status">Status</Label>
-                <select
-                  id="status"
-                  aria-label="Status"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-md"
-                  value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value as OTSlot['status'] })}
-                >
-                  <option value="Active">Active</option>
-                  <option value="Inactive">Inactive</option>
-                </select>
-              </div>
-              <div className="flex justify-end gap-2 pt-4">
-                <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>Cancel</Button>
-                <Button onClick={handleAddSubmit}>Add OT Slot</Button>
-              </div>
+            </div>
+            <div className="flex justify-end gap-2 px-6 py-2 border-t bg-gray-50 flex-shrink-0">
+              <Button variant="outline" onClick={() => setIsAddDialogOpen(false)} className="py-1">Cancel</Button>
+              <Button onClick={handleAddSubmit} className="py-1">Add OT Slot</Button>
             </div>
           </DialogContent>
         </Dialog>
 
         {/* Edit Dialog */}
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
+          <DialogContent className="p-0 gap-0 large-dialog max-w-2xl">
+            <DialogHeader className="px-6 pt-4 pb-3 flex-shrink-0">
               <DialogTitle>Edit OT Slot</DialogTitle>
             </DialogHeader>
-            <div className="space-y-4 py-4">
-              {selectedOTSlot && (
+            <div className="flex-1 overflow-y-auto px-6 pb-1 patient-list-scrollable min-h-0">
+              <div className="space-y-4 py-4">
+                {selectedOTSlot && (
+                  <div>
+                    <Label>OT Slot ID</Label>
+                    <Input
+                      value={selectedOTSlot.otSlotId}
+                      disabled
+                      className="bg-gray-50 text-gray-500"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">OT Slot ID is auto-generated and cannot be changed</p>
+                  </div>
+                )}
                 <div>
-                  <Label>OT Slot ID</Label>
+                  <Label htmlFor="edit-otSlotNo">OT Slot No *</Label>
                   <Input
-                    value={selectedOTSlot.otSlotId}
-                    disabled
-                    className="bg-gray-50 text-gray-500"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">OT Slot ID is auto-generated and cannot be changed</p>
-                </div>
-              )}
-              <div>
-                <Label htmlFor="edit-otSlotNo">OT Slot No *</Label>
-                <Input
-                  id="edit-otSlotNo"
-                  placeholder="e.g., SL01"
-                  value={formData.otSlotNo}
-                  onChange={(e) => setFormData({ ...formData, otSlotNo: e.target.value })}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="edit-slotStartTime" className="flex items-center gap-2">
-                    <Clock className="size-4" />
-                    Slot Start Time *
-                  </Label>
-                  <Input
-                    id="edit-slotStartTime"
-                    placeholder="e.g., 9:00 AM"
-                    value={formData.slotStartTime}
-                    onChange={(e) => setFormData({ ...formData, slotStartTime: e.target.value })}
+                    id="edit-otSlotNo"
+                    placeholder="e.g., SL01"
+                    value={formData.otSlotNo}
+                    onChange={(e) => setFormData({ ...formData, otSlotNo: e.target.value })}
                   />
                 </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="edit-slotStartTime" className="flex items-center gap-2">
+                      <Clock className="size-4" />
+                      Slot Start Time *
+                    </Label>
+                    <Input
+                      id="edit-slotStartTime"
+                      placeholder="e.g., 9:00 AM"
+                      value={formData.slotStartTime}
+                      onChange={(e) => setFormData({ ...formData, slotStartTime: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-slotEndTime" className="flex items-center gap-2">
+                      <Clock className="size-4" />
+                      Slot End Time *
+                    </Label>
+                    <Input
+                      id="edit-slotEndTime"
+                      placeholder="e.g., 10:00 AM"
+                      value={formData.slotEndTime}
+                      onChange={(e) => setFormData({ ...formData, slotEndTime: e.target.value })}
+                    />
+                  </div>
+                </div>
                 <div>
-                  <Label htmlFor="edit-slotEndTime" className="flex items-center gap-2">
-                    <Clock className="size-4" />
-                    Slot End Time *
-                  </Label>
-                  <Input
-                    id="edit-slotEndTime"
-                    placeholder="e.g., 10:00 AM"
-                    value={formData.slotEndTime}
-                    onChange={(e) => setFormData({ ...formData, slotEndTime: e.target.value })}
-                  />
+                  <Label htmlFor="edit-status">Status</Label>
+                  <select
+                    id="edit-status"
+                    aria-label="Status"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                    value={formData.status}
+                    onChange={(e) => setFormData({ ...formData, status: e.target.value as OTSlot['status'] })}
+                  >
+                    <option value="Active">Active</option>
+                    <option value="Inactive">Inactive</option>
+                  </select>
                 </div>
               </div>
-              <div>
-                <Label htmlFor="edit-status">Status</Label>
-                <select
-                  id="edit-status"
-                  aria-label="Status"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-md"
-                  value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value as OTSlot['status'] })}
-                >
-                  <option value="Active">Active</option>
-                  <option value="Inactive">Inactive</option>
-                </select>
-              </div>
-              <div className="flex justify-end gap-2 pt-4">
-                <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancel</Button>
-                <Button onClick={handleEditSubmit}>Update OT Slot</Button>
-              </div>
+            </div>
+            <div className="flex justify-end gap-2 px-6 py-2 border-t bg-gray-50 flex-shrink-0">
+              <Button variant="outline" onClick={() => setIsEditDialogOpen(false)} className="py-1">Cancel</Button>
+              <Button onClick={handleEditSubmit} className="py-1">Update OT Slot</Button>
             </div>
           </DialogContent>
         </Dialog>

@@ -152,11 +152,16 @@ export function DashboardView({
     }
   };
   return (
-    <div className="p-8 bg-blue-100 min-h-full">
-      <div className="mb-8">
-        <h1 className="text-blue-900 mb-2">Dashboard Overview</h1>
-        <p className="text-blue-600">Real-time hospital operations monitoring</p>
+    <div className="flex-1 bg-blue-100 flex flex-col overflow-hidden min-h-0">
+      <div className="px-4 pt-4 pb-0 flex-shrink-0">
+        <div className="flex items-center justify-between mb-4 flex-shrink-0">
+          <div>
+            <h1 className="text-gray-900 mb-0 text-xl">Dashboard Overview</h1>
+            <p className="text-gray-500 text-sm">Real-time hospital operations monitoring</p>
+          </div>
+        </div>
       </div>
+      <div className="overflow-y-auto overflow-x-hidden px-4 pb-8 dashboard-scrollable" style={{ maxHeight: 'calc(100vh - 120px)', minHeight: 0 }}>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
@@ -440,6 +445,7 @@ export function DashboardView({
           </div>
         </DialogContent>
       </Dialog>
+      </div>
     </div>
   );
 }

@@ -2,21 +2,53 @@
 import { apiRequest } from './base';
 import { OTRoom } from '../types';
 
-// Stub data
-const stubOTRooms: OTRoom[] = [
-  { id: 1, otId: 'OT-01', otNo: 'OT001', otType: 'General', otName: 'General Operation Theater 1', otDescription: 'General purpose operation theater with standard equipment', startTimeofDay: '08:00', endTimeofDay: '20:00', createdBy: '1', createdAt: '2025-01-01T10:00:00Z', status: 'active' },
-  { id: 2, otId: 'OT-02', otNo: 'OT002', otType: 'Cardiac', otName: 'Cardiac Operation Theater 1', otDescription: 'Specialized cardiac surgery theater with advanced monitoring', startTimeofDay: '08:00', endTimeofDay: '20:00', createdBy: '1', createdAt: '2025-01-01T10:00:00Z', status: 'active' },
-  { id: 3, otId: 'OT-03', otNo: 'OT003', otType: 'Orthopedic', otName: 'Orthopedic Operation Theater 1', otDescription: 'Orthopedic surgery theater with specialized equipment', startTimeofDay: '00:00', endTimeofDay: '23:59', createdBy: '1', createdAt: '2025-01-01T10:00:00Z', status: 'active' },
-  { id: 4, otId: 'OT-04', otNo: 'OT004', otType: 'General', otName: 'General Operation Theater 2', otDescription: 'General purpose operation theater', startTimeofDay: '08:00', endTimeofDay: '20:00', createdBy: '1', createdAt: '2025-01-01T10:00:00Z', status: 'active' },
-  { id: 5, otId: 'OT-05', otNo: 'OT005', otType: 'Emergency', otName: 'Emergency Operation Theater', otDescription: '24/7 emergency operation theater', startTimeofDay: '00:00', endTimeofDay: '23:59', createdBy: '1', createdAt: '2025-01-01T10:00:00Z', status: 'active' },
-];
+// API Response types
+interface OTResponseItem {
+  OTId: number;
+  OTNo: string;
+  OTType: string | null;
+  OTName: string | null;
+  OTDescription: string | null;
+  OTStartTimeofDay: string | null;
+  OTEndTimeofDay: string | null;
+  Status: string;
+  CreatedBy: number | null;
+  CreatedAt: string | Date;
+}
 
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+interface OTAPIResponse {
+  success: boolean;
+  count: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  totalCount: number;
+  data: OTResponseItem[];
+}
 
-// Generate OT ID in format OT-XX
-function generateOTId(): string {
-  const count = stubOTRooms.length + 1;
-  return `OT-${count.toString().padStart(2, '0')}`;
+interface OTCreateResponse {
+  success: boolean;
+  message: string;
+  data: OTResponseItem;
+}
+
+// Map API response to OTRoom type
+function mapOTResponseToOTRoom(item: OTResponseItem): OTRoom {
+  return {
+    id: item.OTId,
+    otId: `OT-${item.OTId.toString().padStart(2, '0')}`, // Generate otId from OTId if not provided
+    otNo: item.OTNo,
+    otType: item.OTType || '',
+    otName: item.OTName || '',
+    otDescription: item.OTDescription || undefined,
+    startTimeofDay: item.OTStartTimeofDay || '08:00',
+    endTimeofDay: item.OTEndTimeofDay || '20:00',
+    createdBy: item.CreatedBy?.toString() || '1',
+    createdAt: typeof item.CreatedAt === 'string' 
+      ? item.CreatedAt 
+      : new Date(item.CreatedAt).toISOString(),
+    status: item.Status?.toLowerCase() === 'active' ? 'active' : 'inactive',
+  };
 }
 
 export interface CreateOTRoomDto {
@@ -34,63 +66,183 @@ export interface UpdateOTRoomDto extends Partial<CreateOTRoomDto> {
   id: number;
 }
 
+export interface PaginatedResponse<T> {
+  data: T[];
+  total: number;
+  page: number;
+  limit: number;
+  hasMore: boolean;
+}
+
 export const otRoomsApi = {
-  async getAll(): Promise<OTRoom[]> {
-    // Replace with: return apiRequest<OTRoom[]>('/otrooms');
-    await delay(300);
-    return Promise.resolve([...stubOTRooms]);
+  async getAll(
+    page: number = 1, 
+    limit: number = 10, 
+    status?: string, 
+    otType?: string
+  ): Promise<PaginatedResponse<OTRoom>> {
+    try {
+      // Build query parameters
+      const params = new URLSearchParams();
+      params.append('page', page.toString());
+      params.append('limit', limit.toString());
+      if (status) {
+        params.append('status', status);
+      }
+      if (otType) {
+        params.append('otType', otType);
+      }
+
+      const response = await apiRequest<OTAPIResponse>(`/ot?${params.toString()}`);
+      
+      if (!response.success) {
+        throw new Error('API request failed');
+      }
+
+      // Map API response to our format
+      const mappedData = response.data.map(mapOTResponseToOTRoom);
+      const hasMore = response.page < response.totalPages;
+
+      return {
+        data: mappedData,
+        total: response.totalCount,
+        page: response.page,
+        limit: response.limit,
+        hasMore,
+      };
+    } catch (error) {
+      console.error('Error fetching OT rooms:', error);
+      throw error;
+    }
+  },
+  
+  async getAllLegacy(): Promise<OTRoom[]> {
+    // Legacy method - fetch all pages
+    const allRooms: OTRoom[] = [];
+    let page = 1;
+    let hasMore = true;
+    const limit = 100; // Fetch in larger chunks
+
+    while (hasMore) {
+      const response = await this.getAll(page, limit);
+      allRooms.push(...response.data);
+      hasMore = response.hasMore;
+      page++;
+    }
+
+    return allRooms;
   },
 
   async getById(id: number): Promise<OTRoom> {
-    // Replace with: return apiRequest<OTRoom>(`/otrooms/${id}`);
-    await delay(200);
-    const otRoom = stubOTRooms.find(r => r.id === id);
+    // Fetch by filtering the paginated endpoint
+    const response = await this.getAll(1, 100);
+    const otRoom = response.data.find(r => r.id === id);
     if (!otRoom) {
       throw new Error(`OTRoom with id ${id} not found`);
     }
-    return Promise.resolve(otRoom);
+    return otRoom;
   },
 
   async getByType(type: string): Promise<OTRoom[]> {
-    // Replace with: return apiRequest<OTRoom[]>(`/otrooms?type=${type}`);
-    await delay(200);
-    return Promise.resolve(stubOTRooms.filter(r => r.otType === type));
+    // Use the getAll method with otType filter
+    const response = await this.getAll(1, 100, undefined, type);
+    return response.data;
   },
 
   async create(data: CreateOTRoomDto): Promise<OTRoom> {
-    // Replace with: return apiRequest<OTRoom>('/otrooms', { method: 'POST', body: JSON.stringify(data) });
-    await delay(400);
-    const newOTRoom: OTRoom = {
-      id: stubOTRooms.length + 1,
-      otId: generateOTId(),
-      status: data.status || 'active',
-      createdAt: new Date().toISOString(),
-      ...data,
-    };
-    stubOTRooms.push(newOTRoom);
-    return Promise.resolve(newOTRoom);
+    try {
+      // Map our DTO to API request format
+      const requestBody = {
+        OTNo: data.otNo,
+        OTType: data.otType || null,
+        OTName: data.otName || null,
+        OTDescription: data.otDescription || null,
+        OTStartTimeofDay: data.startTimeofDay || null,
+        OTEndTimeofDay: data.endTimeofDay || null,
+        Status: data.status === 'inactive' ? 'InActive' : 'Active',
+        CreatedBy: data.createdBy ? parseInt(data.createdBy, 10) : null,
+      };
+
+      const response = await apiRequest<OTCreateResponse>('/ot', {
+        method: 'POST',
+        body: JSON.stringify(requestBody),
+      });
+
+      if (!response.success) {
+        throw new Error(response.message || 'Failed to create OT room');
+      }
+
+      // Map API response to our format
+      return mapOTResponseToOTRoom(response.data);
+    } catch (error) {
+      console.error('Error creating OT room:', error);
+      throw error;
+    }
   },
 
   async update(data: UpdateOTRoomDto): Promise<OTRoom> {
-    // Replace with: return apiRequest<OTRoom>(`/otrooms/${data.id}`, { method: 'PUT', body: JSON.stringify(data) });
-    await delay(400);
-    const index = stubOTRooms.findIndex(r => r.id === data.id);
-    if (index === -1) {
-      throw new Error(`OTRoom with id ${data.id} not found`);
+    try {
+      // Map our DTO to API request format (only include fields that are provided)
+      const requestBody: Record<string, unknown> = {};
+      
+      if (data.otNo !== undefined) {
+        requestBody.OTNo = data.otNo;
+      }
+      if (data.otType !== undefined) {
+        requestBody.OTType = data.otType || null;
+      }
+      if (data.otName !== undefined) {
+        requestBody.OTName = data.otName || null;
+      }
+      if (data.otDescription !== undefined) {
+        requestBody.OTDescription = data.otDescription || null;
+      }
+      if (data.startTimeofDay !== undefined) {
+        requestBody.OTStartTimeofDay = data.startTimeofDay || null;
+      }
+      if (data.endTimeofDay !== undefined) {
+        requestBody.OTEndTimeofDay = data.endTimeofDay || null;
+      }
+      if (data.status !== undefined) {
+        requestBody.Status = data.status === 'inactive' ? 'InActive' : 'Active';
+      }
+      if (data.createdBy !== undefined) {
+        requestBody.CreatedBy = data.createdBy ? parseInt(data.createdBy, 10) : null;
+      }
+
+      const response = await apiRequest<OTCreateResponse>(`/ot/${data.id}`, {
+        method: 'PUT',
+        body: JSON.stringify(requestBody),
+      });
+
+      if (!response.success) {
+        throw new Error(response.message || 'Failed to update OT room');
+      }
+
+      // Map API response to our format
+      return mapOTResponseToOTRoom(response.data);
+    } catch (error) {
+      console.error('Error updating OT room:', error);
+      throw error;
     }
-    stubOTRooms[index] = { ...stubOTRooms[index], ...data };
-    return Promise.resolve(stubOTRooms[index]);
   },
 
   async delete(id: number): Promise<void> {
-    // Replace with: return apiRequest<void>(`/otrooms/${id}`, { method: 'DELETE' });
-    await delay(300);
-    const index = stubOTRooms.findIndex(r => r.id === id);
-    if (index === -1) {
-      throw new Error(`OTRoom with id ${id} not found`);
+    try {
+      const response = await apiRequest<OTCreateResponse>(`/ot/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.success) {
+        throw new Error(response.message || 'Failed to delete OT room');
+      }
+
+      // Delete endpoint returns the deleted item in data, but we don't need to return it
+      // The method signature is Promise<void>
+    } catch (error) {
+      console.error('Error deleting OT room:', error);
+      throw error;
     }
-    stubOTRooms.splice(index, 1);
-    return Promise.resolve();
   },
 };
 

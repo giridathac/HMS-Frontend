@@ -143,19 +143,20 @@ function FrontDeskView({
   };
 
   return (
-    <div className="p-8 bg-blue-100 min-h-full">
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-blue-900 mb-2">Front Desk - Token Management</h1>
-          <p className="text-blue-600">Generate and manage patient tokens for doctor consultation</p>
-        </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="gap-2">
-              <Plus className="size-4" />
-              Generate Token
-            </Button>
-          </DialogTrigger>
+    <div className="flex-1 bg-blue-100 flex flex-col overflow-hidden min-h-0">
+      <div className="px-4 pt-4 pb-0 flex-shrink-0">
+        <div className="flex items-center justify-between mb-4 flex-shrink-0">
+          <div>
+            <h1 className="text-gray-900 mb-0 text-xl">Front Desk - Token Management</h1>
+            <p className="text-gray-500 text-sm">Generate and manage patient tokens for doctor consultation</p>
+          </div>
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="gap-2">
+                <Plus className="size-4" />
+                Generate Token
+              </Button>
+            </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Generate Patient Token</DialogTitle>
@@ -229,7 +230,8 @@ function FrontDeskView({
           </DialogContent>
         </Dialog>
       </div>
-
+      </div>
+      <div className="overflow-y-auto overflow-x-hidden px-4 pb-8 frontdesk-scrollable" style={{ maxHeight: 'calc(100vh - 120px)', minHeight: 0 }}>
       {/* Quick Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <Card>
@@ -321,6 +323,7 @@ function FrontDeskView({
           <TokenList tokens={getTokensByStatus('Completed')} doctors={doctors} />
         </TabsContent>
       </Tabs>
+      </div>
     </div>
   );
 }

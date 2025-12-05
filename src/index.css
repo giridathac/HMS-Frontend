@@ -2427,6 +2427,47 @@ html {
   background: #94a3b8;
 }
 
+/* Custom scrollbar styling for dashboard, frontdesk, ot, and icu */
+.dashboard-scrollable,
+.frontdesk-scrollable,
+.ot-scrollable,
+.icu-scrollable {
+  scrollbar-width: auto;
+  scrollbar-color: #64748b #f1f5f9;
+}
+
+.dashboard-scrollable::-webkit-scrollbar,
+.frontdesk-scrollable::-webkit-scrollbar,
+.ot-scrollable::-webkit-scrollbar,
+.icu-scrollable::-webkit-scrollbar {
+  width: 12px;
+  display: block;
+}
+
+.dashboard-scrollable::-webkit-scrollbar-track,
+.frontdesk-scrollable::-webkit-scrollbar-track,
+.ot-scrollable::-webkit-scrollbar-track,
+.icu-scrollable::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 6px;
+}
+
+.dashboard-scrollable::-webkit-scrollbar-thumb,
+.frontdesk-scrollable::-webkit-scrollbar-thumb,
+.ot-scrollable::-webkit-scrollbar-thumb,
+.icu-scrollable::-webkit-scrollbar-thumb {
+  background: #64748b;
+  border-radius: 6px;
+  border: 2px solid #f1f5f9;
+}
+
+.dashboard-scrollable::-webkit-scrollbar-thumb:hover,
+.frontdesk-scrollable::-webkit-scrollbar-thumb:hover,
+.ot-scrollable::-webkit-scrollbar-thumb:hover,
+.icu-scrollable::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
 /* White background and dark text for select elements to match input fields */
 select {
   background-color: white;
