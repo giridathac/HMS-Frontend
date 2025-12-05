@@ -14,6 +14,67 @@ const stubAppointments: Appointment[] = [
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
+// Backend request DTO (PascalCase) - matches API specification
+export interface CreateAppointmentRequestDto {
+  PatientId: string; // UUID (required)
+  DoctorId: number; // (required)
+  AppointmentDate: string; // YYYY-MM-DD format (required)
+  AppointmentTime: string; // HH:MM or HH:MM:SS format (required)
+  AppointmentStatus?: string; // "Waiting" | "Consulting" | "Completed", defaults to "Waiting"
+  ConsultationCharge?: number;
+  Diagnosis?: string;
+  FollowUpDetails?: string;
+  PrescriptionsUrl?: string;
+  ToBeAdmitted?: string; // "Yes" | "No", defaults to "No"
+  ReferToAnotherDoctor?: string; // "Yes" | "No", defaults to "No"
+  ReferredDoctorId?: number; // Required if ReferToAnotherDoctor is "Yes"
+  TransferToIPDOTICU?: string; // "Yes" | "No", defaults to "No"
+  TransferTo?: string; // "IPD Room Admission" | "ICU" | "OT"
+  TransferDetails?: string;
+  BillId?: number;
+  Status?: string; // "Active" | "InActive", defaults to "Active"
+  CreatedBy?: number;
+}
+
+// Backend response DTO (PascalCase)
+interface CreateAppointmentResponseDto {
+  PatientAppointmentId: number;
+  PatientId: string; // UUID
+  DoctorId: number;
+  AppointmentDate: Date | string;
+  AppointmentTime: string;
+  TokenNo: string; // Auto-generated (T-0001, T-0002, etc.)
+  AppointmentStatus: string;
+  ConsultationCharge: number | null;
+  Diagnosis: string | null;
+  FollowUpDetails: string | null;
+  PrescriptionsUrl: string | null;
+  ToBeAdmitted: string;
+  ReferToAnotherDoctor: string;
+  ReferredDoctorId: number | null;
+  ReferredDoctorName: string | null;
+  TransferToIPDOTICU: string;
+  TransferTo: string | null;
+  TransferDetails: string | null;
+  BillId: number | null;
+  BillNo: string | null;
+  Status: string;
+  CreatedBy: number | null;
+  CreatedDate: Date | string;
+  PatientName: string | null;
+  PatientNo: string | null;
+  DoctorName: string | null;
+  CreatedByName: string | null;
+}
+
+// API response wrapper
+interface ApiResponse {
+  success: boolean;
+  message: string;
+  data: CreateAppointmentResponseDto;
+}
+
+// Frontend DTO (camelCase) - for backward compatibility
 export interface CreateAppointmentDto {
   patient: string;
   doctor: string;
@@ -40,16 +101,48 @@ export const appointmentsApi = {
     return Promise.resolve(stubAppointments.filter(a => a.date === date));
   },
 
-  async create(data: CreateAppointmentDto): Promise<Appointment> {
-    // Replace with: return apiRequest<Appointment>('/appointments', { method: 'POST', body: JSON.stringify(data) });
-    await delay(400);
-    const newAppointment: Appointment = {
-      id: stubAppointments.length + 1,
-      ...data,
-      status: 'Pending',
-    };
-    stubAppointments.push(newAppointment);
-    return Promise.resolve(newAppointment);
+  async create(data: CreateAppointmentRequestDto): Promise<Appointment> {
+    try {
+      console.log('Creating appointment via API:', data);
+      
+      const response = await apiRequest<ApiResponse>('/patient-appointments', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+      
+      console.log('Appointment creation response:', response);
+      
+      if (!response.success || !response.data) {
+        throw new Error(response.message || 'Failed to create appointment');
+      }
+      
+      const backendData = response.data;
+      
+      // Map backend response (PascalCase) to frontend Appointment type (camelCase)
+      const appointment: Appointment = {
+        id: backendData.PatientAppointmentId,
+        patient: backendData.PatientName || 'Unknown Patient',
+        doctor: backendData.DoctorName || 'Unknown Doctor',
+        date: typeof backendData.AppointmentDate === 'string' 
+          ? backendData.AppointmentDate.split('T')[0] 
+          : new Date(backendData.AppointmentDate).toISOString().split('T')[0],
+        time: backendData.AppointmentTime,
+        department: '', // Not provided in response, would need to fetch from doctor
+        status: backendData.AppointmentStatus === 'Completed' 
+          ? 'Completed' 
+          : backendData.AppointmentStatus === 'Consulting' 
+          ? 'Confirmed' 
+          : backendData.AppointmentStatus === 'Waiting' 
+          ? 'Pending' 
+          : 'Pending' as Appointment['status'],
+      };
+      
+      console.log('Mapped appointment:', appointment);
+      return appointment;
+    } catch (error) {
+      console.error('Error creating appointment:', error);
+      throw error;
+    }
   },
 
   async update(data: UpdateAppointmentDto): Promise<Appointment> {
