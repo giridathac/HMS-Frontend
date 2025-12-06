@@ -2,16 +2,6 @@
 import { apiRequest, ApiError } from './base';
 import { RoomBed } from '../types';
 
-// Stub data
-const stubRoomBeds: RoomBed[] = [
-  { id: 1, roomBedId: '00000000-0000-0000-0000-000000000001', bedNo: 'B101', roomNo: 'R101', roomCategory: 'AC', roomType: 'Regular', numberOfBeds: 1, chargesPerDay: 1500, status: 'Active', createdBy: 'Admin', createdAt: '2025-01-01T10:00:00Z' },
-  { id: 2, roomBedId: '00000000-0000-0000-0000-000000000002', bedNo: 'B102', roomNo: 'R101', roomCategory: 'AC', roomType: 'Regular', numberOfBeds: 1, chargesPerDay: 1500, status: 'Active', createdBy: 'Admin', createdAt: '2025-01-01T10:00:00Z' },
-  { id: 3, roomBedId: '00000000-0000-0000-0000-000000000003', bedNo: 'B201', roomNo: 'R201', roomCategory: 'AC', roomType: 'Special', numberOfBeds: 1, chargesPerDay: 3000, status: 'Active', createdBy: 'Admin', createdAt: '2025-01-01T10:00:00Z' },
-  { id: 4, roomBedId: '00000000-0000-0000-0000-000000000004', bedNo: 'B202', roomNo: 'R201', roomCategory: 'AC', roomType: 'Special', numberOfBeds: 1, chargesPerDay: 3000, status: 'Active', createdBy: 'Admin', createdAt: '2025-01-01T10:00:00Z' },
-  { id: 5, roomBedId: '00000000-0000-0000-0000-000000000005', bedNo: 'B301', roomNo: 'R301', roomCategory: 'Non AC', roomType: 'Special Shared', numberOfBeds: 2, chargesPerDay: 2500, status: 'Active', createdBy: 'Admin', createdAt: '2025-01-01T10:00:00Z' },
-  { id: 6, roomBedId: '00000000-0000-0000-0000-000000000006', bedNo: 'B401', roomNo: 'R401', roomCategory: 'AC', roomType: 'Special', numberOfBeds: 1, chargesPerDay: 5000, status: 'Inactive', createdBy: 'Admin', createdAt: '2025-01-01T10:00:00Z' },
-];
-
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 // Helper function to normalize status to 'Active' or 'Inactive'

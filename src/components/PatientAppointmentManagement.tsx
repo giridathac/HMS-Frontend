@@ -133,11 +133,18 @@ export function PatientAppointmentManagement() {
   }, [updatePatientAppointment]);
 
   const handleDeleteAppointment = useCallback(async (id: number) => {
+    if (!id || isNaN(Number(id))) {
+      alert('Invalid appointment ID. Cannot delete appointment.');
+      return;
+    }
+    
     if (confirm('Are you sure you want to delete this appointment? This action cannot be undone.')) {
       try {
-        await deletePatientAppointment(id);
+        await deletePatientAppointment(Number(id));
       } catch (err) {
         console.error('Failed to delete appointment:', err);
+        const errorMessage = err instanceof Error ? err.message : 'Failed to delete appointment';
+        alert(errorMessage);
       }
     }
   }, [deletePatientAppointment]);
