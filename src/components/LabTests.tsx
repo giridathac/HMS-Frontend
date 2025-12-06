@@ -222,12 +222,13 @@ function LabTestsView({
   };
 
   return (
-    <div className="p-8 bg-blue-100 min-h-full">
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-blue-900 mb-2">Lab Tests</h1>
-          <p className="text-blue-600">Manage laboratory test catalog</p>
-        </div>
+    <div className="flex-1 bg-blue-100 flex flex-col overflow-hidden min-h-0">
+      <div className="px-4 pt-4 pb-0 flex-shrink-0">
+        <div className="flex items-center justify-between mb-4 flex-shrink-0">
+          <div>
+            <h1 className="text-gray-900 mb-0 text-xl">Lab Tests</h1>
+            <p className="text-gray-500 text-sm">Manage laboratory test catalog</p>
+          </div>
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
             <Button className="gap-2">
@@ -474,6 +475,7 @@ function LabTestsView({
           </div>
         </DialogContent>
       </Dialog>
+      </div>
     </div>
   );
 }

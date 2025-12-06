@@ -286,12 +286,13 @@ function RoomBedsView({
   };
 
   return (
-    <div className="p-8 bg-blue-100 min-h-full">
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-blue-900 mb-2">Room & Beds Management</h1>
-          <p className="text-blue-600">Manage hospital rooms and beds</p>
-        </div>
+    <div className="flex-1 bg-blue-100 flex flex-col overflow-hidden min-h-0">
+      <div className="px-4 pt-4 pb-0 flex-shrink-0">
+        <div className="flex items-center justify-between mb-4 flex-shrink-0">
+          <div>
+            <h1 className="text-gray-900 mb-0 text-xl">Room & Beds Management</h1>
+            <p className="text-gray-500 text-sm">Manage hospital rooms and beds</p>
+          </div>
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
             <Button className="gap-2">
@@ -392,8 +393,10 @@ function RoomBedsView({
             </div>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
+      <div className="overflow-y-auto overflow-x-hidden px-4 pb-8 room-beds-scrollable" style={{ maxHeight: 'calc(100vh - 120px)', minHeight: 0 }}>
       {/* Room Beds Table */}
       <Card>
         <CardHeader>
@@ -581,6 +584,7 @@ function RoomBedsView({
           </div>
         </DialogContent>
       </Dialog>
+      </div>
     </div>
   );
 }

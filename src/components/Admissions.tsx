@@ -55,13 +55,14 @@ export function Admissions() {
   const occupancyRate = Math.round((totalOccupied / totalCapacity) * 100);
 
   return (
-    <div className="p-8 bg-blue-100 min-h-full">
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-blue-900 mb-2">IPD Admissions Management</h1>
-          <p className="text-gray-500">Manage in-patient admissions and bed allocation</p>
-        </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+    <div className="flex-1 bg-blue-100 flex flex-col overflow-hidden min-h-0">
+      <div className="px-4 pt-4 pb-0 flex-shrink-0">
+        <div className="flex items-center justify-between mb-4 flex-shrink-0">
+          <div>
+            <h1 className="text-gray-900 mb-0 text-xl">IPD Admissions Management</h1>
+            <p className="text-gray-500 text-sm">Manage in-patient admissions and bed allocation</p>
+          </div>
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button className="gap-2">
               <Plus className="size-4" />
@@ -115,8 +116,10 @@ export function Admissions() {
             </div>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
+      <div className="overflow-y-auto overflow-x-hidden px-4 pb-8 admissions-scrollable" style={{ maxHeight: 'calc(100vh - 120px)', minHeight: 0 }}>
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <Card>
@@ -245,6 +248,7 @@ export function Admissions() {
           <AdmissionsList admissions={getAdmissionsByStatus('Moved to ICU')} />
         </TabsContent>
       </Tabs>
+      </div>
     </div>
   );
 }

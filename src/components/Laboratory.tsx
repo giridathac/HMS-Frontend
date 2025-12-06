@@ -163,13 +163,14 @@ export function Laboratory() {
   const completedCount = tests.filter(t => t.status === 'Completed' || t.status === 'Reported').length;
 
   return (
-    <div className="p-8 bg-blue-100 min-h-full">
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-gray-900 mb-2">Laboratory Management</h1>
-          <p className="text-gray-500">Manage lab tests, samples, and reports</p>
-        </div>
-        <div className="flex gap-2">
+    <div className="flex-1 bg-blue-100 flex flex-col overflow-hidden min-h-0">
+      <div className="px-4 pt-4 pb-0 flex-shrink-0">
+        <div className="flex items-center justify-between mb-4 flex-shrink-0">
+          <div>
+            <h1 className="text-gray-900 mb-0 text-xl">Laboratory Management</h1>
+            <p className="text-gray-500 text-sm">Manage lab tests, samples, and reports</p>
+          </div>
+          <div className="flex gap-2">
           <Button variant="outline" className="gap-2" onClick={() => setShowReportsDialog(true)}>
             <FileText className="size-4" />
             View Reports
@@ -232,9 +233,11 @@ export function Laboratory() {
               </div>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
       </div>
 
+      <div className="overflow-y-auto overflow-x-hidden px-4 pb-8 laboratory-scrollable" style={{ maxHeight: 'calc(100vh - 120px)', minHeight: 0 }}>
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <Card>
@@ -590,6 +593,7 @@ export function Laboratory() {
           </div>
         </DialogContent>
       </Dialog>
+      </div>
     </div>
   );
 }
@@ -661,5 +665,5 @@ function TestsList({ tests, onSelectTest }: { tests: LabTest[]; onSelectTest: (t
         )}
       </CardContent>
     </Card>
-  );
+    );
 }
