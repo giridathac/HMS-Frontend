@@ -28,7 +28,7 @@ interface DashboardProps {
   departments?: Array<{
     id: number;
     name: string;
-    category: string;
+    category: DepartmentCategory;
     description?: string;
     specialisationDetails?: string;
     noOfDoctors?: number;
@@ -152,7 +152,6 @@ export function DashboardView({
     }
   };
   return (
-<<<<<<< HEAD
     <div className="flex-1 bg-blue-100 flex flex-col overflow-hidden min-h-0">
       <div className="px-4 pt-4 pb-0 flex-shrink-0">
         <div className="flex items-center justify-between mb-4 flex-shrink-0">

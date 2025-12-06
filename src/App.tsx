@@ -41,8 +41,10 @@ const RoomBeds = lazy(() => import('./components/RoomBeds').then(m => ({ default
 const LabTests = lazy(() => import('./components/LabTests').then(m => ({ default: m.LabTests })));
 const BillManagement = lazy(() => import('./components/BillManagement').then(m => ({ default: m.BillManagement })));
 const PatientAppointmentManagement = lazy(() => import('./components/PatientAppointmentManagement').then(m => ({ default: m.PatientAppointmentManagement })));
+const OTRoomsManagement = lazy(() => import('./components/OTRoomsManagement').then(m => ({ default: m.OTRoomsManagement })));
+const ICUBedsManagement = lazy(() => import('./components/ICUBedsManagement').then(m => ({ default: m.ICUBedsManagement })));
 
-type View = 'dashboard' | 'frontdesk' | 'consultation' | 'admissions' | 'ot' | 'icu' | 'laboratory' | 'emergency' | 'reports' | 'doctors' | 'staff' | 'roles' | 'departments' | 'patientregistration' | 'roombeds' | 'labtests' | 'bills' | 'patientappointments';
+type View = 'dashboard' | 'frontdesk' | 'consultation' | 'admissions' | 'ot' | 'icu' | 'laboratory' | 'emergency' | 'reports' | 'doctors' | 'staff' | 'roles' | 'departments' | 'patientregistration' | 'roombeds' | 'labtests' | 'bills' | 'patientappointments' | 'otrooms' | 'icubeds';
 
 // Loading fallback component
 function LoadingFallback() {
@@ -66,7 +68,7 @@ export default function App() {
     const hash = window.location.hash.slice(1) || 'dashboard';
     // Extract view from hash (handle query parameters like #ot?otId=...)
     const viewName = hash.split('?')[0];
-    const validViews: View[] = ['dashboard', 'frontdesk', 'consultation', 'admissions', 'ot', 'icu', 'laboratory', 'emergency', 'reports', 'doctors', 'staff', 'roles', 'departments', 'patientregistration', 'roombeds', 'labtests', 'bills', 'patientappointments'];
+    const validViews: View[] = ['dashboard', 'frontdesk', 'consultation', 'admissions', 'ot', 'icu', 'laboratory', 'emergency', 'reports', 'doctors', 'staff', 'roles', 'departments', 'patientregistration', 'roombeds', 'labtests', 'bills', 'patientappointments', 'otrooms', 'icubeds'];
     return validViews.includes(viewName as View) ? (viewName as View) : 'dashboard';
   };
 
@@ -106,7 +108,9 @@ export default function App() {
     { id: 'laboratory' as View, label: 'Laboratory', icon: TestTube },    
     { id: 'admissions' as View, label: 'Admissions (IPD)', icon: BedDouble },
     { id: 'ot' as View, label: 'OT Management', icon: Scissors },
+    { id: 'otrooms' as View, label: 'OT Rooms Management', icon: Scissors },
     { id: 'icu' as View, label: 'ICU Management', icon: HeartPulse },
+    { id: 'icubeds' as View, label: 'ICU Bed Management', icon: HeartPulse },
     { id: 'bills' as View, label: 'Bill Management', icon: Receipt },   
     
     { id: 'roles' as View, label: 'Roles', icon: Shield },
@@ -214,7 +218,7 @@ export default function App() {
         <ResizablePanel defaultSize={isStandalone ? 100 : 84} minSize={70}>
 
           <main className={`h-full bg-blue-50 transition-all duration-300 flex flex-col ${
-            currentView === 'dashboard' || currentView === 'frontdesk' || currentView === 'ot' || currentView === 'icu'
+            currentView === 'dashboard' || currentView === 'frontdesk' || currentView === 'ot' || currentView === 'icu' || currentView === 'otrooms' || currentView === 'icubeds'
               ? 'overflow-hidden' 
               : 'overflow-auto overflow-x-hidden'
           }`}>
@@ -231,7 +235,9 @@ export default function App() {
               {currentView === 'consultation' && <DoctorConsultation />}
               {currentView === 'admissions' && <Admissions />}
               {currentView === 'ot' && <OTManagement />}
+              {currentView === 'otrooms' && <OTRoomsManagement />}
               {currentView === 'icu' && <ICUManagement />}
+              {currentView === 'icubeds' && <ICUBedsManagement />}
               {currentView === 'bills' && <BillManagement />}
               {currentView === 'patientappointments' && <PatientAppointmentManagement />}
               {currentView === 'laboratory' && <Laboratory />}

@@ -465,6 +465,7 @@ export function PatientAppointmentManagement() {
                   <input
                     type="checkbox"
                     id="toBeAdmitted"
+                    aria-label="To Be Admitted (Yes - converted to IPD)"
                     checked={formData.toBeAdmitted}
                     onChange={(e) => setFormData({ ...formData, toBeAdmitted: e.target.checked })}
                     className="rounded"
@@ -475,6 +476,7 @@ export function PatientAppointmentManagement() {
                   <input
                     type="checkbox"
                     id="referToAnotherDoctor"
+                    aria-label="Refer to Another Doctor"
                     checked={formData.referToAnotherDoctor}
                     onChange={(e) => setFormData({ 
                       ...formData, 
@@ -514,6 +516,7 @@ export function PatientAppointmentManagement() {
                   <input
                     type="checkbox"
                     id="transferToIPDOTICU"
+                    aria-label="Transfer to IPD/OT/ICU"
                     checked={formData.transferToIPDOTICU}
                     onChange={(e) => setFormData({ ...formData, transferToIPDOTICU: e.target.checked, transferTo: e.target.checked ? formData.transferTo : undefined })}
                     className="rounded"
@@ -821,6 +824,7 @@ export function PatientAppointmentManagement() {
               <input
                 type="checkbox"
                 id="edit-toBeAdmitted"
+                aria-label="To Be Admitted (Yes - converted to IPD)"
                 checked={formData.toBeAdmitted}
                 onChange={(e) => setFormData({ ...formData, toBeAdmitted: e.target.checked })}
                 className="rounded"
@@ -831,6 +835,7 @@ export function PatientAppointmentManagement() {
               <input
                 type="checkbox"
                 id="edit-referToAnotherDoctor"
+                aria-label="Refer to Another Doctor"
                 checked={formData.referToAnotherDoctor}
                 onChange={(e) => setFormData({ 
                   ...formData, 
@@ -870,6 +875,7 @@ export function PatientAppointmentManagement() {
               <input
                 type="checkbox"
                 id="edit-transferToIPDOTICU"
+                aria-label="Transfer to IPD/OT/ICU"
                 checked={formData.transferToIPDOTICU}
                 onChange={(e) => setFormData({ ...formData, transferToIPDOTICU: e.target.checked, transferTo: e.target.checked ? formData.transferTo : undefined })}
                 className="rounded"
