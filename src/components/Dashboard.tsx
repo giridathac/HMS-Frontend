@@ -7,7 +7,7 @@ import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Users, ClipboardList, BedDouble, Scissors, HeartPulse, Activity, Building2, Stethoscope, Edit, Trash2 } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { useDashboard } from '../hooks';
 import { useDepartments } from '../hooks/useDepartments';
 import { ChartData, DoctorQueue } from '../types';
@@ -97,6 +97,14 @@ export function DashboardView({
   onDeleteDepartment,
   onRefreshDepartments
 }: DashboardViewProps) {
+  // Debug logging for admission data
+  React.useEffect(() => {
+    if (admissionData) {
+      console.log('Dashboard - admissionData received:', admissionData);
+      console.log('Dashboard - admissionData length:', admissionData.length);
+      console.log('Dashboard - admissionData sample:', admissionData[0]);
+    }
+  }, [admissionData]);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedDepartment, setSelectedDepartment] = useState<Department | null>(null);
   const [formData, setFormData] = useState({
@@ -209,25 +217,35 @@ export function DashboardView({
             <CardTitle>IPD Room Distribution</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={admissionData || []}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, value }) => `${name}: ${value}`}
-                  outerRadius={100}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {(admissionData || []).map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color || '#8884d8'} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
+            {(!admissionData || admissionData.length === 0) ? (
+              <div className="flex items-center justify-center h-[300px] text-gray-500">
+                <p>No IPD room distribution data available</p>
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={admissionData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, value }) => `${name}: ${value}`}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="value"
+                    nameKey="name"
+                  >
+                    {admissionData.map((entry, index) => {
+                      const defaultColors = ['#3b82f6', '#8b5cf6', '#06b6d4', '#10b981', '#f59e0b', '#ef4444', '#ec4899', '#6366f1'];
+                      const fillColor = entry.color || defaultColors[index % defaultColors.length] || '#8884d8';
+                      return <Cell key={`cell-${index}`} fill={fillColor} />;
+                    })}
+                  </Pie>
+                  <Tooltip formatter={(value: any) => value} />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -243,7 +261,7 @@ export function DashboardView({
               <thead>
                 <tr className="border-b border-gray-200">
                   <th className="text-left py-3 px-4 text-gray-700">Doctor</th>
-                  <th className="text-left py-3 px-4 text-gray-700">Specialty</th>
+                  <th className="text-left py-3 px-4 text-gray-700">Department Name</th>
                   <th className="text-left py-3 px-4 text-gray-700">Type</th>
                   <th className="text-left py-3 px-4 text-gray-700">Waiting</th>
                   <th className="text-left py-3 px-4 text-gray-700">Consulting</th>

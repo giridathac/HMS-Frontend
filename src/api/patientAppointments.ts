@@ -872,9 +872,15 @@ export const patientAppointmentsApi = {
 
   async delete(id: number): Promise<void> {
     try {
-      console.log('Deleting patient appointment via API:', id);
+      // Ensure id is a valid integer
+      const appointmentId = Number(id);
+      if (isNaN(appointmentId) || !Number.isInteger(appointmentId) || appointmentId <= 0) {
+        throw new Error(`Invalid PatientAppointmentId: ${id}. Must be a positive integer.`);
+      }
       
-      const response = await apiRequest<ApiResponse>(`/patient-appointments/${id}`, {
+      console.log('Deleting patient appointment via API:', appointmentId);
+      
+      const response = await apiRequest<ApiResponse>(`/patient-appointments/${appointmentId}`, {
         method: 'DELETE',
       });
       
