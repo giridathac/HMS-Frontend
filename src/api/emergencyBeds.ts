@@ -45,10 +45,102 @@ export interface UpdateEmergencyBedDto {
 }
 
 export const emergencyBedsApi = {
-  async getAll(): Promise<EmergencyBed[]> {
-    // Replace with: return apiRequest<EmergencyBed[]>('/emergencybeds');
-    await delay(300);
-    return Promise.resolve([...stubEmergencyBeds]);
+  async getAll(status?: string): Promise<EmergencyBed[]> {
+    try {
+      // Build query string if status is provided
+      const queryParams = status ? `?status=${encodeURIComponent(status)}` : '';
+      const endpoint = `/emergency-beds${queryParams}`;
+
+      console.log('Fetching emergency beds from:', endpoint);
+
+      // Call the API endpoint
+      const response = await apiRequest<{
+        success: boolean;
+        count: number;
+        data: Array<{
+          EmergencyBedId: number;
+          EmergencyBedNo: string;
+          EmergencyRoomDescription: string | null;
+          ChargesPerDay: number | null;
+          Status: string;
+          CreatedBy: number | null;
+          CreatedAt: string | Date;
+        }>;
+      }>(endpoint, {
+        method: 'GET',
+      });
+
+      console.log('Get all emergency beds API response:', response);
+
+      // Handle response structure: { success, count, data: [...] }
+      if (!response || !response.data || !Array.isArray(response.data)) {
+        throw new Error('Invalid response format from API');
+      }
+
+      // Normalize the response data to match EmergencyBed interface
+      const normalizedEmergencyBeds: EmergencyBed[] = response.data.map((item) => ({
+        id: item.EmergencyBedId || 0,
+        emergencyBedId: String(item.EmergencyBedId || ''),
+        emergencyBedNo: item.EmergencyBedNo || '',
+        emergencyRoomNameNo: undefined, // Not in API response
+        emergencyRoomDescription: item.EmergencyRoomDescription || undefined,
+        chargesPerDay: item.ChargesPerDay !== null && item.ChargesPerDay !== undefined ? Number(item.ChargesPerDay) : 0,
+        createdBy: item.CreatedBy !== null && item.CreatedBy !== undefined ? String(item.CreatedBy) : '',
+        createdAt: item.CreatedAt ? (typeof item.CreatedAt === 'string' ? item.CreatedAt : item.CreatedAt.toISOString()) : new Date().toISOString(),
+        status: (item.Status || 'active').toLowerCase() as 'active' | 'inactive',
+      }));
+
+      return normalizedEmergencyBeds;
+    } catch (error: any) {
+      console.error('Error fetching emergency beds:', error);
+      console.error('Error details:', {
+        message: error.message,
+        status: error.status,
+        data: error.data,
+        stack: error.stack
+      });
+
+      // If stub data is enabled and API fails, fall back to stub data
+      if (ENABLE_STUB_DATA) {
+        console.warn('API call failed, using stub data for emergency beds');
+        await delay(300);
+        // Filter by status if provided
+        let filteredBeds = [...stubEmergencyBeds];
+        if (status) {
+          const statusLower = status.toLowerCase();
+          filteredBeds = filteredBeds.filter(bed => bed.status.toLowerCase() === statusLower);
+        }
+        return filteredBeds;
+      }
+
+      // Re-throw API errors with detailed message
+      if (error instanceof ApiError) {
+        const errorData = error.data as any;
+        const errorMessage = errorData?.message || errorData?.error || error.message || 'Failed to fetch emergency beds';
+        const errorDetails = errorData?.errors || errorData?.details;
+
+        let fullErrorMessage = errorMessage;
+        if (errorDetails) {
+          if (Array.isArray(errorDetails)) {
+            fullErrorMessage += ': ' + errorDetails.join(', ');
+          } else if (typeof errorDetails === 'object') {
+            fullErrorMessage += ': ' + JSON.stringify(errorDetails);
+          } else {
+            fullErrorMessage += ': ' + errorDetails;
+          }
+        }
+
+        throw new Error(fullErrorMessage);
+      }
+
+      // Re-throw validation errors
+      if (error instanceof Error) {
+        throw error;
+      }
+
+      // Fallback error
+      throw new Error('Failed to fetch emergency beds. Please check the console for details.');
+    }
   },
 
   async getById(id: number): Promise<EmergencyBed> {

@@ -520,8 +520,8 @@ export function Laboratory() {
   const completedCount = tests.filter(t => t.status === 'Completed' || t.status === 'Reported').length;
 
   return (
-    <div className="px-4 pt-4 pb-0 bg-blue-100 h-screen flex flex-col overflow-hidden">
-      <div className="flex-shrink-0">
+    <div className="flex-1 bg-blue-100 flex flex-col overflow-hidden min-h-0">
+      <div className="px-4 pt-4 pb-0 flex-shrink-0">
         <div className="flex items-center justify-between mb-4 flex-shrink-0">
           <div>
             <h1 className="text-gray-900 mb-0 text-xl">Laboratory Management</h1>
@@ -594,9 +594,9 @@ export function Laboratory() {
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col overflow-hidden min-h-0">
+      <div className="overflow-y-auto overflow-x-hidden px-4 pb-4 laboratory-scrollable" style={{ maxHeight: 'calc(100vh - 60px)', minHeight: 0 }}>
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8 flex-shrink-0">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-2">
@@ -658,35 +658,33 @@ export function Laboratory() {
       </Card>
 
       {/* Tests List */}
-      <div className="flex-1 flex flex-col overflow-hidden min-h-0">
-      <Tabs defaultValue="all" className="flex-1 flex flex-col overflow-hidden min-h-0 space-y-0">
-        <TabsList className="mb-2 flex-shrink-0">
+      <Tabs defaultValue="all" className="space-y-6">
+        <TabsList>
           <TabsTrigger value="all">All Tests ({filteredTests.length})</TabsTrigger>
           <TabsTrigger value="pending">Pending ({getTestsByStatus('Pending').length})</TabsTrigger>
           <TabsTrigger value="progress">In Progress ({getTestsByStatus('In Progress').length + getTestsByStatus('Sample Collected').length})</TabsTrigger>
           <TabsTrigger value="completed">Completed ({getTestsByStatus('Completed').length + getTestsByStatus('Reported').length})</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="all" className="flex-1 flex flex-col overflow-hidden min-h-0 mt-0">
+        <TabsContent value="all">
           <TestsList tests={filteredTests} onSelectTest={setSelectedTest} />
         </TabsContent>
-        <TabsContent value="pending" className="flex-1 flex flex-col overflow-hidden min-h-0 mt-0">
+        <TabsContent value="pending">
           <TestsList tests={getTestsByStatus('Pending')} onSelectTest={setSelectedTest} />
         </TabsContent>
-        <TabsContent value="progress" className="flex-1 flex flex-col overflow-hidden min-h-0 mt-0">
+        <TabsContent value="progress">
           <TestsList 
             tests={[...getTestsByStatus('In Progress'), ...getTestsByStatus('Sample Collected')]} 
             onSelectTest={setSelectedTest} 
           />
         </TabsContent>
-        <TabsContent value="completed" className="flex-1 flex flex-col overflow-hidden min-h-0 mt-0">
+        <TabsContent value="completed">
           <TestsList 
             tests={[...getTestsByStatus('Completed'), ...getTestsByStatus('Reported')]} 
             onSelectTest={setSelectedTest} 
           />
         </TabsContent>
       </Tabs>
-      </div>
       </div>
 
       {/* Test Details Dialog */}
@@ -959,9 +957,9 @@ export function Laboratory() {
 
 function TestsList({ tests, onSelectTest }: { tests: LabTest[]; onSelectTest: (test: LabTest) => void }) {
   return (
-    <Card className="flex-1 flex flex-col overflow-hidden min-h-0 mb-0">
-      <CardContent className="p-0 flex-1 overflow-hidden flex flex-col min-h-0">
-        <div className="overflow-x-auto overflow-y-scroll border border-gray-200 rounded flex-1 min-h-0 doctors-scrollable h-full">
+    <Card className="mb-4">
+      <CardContent className="p-6">
+        <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="border-b border-gray-200">
@@ -1024,5 +1022,5 @@ function TestsList({ tests, onSelectTest }: { tests: LabTest[]; onSelectTest: (t
         </div>
       </CardContent>
     </Card>
-    );
+  );
 }

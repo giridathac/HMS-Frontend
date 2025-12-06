@@ -286,8 +286,8 @@ function RoomBedsView({
   };
 
   return (
-    <div className="flex-1 bg-blue-100 flex flex-col overflow-hidden min-h-0">
-      <div className="px-4 pt-4 pb-0 flex-shrink-0">
+    <div className="px-4 pt-4 pb-4 bg-blue-100 h-screen flex flex-col overflow-hidden">
+      <div className="flex-shrink-0">
         <div className="flex items-center justify-between mb-4 flex-shrink-0">
           <div>
             <h1 className="text-gray-900 mb-0 text-xl">Room & Beds Management</h1>
@@ -396,28 +396,31 @@ function RoomBedsView({
         </div>
       </div>
 
-      <div className="overflow-y-auto overflow-x-hidden px-4 pb-4 room-beds-scrollable" style={{ maxHeight: 'calc(100vh - 100px)', minHeight: 0 }}>
+      <div className="flex-1 flex flex-col overflow-hidden min-h-0">
+      <div className="overflow-y-auto overflow-x-hidden px-4 pb-0 room-beds-scrollable" style={{ maxHeight: 'calc(100vh - 100px)', minHeight: 0 }}>
       {/* Room Beds Table */}
-      <Card className="mb-4">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <BedDouble className="size-5" />
-            Room Beds List ({roomBeds.length})
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+      <Card className="mb-0">
+        <CardContent className="p-0">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
+                <tr className="border-b border-gray-200 bg-gray-50">
+                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-700" colSpan={8}>
+                    <div className="flex items-center gap-2">
+                      <BedDouble className="size-5" />
+                      <span>Room Beds List ({roomBeds.length})</span>
+                    </div>
+                  </th>
+                </tr>
                 <tr className="border-b border-gray-200">
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Bed No</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Room No</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Category</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Type</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Charges/Day</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Status</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Created At</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Actions</th>
+                  <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">Bed No</th>
+                  <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">Room No</th>
+                  <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">Category</th>
+                  <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">Type</th>
+                  <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">Charges/Day</th>
+                  <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">Status</th>
+                  <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">Created At</th>
+                  <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -473,6 +476,8 @@ function RoomBedsView({
           </div>
         </CardContent>
       </Card>
+      </div>
+      </div>
 
       {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
@@ -584,7 +589,6 @@ function RoomBedsView({
           </div>
         </DialogContent>
       </Dialog>
-      </div>
     </div>
   );
 }

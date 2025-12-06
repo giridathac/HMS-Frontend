@@ -276,7 +276,7 @@ export function Emergency() {
           </DialogContent>
         </Dialog>
       </div>
-
+      <div className="overflow-y-auto overflow-x-hidden px-4 pb-4 emergency-scrollable" style={{ maxHeight: 'calc(100vh - 60px)', minHeight: 0 }}>
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
         <Card>
@@ -586,6 +586,7 @@ export function Emergency() {
           )}
         </DialogContent>
       </Dialog>
+      </div>
       </div>
     </div>
   );
@@ -905,7 +906,7 @@ function EmergencyBedsManagement() {
       </div>
 
       {/* Emergency Beds Table */}
-      <Card>
+      <Card className="mb-4">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <BedDouble className="size-5" />

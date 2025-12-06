@@ -613,7 +613,7 @@ export function PatientRegistration() {
 
         <Card className="flex-1 flex flex-col overflow-hidden min-h-0 mb-4">
           <CardContent className="p-0 flex-1 overflow-hidden flex flex-col min-h-0">
-            <div className="overflow-x-auto overflow-y-scroll border border-gray-200 rounded flex-1 min-h-0 doctors-scrollable h-full">
+            <div className="overflow-x-auto overflow-y-scroll border border-gray-200 rounded flex-1 min-h-0 doctors-scrollable h-full pb-2">
               <table className="w-full">
                 <thead className="sticky top-0 bg-white z-10 shadow-sm">
                   <tr className="border-b border-gray-200">

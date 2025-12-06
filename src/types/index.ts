@@ -203,3 +203,13 @@ export interface EmergencyBed {
   status: 'active' | 'inactive';
 }
 
+export interface EmergencyBedSlot {
+  id: number;
+  emergencyBedSlotId: string;
+  emergencyBedId: number;
+  eBedSlotNo: string;
+  eSlotStartTime: string;
+  eSlotEndTime: string;
+  status: 'Active' | 'Inactive';
+}
+

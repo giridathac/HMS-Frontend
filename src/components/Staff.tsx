@@ -473,6 +473,7 @@ function StaffView({
                     <Label htmlFor="opdConsultation">OPD Consultation</Label>
                     <select
                       id="opdConsultation"
+                      aria-label="OPD Consultation"
                       className="w-full px-3 py-2 border border-gray-200 rounded-md"
                       value={formData.OPDConsultation || ''}
                       onChange={(e) => setFormData({ ...formData, OPDConsultation: e.target.value as 'Yes' | 'No' || undefined })}
@@ -486,6 +487,7 @@ function StaffView({
                     <Label htmlFor="ipdVisit">IPD Visit</Label>
                     <select
                       id="ipdVisit"
+                      aria-label="IPD Visit"
                       className="w-full px-3 py-2 border border-gray-200 rounded-md"
                       value={formData.IPDVisit || ''}
                       onChange={(e) => setFormData({ ...formData, IPDVisit: e.target.value as 'Yes' | 'No' || undefined })}
@@ -501,6 +503,7 @@ function StaffView({
                     <Label htmlFor="otHandle">OT Handle</Label>
                     <select
                       id="otHandle"
+                      aria-label="OT Handle"
                       className="w-full px-3 py-2 border border-gray-200 rounded-md"
                       value={formData.OTHandle || ''}
                       onChange={(e) => setFormData({ ...formData, OTHandle: e.target.value as 'Yes' | 'No' || undefined })}
@@ -514,6 +517,7 @@ function StaffView({
                     <Label htmlFor="icuVisits">ICU Visits</Label>
                     <select
                       id="icuVisits"
+                      aria-label="ICU Visits"
                       className="w-full px-3 py-2 border border-gray-200 rounded-md"
                       value={formData.ICUVisits || ''}
                       onChange={(e) => setFormData({ ...formData, ICUVisits: e.target.value as 'Yes' | 'No' || undefined })}
@@ -538,7 +542,7 @@ function StaffView({
 
   return (
     <>
-      <div className="px-4 pt-4 pb-0 bg-blue-100 h-full flex flex-col overflow-hidden">
+      <div className="px-4 pt-4 pb-4 bg-blue-100 h-screen flex flex-col overflow-hidden">
         <div className="flex items-center justify-between mb-4 flex-shrink-0">
           <div>
             <h1 className="text-gray-900 mb-0 text-xl">Staff Management</h1>
@@ -570,7 +574,7 @@ function StaffView({
 
         <Card className="flex-1 flex flex-col overflow-hidden min-h-0 mb-4">
           <CardContent className="p-0 flex-1 overflow-hidden flex flex-col min-h-0">
-            <div className="overflow-x-auto overflow-y-scroll border border-gray-200 rounded flex-1" style={{ maxHeight: 'calc(100vh - 100px)' }}>
+            <div className="overflow-x-auto overflow-y-scroll border border-gray-200 rounded flex-1 min-h-0 doctors-scrollable h-full">
               <table className="w-full">
           <thead className="sticky top-0 bg-white z-10 shadow-sm">
             <tr className="border-b border-gray-200">
@@ -628,9 +632,6 @@ function StaffView({
                 </tr>
               );
             })}
-            <tr>
-              <td className="py-1 px-4" colSpan={8}></td>
-            </tr>
           </tbody>
         </table>
         {filteredStaff.length === 0 && (
@@ -815,6 +816,7 @@ function StaffView({
                     <Label htmlFor="edit-opdConsultation">OPD Consultation</Label>
                     <select
                       id="edit-opdConsultation"
+                      aria-label="OPD Consultation"
                       className="w-full px-3 py-2 border border-gray-200 rounded-md"
                       value={formData.OPDConsultation || ''}
                       onChange={(e) => setFormData({ ...formData, OPDConsultation: e.target.value as 'Yes' | 'No' || undefined })}
@@ -828,6 +830,7 @@ function StaffView({
                     <Label htmlFor="edit-ipdVisit">IPD Visit</Label>
                     <select
                       id="edit-ipdVisit"
+                      aria-label="IPD Visit"
                       className="w-full px-3 py-2 border border-gray-200 rounded-md"
                       value={formData.IPDVisit || ''}
                       onChange={(e) => setFormData({ ...formData, IPDVisit: e.target.value as 'Yes' | 'No' || undefined })}
@@ -843,6 +846,7 @@ function StaffView({
                     <Label htmlFor="edit-otHandle">OT Handle</Label>
                     <select
                       id="edit-otHandle"
+                      aria-label="OT Handle"
                       className="w-full px-3 py-2 border border-gray-200 rounded-md"
                       value={formData.OTHandle || ''}
                       onChange={(e) => setFormData({ ...formData, OTHandle: e.target.value as 'Yes' | 'No' || undefined })}
@@ -856,6 +860,7 @@ function StaffView({
                     <Label htmlFor="edit-icuVisits">ICU Visits</Label>
                     <select
                       id="edit-icuVisits"
+                      aria-label="ICU Visits"
                       className="w-full px-3 py-2 border border-gray-200 rounded-md"
                       value={formData.ICUVisits || ''}
                       onChange={(e) => setFormData({ ...formData, ICUVisits: e.target.value as 'Yes' | 'No' || undefined })}

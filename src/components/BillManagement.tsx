@@ -280,8 +280,8 @@ export function BillManagement() {
   const hasActiveFilters = filterPatientId || filterBillNo;
 
   return (
-    <div className="flex-1 bg-blue-100 flex flex-col overflow-hidden min-h-0">
-      <div className="px-4 pt-4 pb-0 flex-shrink-0">
+    <div className="px-4 pt-4 pb-4 bg-blue-100 h-screen flex flex-col overflow-hidden">
+      <div className="flex-shrink-0">
         <div className="flex items-center justify-between mb-4 flex-shrink-0">
           <div>
             <h1 className="text-gray-900 mb-0 text-xl">Bill Management</h1>
@@ -493,8 +493,10 @@ export function BillManagement() {
             </div>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
+      <div className="flex-1 flex flex-col overflow-hidden min-h-0">
       {/* Filters */}
       <div className="overflow-y-auto overflow-x-hidden px-4 pb-4 billmanagement-scrollable" style={{ maxHeight: 'calc(100vh - 100px)', minHeight: 0 }}>
       <Card className="mb-4">
@@ -549,7 +551,7 @@ export function BillManagement() {
       </Card>
 
       {/* Bills Table */}
-      <Card>
+      <Card className="mb-4">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Receipt className="size-5" />
@@ -628,6 +630,7 @@ export function BillManagement() {
           </div>
         </CardContent>
       </Card>
+      </div>
       </div>
 
       {/* Edit Dialog */}
@@ -841,7 +844,6 @@ export function BillManagement() {
           </div>
         </DialogContent>
       </Dialog>
-      </div>
     </div>
   );
 }

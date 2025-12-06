@@ -108,13 +108,14 @@ export function DoctorConsultation() {
   };
 
   return (
-    <div className="flex-1 bg-blue-100 flex flex-col overflow-hidden min-h-0">
-      <div className="px-4 pt-4 pb-0 flex-shrink-0">
+    <div className="px-4 pt-4 pb-4 bg-blue-100 h-screen flex flex-col overflow-hidden">
+      <div className="flex-shrink-0">
         <div className="mb-4 flex-shrink-0">
           <h1 className="text-gray-900 mb-0 text-xl">Doctor Consultation - Dr. Sarah Johnson</h1>
           <p className="text-gray-500 text-sm">Cardiology Department</p>
         </div>
       </div>
+      <div className="flex-1 flex flex-col overflow-hidden min-h-0">
       <div className="overflow-y-auto overflow-x-hidden px-4 pb-4 doctorconsultation-scrollable" style={{ maxHeight: 'calc(100vh - 100px)', minHeight: 0 }}>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
@@ -196,7 +197,7 @@ export function DoctorConsultation() {
 
       {/* Consultation Form */}
       {currentPatient && (
-        <Card>
+        <Card className="mb-4">
           <CardHeader>
             <CardTitle>Consultation Details</CardTitle>
           </CardHeader>
@@ -418,6 +419,8 @@ export function DoctorConsultation() {
           </CardContent>
         </Card>
       )}
+      </div>
+      </div>
 
       {/* Prescription Summary Dialog */}
       <Dialog open={showPrescriptionDialog} onOpenChange={setShowPrescriptionDialog}>
@@ -499,7 +502,6 @@ export function DoctorConsultation() {
           </div>
         </DialogContent>
       </Dialog>
-      </div>
     </div>
   );
 }

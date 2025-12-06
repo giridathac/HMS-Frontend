@@ -220,7 +220,7 @@ export default function App() {
         <ResizablePanel defaultSize={isStandalone ? 100 : 84} minSize={70}>
 
           <main className={`h-full bg-blue-50 transition-all duration-300 flex flex-col ${
-            currentView === 'dashboard' || currentView === 'frontdesk' || currentView === 'ot' || currentView === 'icu' || currentView === 'otrooms' || currentView === 'icubeds' || currentView === 'emergencybeds' || currentView === 'patientregistration' || currentView === 'laboratory'
+            currentView === 'dashboard' || currentView === 'frontdesk' || currentView === 'icu' || currentView === 'otrooms' || currentView === 'icubeds' || currentView === 'emergencybeds' || currentView === 'patientregistration'
               ? 'overflow-hidden' 
               : 'overflow-auto overflow-x-hidden'
           }`}>

@@ -82,33 +82,34 @@ export function Reports() {
   const [selectedDate, setSelectedDate] = useState('2025-11-14');
 
   return (
-    <div className="p-8 bg-blue-100 min-h-full">
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-blue-900 mb-2">Reports & Analytics</h1>
-          <p className="text-gray-500">Comprehensive hospital performance reports</p>
+    <div className="px-4 pt-4 pb-4 bg-blue-100 h-screen flex flex-col overflow-hidden">
+      <div className="flex-shrink-0">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h1 className="text-3xl font-bold text-blue-900 mb-2">Reports & Analytics</h1>
+            <p className="text-gray-500">Comprehensive hospital performance reports</p>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant={reportType === 'daily' ? 'default' : 'outline'}
+              onClick={() => setReportType('daily')}
+            >
+              Daily Report
+            </Button>
+            <Button
+              variant={reportType === 'weekly' ? 'default' : 'outline'}
+              onClick={() => setReportType('weekly')}
+            >
+              Weekly Report
+            </Button>
+            <Button variant="outline" className="gap-2">
+              <Download className="size-4" />
+              Export PDF
+            </Button>
+          </div>
         </div>
-        <div className="flex gap-2">
-          <Button
-            variant={reportType === 'daily' ? 'default' : 'outline'}
-            onClick={() => setReportType('daily')}
-          >
-            Daily Report
-          </Button>
-          <Button
-            variant={reportType === 'weekly' ? 'default' : 'outline'}
-            onClick={() => setReportType('weekly')}
-          >
-            Weekly Report
-          </Button>
-          <Button variant="outline" className="gap-2">
-            <Download className="size-4" />
-            Export PDF
-          </Button>
-        </div>
-      </div>
 
-      <Card className="mb-6">
+        <Card className="mb-6">
         <CardContent className="p-6">
           <div className="flex items-center justify-between">
             <div>
@@ -132,7 +133,9 @@ export function Reports() {
           </div>
         </CardContent>
       </Card>
+      </div>
 
+      <div className="overflow-y-auto overflow-x-hidden px-4 pb-4 reports-scrollable" style={{ maxHeight: 'calc(100vh - 60px)', minHeight: 0 }}>
       <Tabs defaultValue="doctorwise" className="space-y-6">
         <TabsList className="grid grid-cols-5 w-full">
           <TabsTrigger value="doctorwise">Doctor-wise</TabsTrigger>
@@ -188,7 +191,7 @@ export function Reports() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="mb-4">
             <CardHeader>
               <CardTitle>Doctor Performance Comparison</CardTitle>
             </CardHeader>
@@ -248,7 +251,7 @@ export function Reports() {
             </Card>
           </div>
 
-          <Card>
+          <Card className="mb-4">
             <CardHeader>
               <CardTitle>OPD Patient Flow - Weekly Trend</CardTitle>
             </CardHeader>
@@ -313,7 +316,7 @@ export function Reports() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="mb-4">
             <CardHeader>
               <CardTitle>IPD Summary</CardTitle>
             </CardHeader>
@@ -367,7 +370,7 @@ export function Reports() {
             </Card>
           </div>
 
-          <Card>
+          <Card className="mb-4">
             <CardHeader>
               <CardTitle>Daily Surgery Schedule</CardTitle>
             </CardHeader>
@@ -436,7 +439,7 @@ export function Reports() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="mb-4">
             <CardHeader>
               <CardTitle>Patient Status Breakdown</CardTitle>
             </CardHeader>
@@ -459,6 +462,7 @@ export function Reports() {
           </Card>
         </TabsContent>
       </Tabs>
+      </div>
     </div>
   );
 }

@@ -386,28 +386,30 @@ export function OTRoomsManagement() {
       <div className="flex-1 flex flex-col overflow-hidden min-h-0">
         {/* OT Rooms Table */}
         <Card className="flex-1 flex flex-col overflow-hidden min-h-0 mb-4">
-          <CardHeader className="flex-shrink-0">
-            <CardTitle className="flex items-center gap-2">
-              <Scissors className="size-5" />
-              OT Rooms List ({total > 0 ? `${otRooms.length} of ${total}` : otRooms.length})
-            </CardTitle>
-          </CardHeader>
           <CardContent className="p-0 flex-1 overflow-hidden flex flex-col min-h-0">
             <div className="overflow-x-auto overflow-y-scroll border border-gray-200 rounded flex-1 min-h-0 ot-rooms-scrollable doctors-scrollable" style={{ maxHeight: 'calc(100vh - 160px)' }}>
               <table className="w-full">
                 <thead>
+                  <tr className="border-b border-gray-200 bg-gray-50">
+                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-700" colSpan={11}>
+                      <div className="flex items-center gap-2">
+                        <Scissors className="size-5" />
+                        <span>OT Rooms List ({total > 0 ? `${otRooms.length} of ${total}` : otRooms.length})</span>
+                      </div>
+                    </th>
+                  </tr>
                   <tr className="border-b border-gray-200">
-                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">OT ID</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">OT No</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Type</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">OT Name</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Description</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Start Time</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">End Time</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Created By</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Created At</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Status</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Actions</th>
+                    <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">OT ID</th>
+                    <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">OT No</th>
+                    <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">Type</th>
+                    <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">OT Name</th>
+                    <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">Description</th>
+                    <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">Start Time</th>
+                    <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">End Time</th>
+                    <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">Created By</th>
+                    <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">Created At</th>
+                    <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">Status</th>
+                    <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">Actions</th>
                   </tr>
                 </thead>
                 <tbody>

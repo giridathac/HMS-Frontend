@@ -188,7 +188,7 @@ export function OTManagement() {
         </Dialog>
         </div>
       </div>
-      <div className="flex-1 overflow-y-auto overflow-x-hidden ot-scrollable min-h-0">
+      <div className="overflow-y-auto overflow-x-hidden px-4 pb-4 ot-scrollable" style={{ maxHeight: 'calc(100vh - 60px)', minHeight: 0 }}>
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <Card>

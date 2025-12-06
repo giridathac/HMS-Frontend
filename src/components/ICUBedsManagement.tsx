@@ -304,26 +304,28 @@ export function ICUBedsManagement() {
       <div className="flex-1 flex flex-col overflow-hidden min-h-0">
         {/* ICU Beds Table */}
         <Card className="flex-1 flex flex-col overflow-hidden min-h-0 mb-4">
-          <CardHeader className="flex-shrink-0">
-            <CardTitle className="flex items-center gap-2">
-              <HeartPulse className="size-5" />
-              ICU Beds List ({icuBeds.length})
-            </CardTitle>
-          </CardHeader>
           <CardContent className="p-0 flex-1 overflow-hidden flex flex-col min-h-0">
             <div className="overflow-x-auto overflow-y-scroll border border-gray-200 rounded flex-1 min-h-0 icu-beds-scrollable doctors-scrollable" style={{ maxHeight: 'calc(100vh - 160px)' }}>
               <table className="w-full">
                 <thead>
+                  <tr className="border-b border-gray-200 bg-gray-50">
+                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-700" colSpan={9}>
+                      <div className="flex items-center gap-2">
+                        <HeartPulse className="size-5" />
+                        <span>ICU Beds List ({icuBeds.length})</span>
+                      </div>
+                    </th>
+                  </tr>
                   <tr className="border-b border-gray-200">
-                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">ICU ID</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">ICU Bed No</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">ICU Type</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">ICU Room Name/No</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">ICU Description</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Is Ventilator Attached</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Status</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Created At</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Actions</th>
+                    <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">ICU ID</th>
+                    <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">ICU Bed No</th>
+                    <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">ICU Type</th>
+                    <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">ICU Room Name/No</th>
+                    <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">ICU Description</th>
+                    <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">Is Ventilator Attached</th>
+                    <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">Status</th>
+                    <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">Created At</th>
+                    <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
