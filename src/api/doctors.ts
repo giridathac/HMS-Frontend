@@ -1,5 +1,5 @@
 // Doctors API service
-import { apiRequest } from './base';
+import { apiRequest, ENABLE_STUB_DATA } from './base';
 import { Doctor } from '../types';
 
 // Stub data
@@ -11,6 +11,26 @@ const stubDoctors: Doctor[] = [
   { id: 5, name: 'Dr. Robert Lee', specialty: 'Pediatrics', type: 'consulting' },
   { id: 6, name: 'Dr. Maria Garcia', specialty: 'Gynecology', type: 'inhouse' },
   { id: 7, name: 'Dr. David Wilson', specialty: 'Dermatology', type: 'consulting' },
+  { id: 8, name: 'Dr. Jennifer Martinez', specialty: 'Oncology', type: 'inhouse' },
+  { id: 9, name: 'Dr. Christopher Brown', specialty: 'Urology', type: 'inhouse' },
+  { id: 10, name: 'Dr. Amanda White', specialty: 'Psychiatry', type: 'consulting' },
+  { id: 11, name: 'Dr. Daniel Harris', specialty: 'Gastroenterology', type: 'inhouse' },
+  { id: 12, name: 'Dr. Lauren Clark', specialty: 'Endocrinology', type: 'inhouse' },
+  { id: 13, name: 'Dr. Ryan Lewis', specialty: 'Pulmonology', type: 'consulting' },
+  { id: 14, name: 'Dr. Nicole Walker', specialty: 'Rheumatology', type: 'inhouse' },
+  { id: 15, name: 'Dr. Kevin Allen', specialty: 'Nephrology', type: 'inhouse' },
+  { id: 16, name: 'Dr. Samantha Young', specialty: 'Hematology', type: 'consulting' },
+  { id: 17, name: 'Dr. Brandon King', specialty: 'Infectious Disease', type: 'inhouse' },
+  { id: 18, name: 'Dr. Rachel Wright', specialty: 'Allergy & Immunology', type: 'consulting' },
+  { id: 19, name: 'Dr. Justin Lopez', specialty: 'Cardiac Surgery', type: 'inhouse' },
+  { id: 20, name: 'Dr. Michelle Hill', specialty: 'Plastic Surgery', type: 'inhouse' },
+  { id: 21, name: 'Dr. Tyler Scott', specialty: 'Vascular Surgery', type: 'consulting' },
+  { id: 22, name: 'Dr. Stephanie Green', specialty: 'Thoracic Surgery', type: 'inhouse' },
+  { id: 23, name: 'Dr. Eric Adams', specialty: 'Ophthalmology', type: 'inhouse' },
+  { id: 24, name: 'Dr. Melissa Baker', specialty: 'Anesthesiology', type: 'inhouse' },
+  { id: 25, name: 'Dr. Jason Nelson', specialty: 'Emergency Medicine', type: 'inhouse' },
+  { id: 26, name: 'Dr. Ashley Carter', specialty: 'Radiology', type: 'consulting' },
+  { id: 27, name: 'Dr. Nathan Mitchell', specialty: 'Pathology', type: 'inhouse' },
 ];
 
 // Attendance stub data
@@ -67,9 +87,59 @@ export interface AttendanceRecord {
 
 export const doctorsApi = {
   async getAll(): Promise<Doctor[]> {
-    // Replace with: return apiRequest<Doctor[]>('/doctors');
-    await delay(300);
-    return Promise.resolve([...stubDoctors]);
+    let apiData: Doctor[] = [];
+    
+    try {
+      const response = await apiRequest<any>('/users');
+      // Handle different response structures: { data: [...] } or direct array
+      const doctorsData = response?.data || response || [];
+      
+      if (Array.isArray(doctorsData) && doctorsData.length > 0) {
+        // Map API response to Doctor format
+        apiData = doctorsData
+          .filter((user: any) => {
+            // Filter for doctors/surgeons - this might need adjustment based on your API structure
+            const roleName = user.RoleName || user.roleName || '';
+            return roleName.toLowerCase().includes('doctor') || roleName.toLowerCase().includes('surgeon');
+          })
+          .map((user: any) => ({
+            id: user.UserId || user.id || 0,
+            name: user.UserName || user.name || '',
+            specialty: user.DoctorDepartmentName || user.specialty || 'General Medicine',
+            type: (user.DoctorType === 'INHOUSE' ? 'inhouse' : 'consulting') as 'inhouse' | 'consulting',
+          }));
+      }
+    } catch (error) {
+      console.error('Error fetching doctors:', error);
+      // If stub data is disabled and API fails, throw the error
+      if (!ENABLE_STUB_DATA) {
+        throw error;
+      }
+    }
+    
+    // Append stub data if enabled
+    if (ENABLE_STUB_DATA) {
+      // Filter out stub data that might conflict with API data (by ID)
+      const apiIds = new Set(apiData.map(d => d.id));
+      const uniqueStubData = stubDoctors.filter(d => !apiIds.has(d.id));
+      
+      if (uniqueStubData.length > 0) {
+        console.log(`Appending ${uniqueStubData.length} stub doctors to ${apiData.length} API records`);
+      }
+      
+      // If API returned no data, use stub data as fallback
+      if (apiData.length === 0) {
+        console.warn('No doctors data received from API, using stub data');
+        await delay(300);
+        return [...stubDoctors];
+      }
+      
+      // Combine API data with stub data
+      return [...apiData, ...uniqueStubData];
+    }
+    
+    // Return only API data if stub data is disabled
+    return apiData;
   },
 
   async getById(id: number): Promise<Doctor> {

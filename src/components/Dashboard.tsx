@@ -161,7 +161,7 @@ export function DashboardView({
           </div>
         </div>
       </div>
-      <div className="overflow-y-auto overflow-x-hidden px-4 pb-8 dashboard-scrollable" style={{ maxHeight: 'calc(100vh - 120px)', minHeight: 0 }}>
+      <div className="overflow-y-auto overflow-x-hidden px-4 pb-4 dashboard-scrollable" style={{ maxHeight: 'calc(100vh - 100px)', minHeight: 0 }}>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">

@@ -155,7 +155,7 @@ export function ICUManagement() {
           </div>
         </div>
       </div>
-      <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 pb-8 icu-scrollable min-h-0">
+      <div className="overflow-y-auto overflow-x-hidden px-4 pb-4 icu-scrollable" style={{ maxHeight: 'calc(100vh - 100px)', minHeight: 0 }}>
       <Tabs defaultValue="patients" className="space-y-6">
         <TabsList>
           <TabsTrigger value="patients">ICU Patient Management</TabsTrigger>

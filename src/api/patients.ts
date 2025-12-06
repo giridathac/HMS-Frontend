@@ -1,5 +1,5 @@
 // Patient API service
-import { apiRequest, ApiError } from './base';
+import { apiRequest, ApiError, ENABLE_STUB_DATA } from './base';
 import { Patient } from '../types';
 
 // Stub data - replace with actual API calls
@@ -14,6 +14,26 @@ const stubPatients: Patient[] = [
   { id: 8, PatientId: 'PAT-2025-0008', PatientNo: 'P-008', PatientName: 'Priya', LastName: 'Patel', Age: 28, Gender: 'Female', PhoneNo: '9876543217', AdhaarId: '890123456789', PANCard: 'HIJKL8901M', Address: '258 Spruce St, City', ChiefComplaint: 'Fatigue and weakness', Status: 'Active', RegisteredBy: 'Dr. Anderson', RegisteredDate: '2025-01-22', PatientType: 'OPD' },
   { id: 9, PatientId: 'PAT-2025-0009', PatientNo: 'P-009', PatientName: 'James', LastName: 'Rodriguez', Age: 38, Gender: 'Male', PhoneNo: '9876543218', AdhaarId: '901234567890', PANCard: 'IJKLM9012N', Address: '369 Willow Ave, City', ChiefComplaint: 'Chest pain', Status: 'Active', RegisteredBy: 'Dr. Taylor', RegisteredDate: '2025-01-23', PatientType: 'Emergency' },
   { id: 10, PatientId: 'PAT-2025-0010', PatientNo: 'P-010', PatientName: 'Maria', LastName: 'Garcia', Age: 44, Gender: 'Female', PhoneNo: '9876543219', AdhaarId: '012345678901', PANCard: 'JKLMN0123O', Address: '741 Ash Blvd, City', ChiefComplaint: 'Weight gain and fatigue', Status: 'Active', RegisteredBy: 'Dr. Martinez', RegisteredDate: '2025-01-24', PatientType: 'Follow-up' },
+  { id: 11, PatientId: 'PAT-2025-0011', PatientNo: 'P-011', PatientName: 'Thomas', LastName: 'Anderson', Age: 35, Gender: 'Male', PhoneNo: '9876543220', AdhaarId: '123456789012', PANCard: 'KLMNO1234P', Address: '852 Oak St, City', ChiefComplaint: 'Chronic cough', Status: 'Active', RegisteredBy: 'Dr. Johnson', RegisteredDate: '2025-01-25', PatientType: 'OPD' },
+  { id: 12, PatientId: 'PAT-2025-0012', PatientNo: 'P-012', PatientName: 'Jennifer', LastName: 'White', Age: 29, Gender: 'Female', PhoneNo: '9876543221', AdhaarId: '234567890123', PANCard: 'LMNOP2345Q', Address: '963 Pine Ave, City', ChiefComplaint: 'Skin rash', Status: 'Active', RegisteredBy: 'Dr. Davis', RegisteredDate: '2025-01-26', PatientType: 'OPD' },
+  { id: 13, PatientId: 'PAT-2025-0013', PatientNo: 'P-013', PatientName: 'Christopher', LastName: 'Harris', Age: 51, Gender: 'Male', PhoneNo: '9876543222', AdhaarId: '345678901234', PANCard: 'MNOPQ3456R', Address: '147 Elm Rd, City', ChiefComplaint: 'Chest discomfort', Status: 'Active', RegisteredBy: 'Dr. Wilson', RegisteredDate: '2025-01-27', PatientType: 'Emergency' },
+  { id: 14, PatientId: 'PAT-2025-0014', PatientNo: 'P-014', PatientName: 'Amanda', LastName: 'Clark', Age: 38, Gender: 'Female', PhoneNo: '9876543223', AdhaarId: '456789012345', PANCard: 'NOPQR4567S', Address: '258 Maple Dr, City', ChiefComplaint: 'Abdominal pain', Status: 'Active', RegisteredBy: 'Dr. Brown', RegisteredDate: '2025-01-28', PatientType: 'IPD' },
+  { id: 15, PatientId: 'PAT-2025-0015', PatientNo: 'P-015', PatientName: 'Daniel', LastName: 'Lewis', Age: 42, Gender: 'Male', PhoneNo: '9876543224', AdhaarId: '567890123456', PANCard: 'OPQRS5678T', Address: '369 Cedar Ln, City', ChiefComplaint: 'Fever and chills', Status: 'Active', RegisteredBy: 'Dr. Miller', RegisteredDate: '2025-01-29', PatientType: 'OPD' },
+  { id: 16, PatientId: 'PAT-2025-0016', PatientNo: 'P-016', PatientName: 'Jessica', LastName: 'Walker', Age: 33, Gender: 'Female', PhoneNo: '9876543225', AdhaarId: '678901234567', PANCard: 'PQRST6789U', Address: '741 Birch Way, City', ChiefComplaint: 'Eye irritation', Status: 'Active', RegisteredBy: 'Dr. Taylor', RegisteredDate: '2025-01-30', PatientType: 'OPD' },
+  { id: 17, PatientId: 'PAT-2025-0017', PatientNo: 'P-017', PatientName: 'Matthew', LastName: 'Hall', Age: 47, Gender: 'Male', PhoneNo: '9876543226', AdhaarId: '789012345678', PANCard: 'QRSTU7890V', Address: '852 Spruce St, City', ChiefComplaint: 'Joint swelling', Status: 'Active', RegisteredBy: 'Dr. Anderson', RegisteredDate: '2025-02-01', PatientType: 'Follow-up' },
+  { id: 18, PatientId: 'PAT-2025-0018', PatientNo: 'P-018', PatientName: 'Lauren', LastName: 'Allen', Age: 26, Gender: 'Female', PhoneNo: '9876543227', AdhaarId: '890123456789', PANCard: 'RSTUV8901W', Address: '963 Willow Ave, City', ChiefComplaint: 'Nausea and vomiting', Status: 'Active', RegisteredBy: 'Dr. Martinez', RegisteredDate: '2025-02-02', PatientType: 'Emergency' },
+  { id: 19, PatientId: 'PAT-2025-0019', PatientNo: 'P-019', PatientName: 'Ryan', LastName: 'Young', Age: 39, Gender: 'Male', PhoneNo: '9876543228', AdhaarId: '901234567890', PANCard: 'STUVW9012X', Address: '147 Ash Blvd, City', ChiefComplaint: 'Dizziness', Status: 'Active', RegisteredBy: 'Dr. Johnson', RegisteredDate: '2025-02-03', PatientType: 'OPD' },
+  { id: 20, PatientId: 'PAT-2025-0020', PatientNo: 'P-020', PatientName: 'Nicole', LastName: 'King', Age: 31, Gender: 'Female', PhoneNo: '9876543229', AdhaarId: '012345678901', PANCard: 'TUVWX0123Y', Address: '258 Oak St, City', ChiefComplaint: 'Back pain', Status: 'Active', RegisteredBy: 'Dr. Davis', RegisteredDate: '2025-02-04', PatientType: 'OPD' },
+  { id: 21, PatientId: 'PAT-2025-0021', PatientNo: 'P-021', PatientName: 'Kevin', LastName: 'Wright', Age: 55, Gender: 'Male', PhoneNo: '9876543230', AdhaarId: '123456789012', PANCard: 'UVWXY1234Z', Address: '369 Pine Ave, City', ChiefComplaint: 'Shortness of breath', Status: 'Active', RegisteredBy: 'Dr. Wilson', RegisteredDate: '2025-02-05', PatientType: 'IPD' },
+  { id: 22, PatientId: 'PAT-2025-0022', PatientNo: 'P-022', PatientName: 'Samantha', LastName: 'Lopez', Age: 28, Gender: 'Female', PhoneNo: '9876543231', AdhaarId: '234567890123', PANCard: 'VWXYZ2345A', Address: '741 Elm Rd, City', ChiefComplaint: 'Headache', Status: 'Active', RegisteredBy: 'Dr. Brown', RegisteredDate: '2025-02-06', PatientType: 'OPD' },
+  { id: 23, PatientId: 'PAT-2025-0023', PatientNo: 'P-023', PatientName: 'Brandon', LastName: 'Hill', Age: 43, Gender: 'Male', PhoneNo: '9876543232', AdhaarId: '345678901234', PANCard: 'WXYZA3456B', Address: '852 Maple Dr, City', ChiefComplaint: 'Chest pain', Status: 'Active', RegisteredBy: 'Dr. Miller', RegisteredDate: '2025-02-07', PatientType: 'Emergency' },
+  { id: 24, PatientId: 'PAT-2025-0024', PatientNo: 'P-024', PatientName: 'Rachel', LastName: 'Scott', Age: 36, Gender: 'Female', PhoneNo: '9876543233', AdhaarId: '456789012345', PANCard: 'XYZAB4567C', Address: '963 Cedar Ln, City', ChiefComplaint: 'Fatigue', Status: 'Active', RegisteredBy: 'Dr. Taylor', RegisteredDate: '2025-02-08', PatientType: 'Follow-up' },
+  { id: 25, PatientId: 'PAT-2025-0025', PatientNo: 'P-025', PatientName: 'Justin', LastName: 'Green', Age: 30, Gender: 'Male', PhoneNo: '9876543234', AdhaarId: '567890123456', PANCard: 'YZABC5678D', Address: '147 Birch Way, City', ChiefComplaint: 'Sore throat', Status: 'Active', RegisteredBy: 'Dr. Anderson', RegisteredDate: '2025-02-09', PatientType: 'OPD' },
+  { id: 26, PatientId: 'PAT-2025-0026', PatientNo: 'P-026', PatientName: 'Michelle', LastName: 'Adams', Age: 34, Gender: 'Female', PhoneNo: '9876543235', AdhaarId: '678901234567', PANCard: 'ZABCD6789E', Address: '258 Spruce St, City', ChiefComplaint: 'Knee pain', Status: 'Active', RegisteredBy: 'Dr. Martinez', RegisteredDate: '2025-02-10', PatientType: 'OPD' },
+  { id: 27, PatientId: 'PAT-2025-0027', PatientNo: 'P-027', PatientName: 'Tyler', LastName: 'Baker', Age: 41, Gender: 'Male', PhoneNo: '9876543236', AdhaarId: '789012345678', PANCard: 'ABCDE7890F', Address: '369 Willow Ave, City', ChiefComplaint: 'Insomnia', Status: 'Active', RegisteredBy: 'Dr. Johnson', RegisteredDate: '2025-02-11', PatientType: 'OPD' },
+  { id: 28, PatientId: 'PAT-2025-0028', PatientNo: 'P-028', PatientName: 'Stephanie', LastName: 'Nelson', Age: 27, Gender: 'Female', PhoneNo: '9876543237', AdhaarId: '890123456789', PANCard: 'BCDEF8901G', Address: '741 Ash Blvd, City', ChiefComplaint: 'Allergic reaction', Status: 'Active', RegisteredBy: 'Dr. Davis', RegisteredDate: '2025-02-12', PatientType: 'Emergency' },
+  { id: 29, PatientId: 'PAT-2025-0029', PatientNo: 'P-029', PatientName: 'Eric', LastName: 'Carter', Age: 48, Gender: 'Male', PhoneNo: '9876543238', AdhaarId: '901234567890', PANCard: 'CDEFG9012H', Address: '852 Oak St, City', ChiefComplaint: 'High cholesterol', Status: 'Active', RegisteredBy: 'Dr. Wilson', RegisteredDate: '2025-02-13', PatientType: 'Follow-up' },
+  { id: 30, PatientId: 'PAT-2025-0030', PatientNo: 'P-030', PatientName: 'Melissa', LastName: 'Mitchell', Age: 32, Gender: 'Female', PhoneNo: '9876543239', AdhaarId: '012345678901', PANCard: 'DEFGH0123I', Address: '963 Pine Ave, City', ChiefComplaint: 'Anxiety', Status: 'Active', RegisteredBy: 'Dr. Brown', RegisteredDate: '2025-02-14', PatientType: 'OPD' },
 ];
 
 export interface CreatePatientDto {
@@ -89,6 +109,8 @@ function mapPatientFromBackend(backendPatient: any, index: number): any {
 
 export const patientsApi = {
   async getAll(): Promise<Patient[]> {
+    let apiData: Patient[] = [];
+    
     try {
       console.log('Fetching patients from API endpoint: /patients');
       const response = await apiRequest<any>('/patients');
@@ -111,50 +133,74 @@ export const patientsApi = {
         console.log('Found patients as direct array:', patientsData.length);
       } else {
         console.warn('Unexpected response structure:', response);
-        return [];
       }
       
-      if (patientsData.length === 0) {
-        console.log('API returned empty array');
-        return [];
+      if (patientsData.length > 0) {
+        // Map each patient from backend format to frontend format
+        apiData = patientsData.map((patient, index) => {
+          try {
+            return mapPatientFromBackend(patient, index);
+          } catch (err) {
+            console.error(`Error mapping patient at index ${index}:`, err, patient);
+            // Return a minimal patient object to prevent crashes
+            return {
+              id: `error-${index}`,
+              patientId: `PAT-ERROR-${index}`,
+              patientName: 'Error loading patient',
+              status: 'Error',
+            };
+          }
+        }) as Patient[];
+        
+        // Check for duplicate IDs and warn
+        const idCounts = new Map();
+        apiData.forEach((p, idx) => {
+          const key = p.id || p.patientId || idx;
+          if (idCounts.has(key)) {
+            console.warn(`Duplicate key detected: ${key} at indices ${idCounts.get(key)} and ${idx}`);
+            // Make the ID unique by appending index
+            p.id = `${key}-${idx}`;
+          } else {
+            idCounts.set(key, idx);
+          }
+        });
+        
+        console.log(`Successfully mapped ${apiData.length} patients`);
       }
-      
-      // Map each patient from backend format to frontend format
-      const mappedPatients = patientsData.map((patient, index) => {
-        try {
-          return mapPatientFromBackend(patient, index);
-        } catch (err) {
-          console.error(`Error mapping patient at index ${index}:`, err, patient);
-          // Return a minimal patient object to prevent crashes
-          return {
-            id: `error-${index}`,
-            patientId: `PAT-ERROR-${index}`,
-            patientName: 'Error loading patient',
-            status: 'Error',
-          };
-        }
-      });
-      
-      // Check for duplicate IDs and warn
-      const idCounts = new Map();
-      mappedPatients.forEach((p, idx) => {
-        const key = p.id || p.patientId || idx;
-        if (idCounts.has(key)) {
-          console.warn(`Duplicate key detected: ${key} at indices ${idCounts.get(key)} and ${idx}`);
-          // Make the ID unique by appending index
-          p.id = `${key}-${idx}`;
-        } else {
-          idCounts.set(key, idx);
-        }
-      });
-      
-      console.log(`Successfully mapped ${mappedPatients.length} patients`);
-      return mappedPatients as any;
     } catch (error) {
       console.error('Error fetching patients:', error);
-      // Return empty array to show "No patients found" message instead of crashing
-      return [];
+      // If stub data is disabled and API fails, throw the error
+      if (!ENABLE_STUB_DATA) {
+        throw error;
+      }
     }
+    
+    // Append stub data if enabled
+    if (ENABLE_STUB_DATA) {
+      // Filter out stub data that might conflict with API data (by PatientId)
+      const apiPatientIds = new Set(apiData.map(p => p.PatientId || p.patientId));
+      const uniqueStubData = stubPatients.filter(p => {
+        const stubPatientId = p.PatientId || p.patientId;
+        return !apiPatientIds.has(stubPatientId);
+      });
+      
+      if (uniqueStubData.length > 0) {
+        console.log(`Appending ${uniqueStubData.length} stub patients to ${apiData.length} API records`);
+      }
+      
+      // If API returned no data, use stub data as fallback
+      if (apiData.length === 0) {
+        console.warn('No patients data received from API, using stub data');
+        await delay(300);
+        return [...stubPatients];
+      }
+      
+      // Combine API data with stub data
+      return [...apiData, ...uniqueStubData] as Patient[];
+    }
+    
+    // Return only API data if stub data is disabled
+    return apiData;
   },
 
   async getById(patientId: string): Promise<Patient> {

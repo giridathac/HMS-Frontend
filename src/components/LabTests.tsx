@@ -316,71 +316,73 @@ function LabTestsView({
       </div>
 
       {/* Lab Tests Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <TestTube className="size-5" />
-            Lab Tests List ({labTests.length})
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="text-left py-3 px-4 text-sm font-medium text-blue-700">Display Test ID</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-blue-700">Test Name</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-blue-700">Category</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-blue-700">Description</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-blue-700">Charges</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-blue-700">Status</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-blue-700">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {labTests.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="text-center py-8 text-blue-600">
-                      No lab tests found. Add a new lab test to get started.
-                    </td>
+      <div className="overflow-y-auto overflow-x-hidden px-4 pb-4 labtests-scrollable" style={{ maxHeight: 'calc(100vh - 100px)', minHeight: 0 }}>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <TestTube className="size-5" />
+              Lab Tests List ({labTests.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-gray-200">
+                    <th className="text-left py-3 px-4 text-sm font-medium text-blue-700">Display Test ID</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-blue-700">Test Name</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-blue-700">Category</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-blue-700">Description</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-blue-700">Charges</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-blue-700">Status</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-blue-700">Actions</th>
                   </tr>
-                ) : (
-                  labTests.map((labTest) => (
-                    <tr key={labTest.id} className="border-b border-gray-100 hover:bg-gray-50">
-                      <td className="py-3 px-4 text-sm text-blue-900 font-mono font-medium">{labTest.displayTestId}</td>
-                      <td className="py-3 px-4 text-sm text-blue-900 font-medium">{labTest.testName}</td>
-                      <td className="py-3 px-4 text-sm">{getCategoryBadge(labTest.testCategory)}</td>
-                      <td className="py-3 px-4 text-sm text-blue-700 max-w-xs truncate" title={labTest.description}>{labTest.description || '-'}</td>
-                      <td className="py-3 px-4 text-sm text-blue-700">₹{labTest.charges.toLocaleString()}</td>
-                      <td className="py-3 px-4 text-sm">{getStatusBadge(labTest.status)}</td>
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEdit(labTest)}
-                            className="h-8 w-8 p-0"
-                          >
-                            <Edit className="size-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => onDeleteLabTest(labTest.labTestId)}
-                            className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                          >
-                            <Trash2 className="size-4" />
-                          </Button>
-                        </div>
+                </thead>
+                <tbody>
+                  {labTests.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="text-center py-8 text-blue-600">
+                        No lab tests found. Add a new lab test to get started.
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
+                  ) : (
+                    labTests.map((labTest) => (
+                      <tr key={labTest.id} className="border-b border-gray-100 hover:bg-gray-50">
+                        <td className="py-3 px-4 text-sm text-blue-900 font-mono font-medium">{labTest.displayTestId}</td>
+                        <td className="py-3 px-4 text-sm text-blue-900 font-medium">{labTest.testName}</td>
+                        <td className="py-3 px-4 text-sm">{getCategoryBadge(labTest.testCategory)}</td>
+                        <td className="py-3 px-4 text-sm text-blue-700 max-w-xs truncate" title={labTest.description}>{labTest.description || '-'}</td>
+                        <td className="py-3 px-4 text-sm text-blue-700">₹{labTest.charges.toLocaleString()}</td>
+                        <td className="py-3 px-4 text-sm">{getStatusBadge(labTest.status)}</td>
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEdit(labTest)}
+                              className="h-8 w-8 p-0"
+                            >
+                              <Edit className="size-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => onDeleteLabTest(labTest.labTestId)}
+                              className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <Trash2 className="size-4" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>

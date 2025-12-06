@@ -280,12 +280,13 @@ export function BillManagement() {
   const hasActiveFilters = filterPatientId || filterBillNo;
 
   return (
-    <div className="p-8 bg-blue-100 min-h-full">
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-gray-900 mb-2">Bill Management</h1>
-          <p className="text-gray-500">Manage patient bills and billing information</p>
-        </div>
+    <div className="flex-1 bg-blue-100 flex flex-col overflow-hidden min-h-0">
+      <div className="px-4 pt-4 pb-0 flex-shrink-0">
+        <div className="flex items-center justify-between mb-4 flex-shrink-0">
+          <div>
+            <h1 className="text-gray-900 mb-0 text-xl">Bill Management</h1>
+            <p className="text-gray-500 text-sm">Manage patient bills and billing information</p>
+          </div>
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
             <Button className="gap-2">
@@ -495,6 +496,7 @@ export function BillManagement() {
       </div>
 
       {/* Filters */}
+      <div className="overflow-y-auto overflow-x-hidden px-4 pb-4 billmanagement-scrollable" style={{ maxHeight: 'calc(100vh - 100px)', minHeight: 0 }}>
       <Card className="mb-4">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -626,6 +628,7 @@ export function BillManagement() {
           </div>
         </CardContent>
       </Card>
+      </div>
 
       {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
@@ -838,6 +841,7 @@ export function BillManagement() {
           </div>
         </DialogContent>
       </Dialog>
+      </div>
     </div>
   );
 }

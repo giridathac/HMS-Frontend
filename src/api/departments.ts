@@ -1,5 +1,5 @@
 // Departments API service
-import { apiRequest } from './base';
+import { apiRequest, ENABLE_STUB_DATA } from './base';
 import { Department, DepartmentCategory } from '../types/departments';
 
 // Stub data
@@ -29,6 +29,26 @@ const stubDepartments: Department[] = [
   // Administrative Departments
   { id: 15, name: 'Administration', category: 'Administrative', description: 'Hospital administration', specialisationDetails: 'Hospital Administration, Management, Operations', noOfDoctors: 0, status: 'active' },
   { id: 16, name: 'Front Desk', category: 'Administrative', description: 'Front desk and reception', specialisationDetails: 'Patient Registration, Reception Services, Appointment Scheduling', noOfDoctors: 0, status: 'active' },
+  { id: 17, name: 'Gastroenterology', category: 'Clinical', description: 'Digestive system and liver disorders', specialisationDetails: 'Gastroenterology, Hepatology, Endoscopy', noOfDoctors: 6, status: 'active' },
+  { id: 18, name: 'Endocrinology', category: 'Clinical', description: 'Hormone and metabolic disorders', specialisationDetails: 'Diabetes, Thyroid, Metabolic Disorders', noOfDoctors: 5, status: 'active' },
+  { id: 19, name: 'Pulmonology', category: 'Clinical', description: 'Respiratory system and lung diseases', specialisationDetails: 'Pulmonology, Sleep Medicine, Critical Care', noOfDoctors: 8, status: 'active' },
+  { id: 20, name: 'Rheumatology', category: 'Clinical', description: 'Joint and autoimmune diseases', specialisationDetails: 'Rheumatology, Arthritis, Autoimmune Disorders', noOfDoctors: 4, status: 'active' },
+  { id: 21, name: 'Nephrology', category: 'Clinical', description: 'Kidney diseases and dialysis', specialisationDetails: 'Nephrology, Dialysis, Kidney Transplant', noOfDoctors: 6, status: 'active' },
+  { id: 22, name: 'Hematology', category: 'Clinical', description: 'Blood disorders and cancers', specialisationDetails: 'Hematology, Oncology, Blood Transfusion', noOfDoctors: 7, status: 'active' },
+  { id: 23, name: 'Oncology', category: 'Clinical', description: 'Cancer treatment and care', specialisationDetails: 'Medical Oncology, Radiation Oncology, Chemotherapy', noOfDoctors: 9, status: 'active' },
+  { id: 24, name: 'Psychiatry', category: 'Clinical', description: 'Mental health and behavioral disorders', specialisationDetails: 'Psychiatry, Counseling, Mental Health', noOfDoctors: 8, status: 'active' },
+  { id: 25, name: 'Urology', category: 'Clinical', description: 'Urinary tract and male reproductive system', specialisationDetails: 'Urology, Urologic Surgery, Andrology', noOfDoctors: 6, status: 'active' },
+  { id: 26, name: 'Plastic Surgery', category: 'Surgical', description: 'Reconstructive and cosmetic surgery', specialisationDetails: 'Plastic Surgery, Reconstructive Surgery, Cosmetic Surgery', noOfDoctors: 5, status: 'active' },
+  { id: 27, name: 'Vascular Surgery', category: 'Surgical', description: 'Blood vessel surgery', specialisationDetails: 'Vascular Surgery, Endovascular Procedures', noOfDoctors: 4, status: 'active' },
+  { id: 28, name: 'Thoracic Surgery', category: 'Surgical', description: 'Chest and lung surgery', specialisationDetails: 'Thoracic Surgery, Lung Surgery, Esophageal Surgery', noOfDoctors: 5, status: 'active' },
+  { id: 29, name: 'Ophthalmology', category: 'Surgical', description: 'Eye surgery and care', specialisationDetails: 'Ophthalmology, Eye Surgery, Retina, Cornea', noOfDoctors: 7, status: 'active' },
+  { id: 30, name: 'Gynecology', category: 'Surgical', description: 'Women reproductive health and surgery', specialisationDetails: 'Gynecology, Obstetrics, Gynecologic Surgery', noOfDoctors: 10, status: 'active' },
+  { id: 31, name: 'Nuclear Medicine', category: 'Diagnostic', description: 'Nuclear imaging and therapy', specialisationDetails: 'Nuclear Medicine, PET Scan, Radionuclide Therapy', noOfDoctors: 4, status: 'active' },
+  { id: 32, name: 'Anesthesiology', category: 'Support', description: 'Anesthesia and pain management', specialisationDetails: 'Anesthesiology, Pain Management, Critical Care', noOfDoctors: 12, status: 'active' },
+  { id: 33, name: 'Physiotherapy', category: 'Support', description: 'Physical therapy and rehabilitation', specialisationDetails: 'Physiotherapy, Rehabilitation, Sports Medicine', noOfDoctors: 8, status: 'active' },
+  { id: 34, name: 'Nutrition', category: 'Support', description: 'Nutritional counseling and dietetics', specialisationDetails: 'Clinical Nutrition, Dietetics, Nutritional Counseling', noOfDoctors: 5, status: 'active' },
+  { id: 35, name: 'Medical Records', category: 'Administrative', description: 'Medical records and documentation', specialisationDetails: 'Medical Records Management, Documentation, Health Information', noOfDoctors: 0, status: 'active' },
+  { id: 36, name: 'IT Services', category: 'Administrative', description: 'Information technology and systems', specialisationDetails: 'IT Support, Hospital Information Systems, Network Management', noOfDoctors: 0, status: 'active' },
 ];
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -113,6 +133,8 @@ function mapDepartmentDtoToDepartment(dto: DepartmentDto): Department {
 
 export const departmentsApi = {
   async getAll(): Promise<Department[]> {
+    let apiData: Department[] = [];
+    
     try {
       console.log('departmentsApi.getAll() - Calling /api/doctor-departments');
       const response = await apiRequest<GetDepartmentsResponse>('/doctor-departments', {
@@ -120,16 +142,40 @@ export const departmentsApi = {
       });
       console.log('departmentsApi.getAll() - Response received:', response);
 
-      if (!response.success || !response.data) {
-        throw new Error('Failed to fetch departments');
+      if (response.success && response.data) {
+        apiData = response.data.map(mapDepartmentDtoToDepartment);
       }
-
-      const mapped = response.data.map(mapDepartmentDtoToDepartment);
-      return mapped;
     } catch (error) {
       console.error('Error fetching departments from /api/doctor-departments:', error);
-      throw error;
+      // If stub data is disabled and API fails, throw the error
+      if (!ENABLE_STUB_DATA) {
+        throw error;
+      }
     }
+    
+    // Append stub data if enabled
+    if (ENABLE_STUB_DATA) {
+      // Filter out stub data that might conflict with API data (by ID)
+      const apiIds = new Set(apiData.map(dept => dept.id));
+      const uniqueStubData = stubDepartments.filter(dept => !apiIds.has(dept.id));
+      
+      if (uniqueStubData.length > 0) {
+        console.log(`Appending ${uniqueStubData.length} stub departments to ${apiData.length} API records`);
+      }
+      
+      // If API returned no data, use stub data as fallback
+      if (apiData.length === 0) {
+        console.warn('No departments data received from API, using stub data');
+        await delay(300);
+        return [...stubDepartments];
+      }
+      
+      // Combine API data with stub data
+      return [...apiData, ...uniqueStubData];
+    }
+    
+    // Return only API data if stub data is disabled
+    return apiData;
   },
 
   async getByCategory(category: DepartmentCategory): Promise<Department[]> {

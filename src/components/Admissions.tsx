@@ -119,7 +119,7 @@ export function Admissions() {
         </div>
       </div>
 
-      <div className="overflow-y-auto overflow-x-hidden px-4 pb-8 admissions-scrollable" style={{ maxHeight: 'calc(100vh - 120px)', minHeight: 0 }}>
+      <div className="overflow-y-auto overflow-x-hidden px-4 pb-4 admissions-scrollable" style={{ maxHeight: 'calc(100vh - 100px)', minHeight: 0 }}>
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <Card>

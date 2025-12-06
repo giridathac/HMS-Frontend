@@ -383,7 +383,7 @@ export function OTRoomsManagement() {
         </div>
       </div>
 
-      <div className="overflow-y-auto overflow-x-hidden px-4 pb-8 ot-rooms-scrollable" style={{ maxHeight: 'calc(100vh - 120px)', minHeight: 0 }}>
+      <div className="overflow-y-auto overflow-x-hidden px-4 pb-4 ot-rooms-scrollable" style={{ maxHeight: 'calc(100vh - 100px)', minHeight: 0 }}>
         {/* OT Rooms Table */}
         <Card>
           <CardHeader>

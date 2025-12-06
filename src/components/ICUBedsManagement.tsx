@@ -301,7 +301,7 @@ export function ICUBedsManagement() {
         </div>
       </div>
 
-      <div className="overflow-y-auto overflow-x-hidden px-4 pb-8 icu-beds-scrollable" style={{ maxHeight: 'calc(100vh - 120px)', minHeight: 0 }}>
+      <div className="overflow-y-auto overflow-x-hidden px-4 pb-4 icu-beds-scrollable" style={{ maxHeight: 'calc(100vh - 100px)', minHeight: 0 }}>
         {/* ICU Beds Table */}
         <Card>
           <CardHeader>

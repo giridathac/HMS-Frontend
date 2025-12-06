@@ -2,9 +2,15 @@
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api';
 
-// Log the API base URL for debugging (only in development)
+// Stub data configuration - set to false in production
+// In production, set VITE_ENABLE_STUB_DATA=false in your .env file
+// Default: true (enabled) for development, false for production builds
+export const ENABLE_STUB_DATA = import.meta.env.VITE_ENABLE_STUB_DATA !== 'false';
+
+// Log the API base URL and stub data status for debugging (only in development)
 if (import.meta.env.DEV) {
   console.log('API Base URL:', API_BASE_URL);
+  console.log('Stub Data Enabled:', ENABLE_STUB_DATA);
 }
 
 export class ApiError extends Error {

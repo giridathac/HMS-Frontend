@@ -613,7 +613,7 @@ export function PatientRegistration() {
 
         <Card className="flex-1 flex flex-col overflow-hidden min-h-0">
           <CardContent className="p-0 flex-1 overflow-hidden flex flex-col min-h-0">
-            <div className="overflow-x-auto overflow-y-scroll border border-gray-200 rounded flex-1" style={{ maxHeight: 'calc(100vh - 200px)' }}>
+            <div className="overflow-x-auto overflow-y-scroll border border-gray-200 rounded flex-1" style={{ maxHeight: 'calc(100vh - 100px)' }}>
               <table className="w-full">
                 <thead className="sticky top-0 bg-white z-10 shadow-sm">
                   <tr className="border-b border-gray-200">

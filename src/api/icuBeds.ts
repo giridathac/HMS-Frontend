@@ -1,5 +1,5 @@
 // ICU Beds API service
-import { apiRequest, ApiError } from './base';
+import { apiRequest, ApiError, ENABLE_STUB_DATA } from './base';
 import { ICUBed } from '../types';
 
 // Stub data
@@ -51,6 +51,8 @@ export interface UpdateICUBedDto extends Partial<CreateICUBedDto> {
 
 export const icuBedsApi = {
   async getAll(): Promise<ICUBed[]> {
+    let apiData: ICUBed[] = [];
+    
     try {
       const response = await apiRequest<any>('/icu');
       // Handle different response structures: { data: [...] } or direct array
@@ -59,7 +61,7 @@ export const icuBedsApi = {
       if (Array.isArray(icuBedsData) && icuBedsData.length > 0) {
         console.log('ICU beds fetched from API:', icuBedsData);
         // Map and normalize the data to ensure all fields are present
-        const normalizedICUBeds = icuBedsData.map((icuBed: any, index: number) => {
+        apiData = icuBedsData.map((icuBed: any, index: number) => {
           // Prioritize ICUBedId from backend, fallback to id or generate
           const icuBedId = Number(icuBed.icuBedId || icuBed.ICUBedId || icuBed.id || icuBed.Id || (1000000 + index));
           return {
@@ -75,20 +77,39 @@ export const icuBedsApi = {
             createdAt: icuBed.createdAt || icuBed.CreatedAt || new Date().toISOString(),
             createdDate: icuBed.createdDate || icuBed.CreatedDate || icuBed.createdAt || icuBed.CreatedAt || undefined,
           };
-        });
-        return normalizedICUBeds as ICUBed[];
+        }) as ICUBed[];
       }
-      
-      // Fallback to stub data if no data received
-      console.warn('No ICU beds data received, using stub data');
-      await delay(300);
-      return Promise.resolve([...stubICUBeds]);
     } catch (error) {
       console.error('Error fetching ICU beds:', error);
-      // Fallback to stub data on error
-      await delay(300);
-      return Promise.resolve([...stubICUBeds]);
+      // If stub data is disabled and API fails, throw the error
+      if (!ENABLE_STUB_DATA) {
+        throw error;
+      }
     }
+    
+    // Append stub data if enabled
+    if (ENABLE_STUB_DATA) {
+      // Filter out stub data that might conflict with API data (by ID)
+      const apiIds = new Set(apiData.map(bed => bed.id));
+      const uniqueStubData = stubICUBeds.filter(bed => !apiIds.has(bed.id));
+      
+      if (uniqueStubData.length > 0) {
+        console.log(`Appending ${uniqueStubData.length} stub ICU beds to ${apiData.length} API records`);
+      }
+      
+      // If API returned no data, use stub data as fallback
+      if (apiData.length === 0) {
+        console.warn('No ICU beds data received from API, using stub data');
+        await delay(300);
+        return [...stubICUBeds];
+      }
+      
+      // Combine API data with stub data
+      return [...apiData, ...uniqueStubData];
+    }
+    
+    // Return only API data if stub data is disabled
+    return apiData;
   },
 
   async getById(icuBedId: number): Promise<ICUBed> {

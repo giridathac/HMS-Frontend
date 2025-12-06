@@ -231,7 +231,7 @@ function FrontDeskView({
         </Dialog>
       </div>
       </div>
-      <div className="overflow-y-auto overflow-x-hidden px-4 pb-8 frontdesk-scrollable" style={{ maxHeight: 'calc(100vh - 120px)', minHeight: 0 }}>
+      <div className="overflow-y-auto overflow-x-hidden px-4 pb-4 frontdesk-scrollable" style={{ maxHeight: 'calc(100vh - 100px)', minHeight: 0 }}>
       {/* Quick Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <Card>
