@@ -398,7 +398,7 @@ function RoomBedsView({
 
       <div className="overflow-y-auto overflow-x-hidden px-4 pb-4 room-beds-scrollable" style={{ maxHeight: 'calc(100vh - 100px)', minHeight: 0 }}>
       {/* Room Beds Table */}
-      <Card>
+      <Card className="mb-4">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <BedDouble className="size-5" />

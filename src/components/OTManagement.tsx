@@ -188,7 +188,7 @@ export function OTManagement() {
         </Dialog>
         </div>
       </div>
-      <div className="overflow-y-auto overflow-x-hidden px-4 pb-4 ot-scrollable" style={{ maxHeight: 'calc(100vh - 100px)', minHeight: 0 }}>
+      <div className="flex-1 overflow-y-auto overflow-x-hidden ot-scrollable min-h-0">
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <Card>
@@ -309,8 +309,8 @@ export function OTManagement() {
 function SurgeryList({ surgeries }: { surgeries: Surgery[] }) {
   return (
     <div className="space-y-4">
-      {surgeries.map((surgery) => (
-        <Card key={surgery.id}>
+      {surgeries.map((surgery, index) => (
+        <Card key={surgery.id} className={index === surgeries.length - 1 ? "mb-4" : ""}>
           <CardContent className="p-6">
             <div className="flex items-start justify-between mb-4">
               <div className="flex-1">

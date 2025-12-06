@@ -195,6 +195,7 @@ export interface EmergencyBed {
   id: number;
   emergencyBedId: string;
   emergencyBedNo: string;
+  emergencyRoomNameNo?: string;
   emergencyRoomDescription?: string;
   chargesPerDay: number;
   createdBy: string;

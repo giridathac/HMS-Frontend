@@ -1,15 +1,72 @@
 // RoomBeds API service
-import { apiRequest, ApiError } from './base';
+import { apiRequest, ApiError, ENABLE_STUB_DATA } from './base';
 import { RoomBed } from '../types';
 
-// Stub data
+// Stub data for Room & Beds Management
 const stubRoomBeds: RoomBed[] = [
-  { id: 1, roomBedId: '00000000-0000-0000-0000-000000000001', bedNo: 'B101', roomNo: 'R101', roomCategory: 'AC', roomType: 'Regular', numberOfBeds: 1, chargesPerDay: 1500, status: 'Active', createdBy: 'Admin', createdAt: '2025-01-01T10:00:00Z' },
-  { id: 2, roomBedId: '00000000-0000-0000-0000-000000000002', bedNo: 'B102', roomNo: 'R101', roomCategory: 'AC', roomType: 'Regular', numberOfBeds: 1, chargesPerDay: 1500, status: 'Active', createdBy: 'Admin', createdAt: '2025-01-01T10:00:00Z' },
-  { id: 3, roomBedId: '00000000-0000-0000-0000-000000000003', bedNo: 'B201', roomNo: 'R201', roomCategory: 'AC', roomType: 'Special', numberOfBeds: 1, chargesPerDay: 3000, status: 'Active', createdBy: 'Admin', createdAt: '2025-01-01T10:00:00Z' },
-  { id: 4, roomBedId: '00000000-0000-0000-0000-000000000004', bedNo: 'B202', roomNo: 'R201', roomCategory: 'AC', roomType: 'Special', numberOfBeds: 1, chargesPerDay: 3000, status: 'Active', createdBy: 'Admin', createdAt: '2025-01-01T10:00:00Z' },
-  { id: 5, roomBedId: '00000000-0000-0000-0000-000000000005', bedNo: 'B301', roomNo: 'R301', roomCategory: 'Non AC', roomType: 'Special Shared', numberOfBeds: 2, chargesPerDay: 2500, status: 'Active', createdBy: 'Admin', createdAt: '2025-01-01T10:00:00Z' },
-  { id: 6, roomBedId: '00000000-0000-0000-0000-000000000006', bedNo: 'B401', roomNo: 'R401', roomCategory: 'AC', roomType: 'Special', numberOfBeds: 1, chargesPerDay: 5000, status: 'Inactive', createdBy: 'Admin', createdAt: '2025-01-01T10:00:00Z' },
+  // Floor 1 - Regular AC Rooms
+  { id: 1, roomBedId: 1001, bedNo: 'B101', roomNo: 'R101', roomCategory: 'AC', roomType: 'Regular', numberOfBeds: 1, chargesPerDay: 1500, status: 'Active', createdBy: '1', createdAt: '2025-01-01T10:00:00Z' },
+  { id: 2, roomBedId: 1002, bedNo: 'B102', roomNo: 'R102', roomCategory: 'AC', roomType: 'Regular', numberOfBeds: 1, chargesPerDay: 1500, status: 'Active', createdBy: '1', createdAt: '2025-01-01T10:00:00Z' },
+  { id: 3, roomBedId: 1003, bedNo: 'B103', roomNo: 'R103', roomCategory: 'AC', roomType: 'Regular', numberOfBeds: 1, chargesPerDay: 1500, status: 'Active', createdBy: '1', createdAt: '2025-01-01T10:00:00Z' },
+  { id: 4, roomBedId: 1004, bedNo: 'B104', roomNo: 'R104', roomCategory: 'AC', roomType: 'Regular', numberOfBeds: 1, chargesPerDay: 1500, status: 'Active', createdBy: '1', createdAt: '2025-01-01T10:00:00Z' },
+  { id: 5, roomBedId: 1005, bedNo: 'B105', roomNo: 'R105', roomCategory: 'AC', roomType: 'Regular', numberOfBeds: 1, chargesPerDay: 1500, status: 'Active', createdBy: '1', createdAt: '2025-01-01T10:00:00Z' },
+  { id: 6, roomBedId: 1006, bedNo: 'B106', roomNo: 'R106', roomCategory: 'AC', roomType: 'Regular', numberOfBeds: 1, chargesPerDay: 1500, status: 'Active', createdBy: '1', createdAt: '2025-01-01T10:00:00Z' },
+  { id: 7, roomBedId: 1007, bedNo: 'B107', roomNo: 'R107', roomCategory: 'AC', roomType: 'Regular', numberOfBeds: 1, chargesPerDay: 1500, status: 'Active', createdBy: '1', createdAt: '2025-01-01T10:00:00Z' },
+  { id: 8, roomBedId: 1008, bedNo: 'B108', roomNo: 'R108', roomCategory: 'AC', roomType: 'Regular', numberOfBeds: 1, chargesPerDay: 1500, status: 'Active', createdBy: '1', createdAt: '2025-01-01T10:00:00Z' },
+  { id: 9, roomBedId: 1009, bedNo: 'B109', roomNo: 'R109', roomCategory: 'AC', roomType: 'Regular', numberOfBeds: 1, chargesPerDay: 1500, status: 'Active', createdBy: '1', createdAt: '2025-01-01T10:00:00Z' },
+  { id: 10, roomBedId: 1010, bedNo: 'B110', roomNo: 'R110', roomCategory: 'AC', roomType: 'Regular', numberOfBeds: 1, chargesPerDay: 1500, status: 'Active', createdBy: '1', createdAt: '2025-01-01T10:00:00Z' },
+  
+  // Floor 2 - Special AC Rooms
+  { id: 11, roomBedId: 2001, bedNo: 'B201', roomNo: 'R201', roomCategory: 'AC', roomType: 'Special', numberOfBeds: 1, chargesPerDay: 3000, status: 'Active', createdBy: '1', createdAt: '2025-01-01T10:00:00Z' },
+  { id: 12, roomBedId: 2002, bedNo: 'B202', roomNo: 'R202', roomCategory: 'AC', roomType: 'Special', numberOfBeds: 1, chargesPerDay: 3000, status: 'Active', createdBy: '1', createdAt: '2025-01-01T10:00:00Z' },
+  { id: 13, roomBedId: 2003, bedNo: 'B203', roomNo: 'R203', roomCategory: 'AC', roomType: 'Special', numberOfBeds: 1, chargesPerDay: 3000, status: 'Active', createdBy: '1', createdAt: '2025-01-01T10:00:00Z' },
+  { id: 14, roomBedId: 2004, bedNo: 'B204', roomNo: 'R204', roomCategory: 'AC', roomType: 'Special', numberOfBeds: 1, chargesPerDay: 3000, status: 'Active', createdBy: '1', createdAt: '2025-01-01T10:00:00Z' },
+  { id: 15, roomBedId: 2005, bedNo: 'B205', roomNo: 'R205', roomCategory: 'AC', roomType: 'Special', numberOfBeds: 1, chargesPerDay: 3000, status: 'Active', createdBy: '1', createdAt: '2025-01-01T10:00:00Z' },
+  { id: 16, roomBedId: 2006, bedNo: 'B206', roomNo: 'R206', roomCategory: 'AC', roomType: 'Special', numberOfBeds: 1, chargesPerDay: 3000, status: 'Active', createdBy: '1', createdAt: '2025-01-01T10:00:00Z' },
+  { id: 17, roomBedId: 2007, bedNo: 'B207', roomNo: 'R207', roomCategory: 'AC', roomType: 'Special', numberOfBeds: 1, chargesPerDay: 3000, status: 'Active', createdBy: '1', createdAt: '2025-01-01T10:00:00Z' },
+  { id: 18, roomBedId: 2008, bedNo: 'B208', roomNo: 'R208', roomCategory: 'AC', roomType: 'Special', numberOfBeds: 1, chargesPerDay: 3000, status: 'Active', createdBy: '1', createdAt: '2025-01-01T10:00:00Z' },
+  
+  // Floor 3 - Special Shared Rooms
+  { id: 19, roomBedId: 3001, bedNo: 'B301', roomNo: 'R301', roomCategory: 'AC', roomType: 'Special Shared', numberOfBeds: 2, chargesPerDay: 2500, status: 'Active', createdBy: '1', createdAt: '2025-01-01T10:00:00Z' },
+  { id: 20, roomBedId: 3002, bedNo: 'B302', roomNo: 'R301', roomCategory: 'AC', roomType: 'Special Shared', numberOfBeds: 2, chargesPerDay: 2500, status: 'Active', createdBy: '1', createdAt: '2025-01-01T10:00:00Z' },
+  { id: 21, roomBedId: 3003, bedNo: 'B303', roomNo: 'R302', roomCategory: 'AC', roomType: 'Special Shared', numberOfBeds: 2, chargesPerDay: 2500, status: 'Active', createdBy: '1', createdAt: '2025-01-01T10:00:00Z' },
+  { id: 22, roomBedId: 3004, bedNo: 'B304', roomNo: 'R302', roomCategory: 'AC', roomType: 'Special Shared', numberOfBeds: 2, chargesPerDay: 2500, status: 'Active', createdBy: '1', createdAt: '2025-01-01T10:00:00Z' },
+  { id: 23, roomBedId: 3005, bedNo: 'B305', roomNo: 'R303', roomCategory: 'AC', roomType: 'Special Shared', numberOfBeds: 2, chargesPerDay: 2500, status: 'Active', createdBy: '1', createdAt: '2025-01-01T10:00:00Z' },
+  { id: 24, roomBedId: 3006, bedNo: 'B306', roomNo: 'R303', roomCategory: 'AC', roomType: 'Special Shared', numberOfBeds: 2, chargesPerDay: 2500, status: 'Active', createdBy: '1', createdAt: '2025-01-01T10:00:00Z' },
+  { id: 25, roomBedId: 3007, bedNo: 'B307', roomNo: 'R304', roomCategory: 'AC', roomType: 'Special Shared', numberOfBeds: 2, chargesPerDay: 2500, status: 'Active', createdBy: '1', createdAt: '2025-01-01T10:00:00Z' },
+  { id: 26, roomBedId: 3008, bedNo: 'B308', roomNo: 'R304', roomCategory: 'AC', roomType: 'Special Shared', numberOfBeds: 2, chargesPerDay: 2500, status: 'Active', createdBy: '1', createdAt: '2025-01-01T10:00:00Z' },
+  
+  // Floor 4 - Non AC Regular Rooms
+  { id: 27, roomBedId: 4001, bedNo: 'B401', roomNo: 'R401', roomCategory: 'Non AC', roomType: 'Regular', numberOfBeds: 1, chargesPerDay: 1000, status: 'Active', createdBy: '1', createdAt: '2025-01-01T10:00:00Z' },
+  { id: 28, roomBedId: 4002, bedNo: 'B402', roomNo: 'R402', roomCategory: 'Non AC', roomType: 'Regular', numberOfBeds: 1, chargesPerDay: 1000, status: 'Active', createdBy: '1', createdAt: '2025-01-01T10:00:00Z' },
+  { id: 29, roomBedId: 4003, bedNo: 'B403', roomNo: 'R403', roomCategory: 'Non AC', roomType: 'Regular', numberOfBeds: 1, chargesPerDay: 1000, status: 'Active', createdBy: '1', createdAt: '2025-01-01T10:00:00Z' },
+  { id: 30, roomBedId: 4004, bedNo: 'B404', roomNo: 'R404', roomCategory: 'Non AC', roomType: 'Regular', numberOfBeds: 1, chargesPerDay: 1000, status: 'Active', createdBy: '1', createdAt: '2025-01-01T10:00:00Z' },
+  { id: 31, roomBedId: 4005, bedNo: 'B405', roomNo: 'R405', roomCategory: 'Non AC', roomType: 'Regular', numberOfBeds: 1, chargesPerDay: 1000, status: 'Active', createdBy: '1', createdAt: '2025-01-01T10:00:00Z' },
+  { id: 32, roomBedId: 4006, bedNo: 'B406', roomNo: 'R406', roomCategory: 'Non AC', roomType: 'Regular', numberOfBeds: 1, chargesPerDay: 1000, status: 'Active', createdBy: '1', createdAt: '2025-01-01T10:00:00Z' },
+  { id: 33, roomBedId: 4007, bedNo: 'B407', roomNo: 'R407', roomCategory: 'Non AC', roomType: 'Regular', numberOfBeds: 1, chargesPerDay: 1000, status: 'Active', createdBy: '1', createdAt: '2025-01-01T10:00:00Z' },
+  { id: 34, roomBedId: 4008, bedNo: 'B408', roomNo: 'R408', roomCategory: 'Non AC', roomType: 'Regular', numberOfBeds: 1, chargesPerDay: 1000, status: 'Active', createdBy: '1', createdAt: '2025-01-01T10:00:00Z' },
+  { id: 35, roomBedId: 4009, bedNo: 'B409', roomNo: 'R409', roomCategory: 'Non AC', roomType: 'Regular', numberOfBeds: 1, chargesPerDay: 1000, status: 'Active', createdBy: '1', createdAt: '2025-01-01T10:00:00Z' },
+  { id: 36, roomBedId: 4010, bedNo: 'B410', roomNo: 'R410', roomCategory: 'Non AC', roomType: 'Regular', numberOfBeds: 1, chargesPerDay: 1000, status: 'Active', createdBy: '1', createdAt: '2025-01-01T10:00:00Z' },
+  
+  // Floor 5 - Premium Special Rooms
+  { id: 37, roomBedId: 5001, bedNo: 'B501', roomNo: 'R501', roomCategory: 'AC', roomType: 'Special', numberOfBeds: 1, chargesPerDay: 5000, status: 'Active', createdBy: '1', createdAt: '2025-01-01T10:00:00Z' },
+  { id: 38, roomBedId: 5002, bedNo: 'B502', roomNo: 'R502', roomCategory: 'AC', roomType: 'Special', numberOfBeds: 1, chargesPerDay: 5000, status: 'Active', createdBy: '1', createdAt: '2025-01-01T10:00:00Z' },
+  { id: 39, roomBedId: 5003, bedNo: 'B503', roomNo: 'R503', roomCategory: 'AC', roomType: 'Special', numberOfBeds: 1, chargesPerDay: 5000, status: 'Active', createdBy: '1', createdAt: '2025-01-01T10:00:00Z' },
+  { id: 40, roomBedId: 5004, bedNo: 'B504', roomNo: 'R504', roomCategory: 'AC', roomType: 'Special', numberOfBeds: 1, chargesPerDay: 5000, status: 'Active', createdBy: '1', createdAt: '2025-01-01T10:00:00Z' },
+  { id: 41, roomBedId: 5005, bedNo: 'B505', roomNo: 'R505', roomCategory: 'AC', roomType: 'Special', numberOfBeds: 1, chargesPerDay: 5000, status: 'Active', createdBy: '1', createdAt: '2025-01-01T10:00:00Z' },
+  { id: 42, roomBedId: 5006, bedNo: 'B506', roomNo: 'R506', roomCategory: 'AC', roomType: 'Special', numberOfBeds: 1, chargesPerDay: 5000, status: 'Active', createdBy: '1', createdAt: '2025-01-01T10:00:00Z' },
+  
+  // Floor 6 - Non AC Special Shared
+  { id: 43, roomBedId: 6001, bedNo: 'B601', roomNo: 'R601', roomCategory: 'Non AC', roomType: 'Special Shared', numberOfBeds: 2, chargesPerDay: 1800, status: 'Active', createdBy: '1', createdAt: '2025-01-01T10:00:00Z' },
+  { id: 44, roomBedId: 6002, bedNo: 'B602', roomNo: 'R601', roomCategory: 'Non AC', roomType: 'Special Shared', numberOfBeds: 2, chargesPerDay: 1800, status: 'Active', createdBy: '1', createdAt: '2025-01-01T10:00:00Z' },
+  { id: 45, roomBedId: 6003, bedNo: 'B603', roomNo: 'R602', roomCategory: 'Non AC', roomType: 'Special Shared', numberOfBeds: 2, chargesPerDay: 1800, status: 'Active', createdBy: '1', createdAt: '2025-01-01T10:00:00Z' },
+  { id: 46, roomBedId: 6004, bedNo: 'B604', roomNo: 'R602', roomCategory: 'Non AC', roomType: 'Special Shared', numberOfBeds: 2, chargesPerDay: 1800, status: 'Active', createdBy: '1', createdAt: '2025-01-01T10:00:00Z' },
+  { id: 47, roomBedId: 6005, bedNo: 'B605', roomNo: 'R603', roomCategory: 'Non AC', roomType: 'Special Shared', numberOfBeds: 2, chargesPerDay: 1800, status: 'Active', createdBy: '1', createdAt: '2025-01-01T10:00:00Z' },
+  { id: 48, roomBedId: 6006, bedNo: 'B606', roomNo: 'R603', roomCategory: 'Non AC', roomType: 'Special Shared', numberOfBeds: 2, chargesPerDay: 1800, status: 'Active', createdBy: '1', createdAt: '2025-01-01T10:00:00Z' },
+  
+  // Inactive/Maintenance Rooms
+  { id: 49, roomBedId: 7001, bedNo: 'B701', roomNo: 'R701', roomCategory: 'AC', roomType: 'Special', numberOfBeds: 1, chargesPerDay: 5000, status: 'Inactive', createdBy: '1', createdAt: '2025-01-01T10:00:00Z' },
+  { id: 50, roomBedId: 7002, bedNo: 'B702', roomNo: 'R702', roomCategory: 'AC', roomType: 'Regular', numberOfBeds: 1, chargesPerDay: 1500, status: 'Inactive', createdBy: '1', createdAt: '2025-01-01T10:00:00Z' },
 ];
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -54,6 +111,8 @@ export interface UpdateRoomBedDto extends Partial<CreateRoomBedDto> {
 
 export const roomBedsApi = {
   async getAll(): Promise<RoomBed[]> {
+    let apiData: RoomBed[] = [];
+    
     try {
       const response = await apiRequest<any>('/room-beds');
       // Handle different response structures: { data: [...] } or direct array
@@ -62,7 +121,7 @@ export const roomBedsApi = {
       if (Array.isArray(roomBedsData) && roomBedsData.length > 0) {
         console.log('Room beds fetched from API:', roomBedsData);
         // Map and normalize the data to ensure all fields are present
-        const normalizedRoomBeds = roomBedsData.map((roomBed: any, index: number) => {
+        apiData = roomBedsData.map((roomBed: any, index: number) => {
           // Handle ChargesPerDay - check both camelCase and PascalCase, handle 0 values correctly
           // Check for all possible field name variations from database
           const chargesPerDayValue = 
@@ -122,20 +181,39 @@ export const roomBedsApi = {
             createdBy: roomBed.createdBy || roomBed.CreatedBy || '',
             createdAt: roomBed.createdAt || roomBed.CreatedAt || new Date().toISOString(),
           };
-        });
-        return normalizedRoomBeds as RoomBed[];
+        }) as RoomBed[];
       }
-      
-      // Fallback to stub data if no data received
-      console.warn('No room beds data received, using stub data');
-      await delay(300);
-      return Promise.resolve([...stubRoomBeds]);
     } catch (error) {
       console.error('Error fetching room beds:', error);
-      // Fallback to stub data on error
-      await delay(300);
-      return Promise.resolve([...stubRoomBeds]);
+      // If stub data is disabled and API fails, throw the error
+      if (!ENABLE_STUB_DATA) {
+        throw error;
+      }
     }
+    
+    // Append stub data if enabled
+    if (ENABLE_STUB_DATA) {
+      // Filter out stub data that might conflict with API data (by roomBedId)
+      const apiIds = new Set(apiData.map(bed => bed.roomBedId));
+      const uniqueStubData = stubRoomBeds.filter(bed => !apiIds.has(bed.roomBedId));
+      
+      if (uniqueStubData.length > 0) {
+        console.log(`Appending ${uniqueStubData.length} stub room beds to ${apiData.length} API records`);
+      }
+      
+      // If API returned no data, use stub data as fallback
+      if (apiData.length === 0) {
+        console.warn('No room beds data received from API, using stub data');
+        await delay(300);
+        return [...stubRoomBeds];
+      }
+      
+      // Combine API data with stub data
+      return [...apiData, ...uniqueStubData];
+    }
+    
+    // Return only API data if stub data is disabled
+    return apiData;
   },
 
   async getById(roomBedId: number): Promise<RoomBed> {

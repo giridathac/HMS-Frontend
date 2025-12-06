@@ -165,8 +165,9 @@ export function Emergency() {
   const ambulanceArrivals = patients.filter(p => p.arrivalMode === 'Ambulance').length;
 
   return (
-    <div className="p-8 bg-blue-100 min-h-full">
-      <div className="flex items-center justify-between mb-8">
+    <div className="px-4 pt-4 pb-4 bg-blue-100 h-screen flex flex-col overflow-hidden">
+      <div className="flex-shrink-0">
+        <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <div className="p-3 bg-red-100 rounded-lg">
             <Siren className="size-8 text-red-600" />
@@ -336,7 +337,7 @@ export function Emergency() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
         {/* ER Bed Layout */}
-        <Card className="lg:col-span-2">
+        <Card className="lg:col-span-2 mb-4">
           <CardHeader>
             <CardTitle>Emergency Room Bed Status</CardTitle>
           </CardHeader>
@@ -444,7 +445,7 @@ export function Emergency() {
             </div>
           </CardContent>
         </Card>
-      </div>
+        </div>
 
       {/* Patients List */}
       <Tabs defaultValue="all" className="space-y-6">
@@ -585,13 +586,14 @@ export function Emergency() {
           )}
         </DialogContent>
       </Dialog>
+      </div>
     </div>
   );
 }
 
 function PatientsList({ patients, onSelectPatient }: { patients: EmergencyPatient[]; onSelectPatient: (patient: EmergencyPatient) => void }) {
   return (
-    <Card>
+    <Card className="mb-4">
       <CardContent className="p-6">
         <div className="overflow-x-auto">
           <table className="w-full">

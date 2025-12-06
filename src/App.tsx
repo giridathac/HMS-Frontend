@@ -43,8 +43,9 @@ const BillManagement = lazy(() => import('./components/BillManagement').then(m =
 const PatientAppointmentManagement = lazy(() => import('./components/PatientAppointmentManagement').then(m => ({ default: m.PatientAppointmentManagement })));
 const OTRoomsManagement = lazy(() => import('./components/OTRoomsManagement').then(m => ({ default: m.OTRoomsManagement })));
 const ICUBedsManagement = lazy(() => import('./components/ICUBedsManagement').then(m => ({ default: m.ICUBedsManagement })));
+const EmergencyBedManagement = lazy(() => import('./components/EmergencyBedManagement').then(m => ({ default: m.EmergencyBedManagement })));
 
-type View = 'dashboard' | 'frontdesk' | 'consultation' | 'admissions' | 'ot' | 'icu' | 'laboratory' | 'emergency' | 'reports' | 'doctors' | 'staff' | 'roles' | 'departments' | 'patientregistration' | 'roombeds' | 'labtests' | 'bills' | 'patientappointments' | 'otrooms' | 'icubeds';
+type View = 'dashboard' | 'frontdesk' | 'consultation' | 'admissions' | 'ot' | 'icu' | 'laboratory' | 'emergency' | 'reports' | 'doctors' | 'staff' | 'roles' | 'departments' | 'patientregistration' | 'roombeds' | 'labtests' | 'bills' | 'patientappointments' | 'otrooms' | 'icubeds' | 'emergencybeds';
 
 // Loading fallback component
 function LoadingFallback() {
@@ -68,7 +69,7 @@ export default function App() {
     const hash = window.location.hash.slice(1) || 'dashboard';
     // Extract view from hash (handle query parameters like #ot?otId=...)
     const viewName = hash.split('?')[0];
-    const validViews: View[] = ['dashboard', 'frontdesk', 'consultation', 'admissions', 'ot', 'icu', 'laboratory', 'emergency', 'reports', 'doctors', 'staff', 'roles', 'departments', 'patientregistration', 'roombeds', 'labtests', 'bills', 'patientappointments', 'otrooms', 'icubeds'];
+    const validViews: View[] = ['dashboard', 'frontdesk', 'consultation', 'admissions', 'ot', 'icu', 'laboratory', 'emergency', 'reports', 'doctors', 'staff', 'roles', 'departments', 'patientregistration', 'roombeds', 'labtests', 'bills', 'patientappointments', 'otrooms', 'icubeds', 'emergencybeds'];
     return validViews.includes(viewName as View) ? (viewName as View) : 'dashboard';
   };
 
@@ -111,6 +112,7 @@ export default function App() {
     { id: 'otrooms' as View, label: 'OT Rooms Management', icon: Scissors },
     { id: 'icu' as View, label: 'ICU Management', icon: HeartPulse },
     { id: 'icubeds' as View, label: 'ICU Bed Management', icon: HeartPulse },
+    { id: 'emergencybeds' as View, label: 'Emergency Bed Management', icon: BedDouble },
     { id: 'bills' as View, label: 'Bill Management', icon: Receipt },   
     
     { id: 'roles' as View, label: 'Roles', icon: Shield },
@@ -218,7 +220,7 @@ export default function App() {
         <ResizablePanel defaultSize={isStandalone ? 100 : 84} minSize={70}>
 
           <main className={`h-full bg-blue-50 transition-all duration-300 flex flex-col ${
-            currentView === 'dashboard' || currentView === 'frontdesk' || currentView === 'ot' || currentView === 'icu' || currentView === 'otrooms' || currentView === 'icubeds'
+            currentView === 'dashboard' || currentView === 'frontdesk' || currentView === 'ot' || currentView === 'icu' || currentView === 'otrooms' || currentView === 'icubeds' || currentView === 'emergencybeds' || currentView === 'patientregistration' || currentView === 'laboratory'
               ? 'overflow-hidden' 
               : 'overflow-auto overflow-x-hidden'
           }`}>
@@ -238,6 +240,7 @@ export default function App() {
               {currentView === 'otrooms' && <OTRoomsManagement />}
               {currentView === 'icu' && <ICUManagement />}
               {currentView === 'icubeds' && <ICUBedsManagement />}
+              {currentView === 'emergencybeds' && <EmergencyBedManagement />}
               {currentView === 'bills' && <BillManagement />}
               {currentView === 'patientappointments' && <PatientAppointmentManagement />}
               {currentView === 'laboratory' && <Laboratory />}

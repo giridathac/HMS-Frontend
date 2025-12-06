@@ -1,5 +1,5 @@
 // Roles API service
-import { apiRequest } from './base';
+import { apiRequest, ENABLE_STUB_DATA } from './base';
 import { Role, RoleName, RoleDto } from '../types/roles';
 
 // Default roles
@@ -90,25 +90,57 @@ export interface GetRolesResponse {
 
 export const rolesApi = {
   async getAll(): Promise<Role[]> {
-    const response = await apiRequest<GetRolesResponse>('/roles', {
-      method: 'GET',
-    });
+    let apiData: Role[] = [];
     
-    if (!response.success) {
-      throw new Error('Failed to fetch roles');
+    try {
+      const response = await apiRequest<GetRolesResponse>('/roles', {
+        method: 'GET',
+      });
+      
+      if (response.success && response.data) {
+        // Map backend DTO to frontend Role interface
+        apiData = response.data.map((roleDto: RoleDto) => ({
+          id: roleDto.RoleId,
+          name: roleDto.RoleName,
+          description: roleDto.RoleDescription,
+          permissions: [], // Permissions not in response, will be empty initially
+          createdAt: roleDto.CreatedAt,
+          createdBy: roleDto.CreatedBy,
+          updatedAt: undefined, // Not in backend response
+          isSuperAdmin: roleDto.RoleName.toLowerCase() === 'superadmin', // Compute based on name
+        }));
+      }
+    } catch (error) {
+      console.error('Error fetching roles from /api/roles:', error);
+      // If stub data is disabled and API fails, throw the error
+      if (!ENABLE_STUB_DATA) {
+        throw error;
+      }
     }
     
-    // Map backend DTO to frontend Role interface
-    return response.data.map((roleDto: RoleDto) => ({
-      id: roleDto.RoleId,
-      name: roleDto.RoleName,
-      description: roleDto.RoleDescription,
-      permissions: [], // Permissions not in response, will be empty initially
-      createdAt: roleDto.CreatedAt,
-      createdBy: roleDto.CreatedBy,
-      updatedAt: undefined, // Not in backend response
-      isSuperAdmin: roleDto.RoleName.toLowerCase() === 'superadmin', // Compute based on name
-    }));
+    // Append stub data if enabled
+    if (ENABLE_STUB_DATA) {
+      // Filter out stub data that might conflict with API data (by ID)
+      const apiIds = new Set(apiData.map(role => role.id));
+      const uniqueStubData = stubRoles.filter(role => !apiIds.has(role.id));
+      
+      if (uniqueStubData.length > 0) {
+        console.log(`Appending ${uniqueStubData.length} stub roles to ${apiData.length} API records`);
+      }
+      
+      // If API returned no data, use stub data as fallback
+      if (apiData.length === 0) {
+        console.warn('No roles data received from API, using stub data');
+        await delay(300);
+        return [...stubRoles];
+      }
+      
+      // Combine API data with stub data
+      return [...apiData, ...uniqueStubData];
+    }
+    
+    // Return only API data if stub data is disabled
+    return apiData;
   },
 
   async getById(id: string): Promise<Role> {

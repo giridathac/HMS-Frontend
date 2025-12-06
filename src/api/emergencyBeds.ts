@@ -1,5 +1,5 @@
 // Emergency Beds API service
-import { apiRequest } from './base';
+import { apiRequest, ApiError, ENABLE_STUB_DATA } from './base';
 import { EmergencyBed } from '../types';
 
 // Stub data
@@ -26,15 +26,22 @@ function generateEmergencyBedNo(): string {
 }
 
 export interface CreateEmergencyBedDto {
-  emergencyBedNo: string;
+  emergencyBedNo?: string;
+  emergencyRoomNameNo?: string;
   emergencyRoomDescription?: string;
-  chargesPerDay: number;
-  createdBy: string;
+  chargesPerDay?: number;
+  createdBy?: number;
   status?: 'active' | 'inactive';
 }
 
-export interface UpdateEmergencyBedDto extends Partial<CreateEmergencyBedDto> {
+export interface UpdateEmergencyBedDto {
   id: number;
+  emergencyBedNo?: string;
+  emergencyRoomNameNo?: string;
+  emergencyRoomDescription?: string;
+  chargesPerDay?: number;
+  createdBy?: number;
+  status?: 'active' | 'inactive';
 }
 
 export const emergencyBedsApi = {
@@ -55,40 +62,318 @@ export const emergencyBedsApi = {
   },
 
   async create(data: CreateEmergencyBedDto): Promise<EmergencyBed> {
-    // Replace with: return apiRequest<EmergencyBed>('/emergencybeds', { method: 'POST', body: JSON.stringify(data) });
-    await delay(400);
-    const newEmergencyBed: EmergencyBed = {
-      id: stubEmergencyBeds.length + 1,
-      emergencyBedId: generateEmergencyBedId(),
-      emergencyBedNo: data.emergencyBedNo || generateEmergencyBedNo(),
-      status: data.status || 'active',
-      createdAt: new Date().toISOString(),
-      ...data,
-    };
-    stubEmergencyBeds.push(newEmergencyBed);
-    return Promise.resolve(newEmergencyBed);
+    try {
+      // Convert frontend camelCase to backend PascalCase
+      const backendData: any = {};
+      
+      if (data.emergencyBedNo !== undefined && data.emergencyBedNo !== null && data.emergencyBedNo.trim() !== '') {
+        backendData.EmergencyBedNo = data.emergencyBedNo.trim();
+      }
+      if (data.emergencyRoomNameNo !== undefined && data.emergencyRoomNameNo !== null && data.emergencyRoomNameNo.trim() !== '') {
+        backendData.EmergencyRoomNameNo = data.emergencyRoomNameNo.trim();
+      }
+      if (data.emergencyRoomDescription !== undefined && data.emergencyRoomDescription !== null && data.emergencyRoomDescription.trim() !== '') {
+        backendData.EmergencyRoomDescription = data.emergencyRoomDescription.trim();
+      }
+      if (data.chargesPerDay !== undefined && data.chargesPerDay !== null && !isNaN(Number(data.chargesPerDay))) {
+        backendData.ChargesPerDay = Number(data.chargesPerDay);
+      }
+      if (data.createdBy !== undefined && data.createdBy !== null) {
+        backendData.CreatedBy = Number(data.createdBy);
+      }
+      if (data.status !== undefined && data.status !== null) {
+        // Normalize status to "Active" or "Inactive" for backend
+        backendData.Status = data.status === 'active' ? 'Active' : 'Inactive';
+      } else {
+        // Default to "Active" if not provided
+        backendData.Status = 'Active';
+      }
+
+      console.log('Creating emergency bed with data:', JSON.stringify(backendData, null, 2));
+
+      // Call the actual API endpoint
+      const response = await apiRequest<any>('/emergency-beds', {
+        method: 'POST',
+        body: JSON.stringify(backendData),
+      });
+
+      console.log('Create emergency bed API response:', response);
+
+      // Handle response structure: { success, message, data: {...} }
+      const responseData = response?.data || response;
+      
+      if (!responseData) {
+        throw new Error('No emergency bed data received from API');
+      }
+
+      // Normalize the response to match EmergencyBed interface
+      const normalizedEmergencyBed: EmergencyBed = {
+        id: responseData.EmergencyBedId || responseData.emergencyBedId || 0,
+        emergencyBedId: String(responseData.EmergencyBedId || responseData.emergencyBedId || ''),
+        emergencyBedNo: responseData.EmergencyBedNo || responseData.emergencyBedNo || generateEmergencyBedNo(),
+        emergencyRoomNameNo: responseData.EmergencyRoomNameNo || responseData.emergencyRoomNameNo || undefined,
+        emergencyRoomDescription: responseData.EmergencyRoomDescription || responseData.emergencyRoomDescription || undefined,
+        chargesPerDay: Number(responseData.ChargesPerDay || responseData.chargesPerDay || 0),
+        createdBy: String(responseData.CreatedBy || responseData.createdBy || ''),
+        createdAt: responseData.CreatedAt || responseData.createdAt || new Date().toISOString(),
+        status: (responseData.Status || responseData.status || 'active').toLowerCase() as 'active' | 'inactive',
+      };
+
+      return normalizedEmergencyBed;
+    } catch (error: any) {
+      console.error('Error creating emergency bed:', error);
+      console.error('Error details:', {
+        message: error.message,
+        status: error.status,
+        data: error.data,
+        stack: error.stack
+      });
+      
+      // If stub data is enabled and API fails, fall back to stub data
+      if (ENABLE_STUB_DATA) {
+        console.warn('API call failed, using stub data for emergency bed creation');
+        await delay(400);
+        const newEmergencyBed: EmergencyBed = {
+          id: stubEmergencyBeds.length + 1,
+          emergencyBedId: generateEmergencyBedId(),
+          emergencyBedNo: data.emergencyBedNo || generateEmergencyBedNo(),
+          emergencyRoomNameNo: data.emergencyRoomNameNo,
+          emergencyRoomDescription: data.emergencyRoomDescription,
+          chargesPerDay: data.chargesPerDay !== undefined && data.chargesPerDay !== null ? data.chargesPerDay : 0,
+          createdBy: data.createdBy !== undefined && data.createdBy !== null ? String(data.createdBy) : '1',
+          status: data.status || 'active',
+          createdAt: new Date().toISOString(),
+        };
+        stubEmergencyBeds.push(newEmergencyBed);
+        return newEmergencyBed;
+      }
+      
+      // Re-throw API errors with detailed message
+      if (error instanceof ApiError) {
+        const errorData = error.data as any;
+        const errorMessage = errorData?.message || errorData?.error || error.message || 'Failed to create emergency bed';
+        const errorDetails = errorData?.errors || errorData?.details;
+        
+        let fullErrorMessage = errorMessage;
+        if (errorDetails) {
+          if (Array.isArray(errorDetails)) {
+            fullErrorMessage += ': ' + errorDetails.join(', ');
+          } else if (typeof errorDetails === 'object') {
+            fullErrorMessage += ': ' + JSON.stringify(errorDetails);
+          } else {
+            fullErrorMessage += ': ' + errorDetails;
+          }
+        }
+        
+        throw new Error(fullErrorMessage);
+      }
+      
+      // Re-throw validation errors
+      if (error instanceof Error) {
+        throw error;
+      }
+      
+      // Fallback error
+      throw new Error('Failed to create emergency bed. Please check the console for details.');
+    }
   },
 
   async update(data: UpdateEmergencyBedDto): Promise<EmergencyBed> {
-    // Replace with: return apiRequest<EmergencyBed>(`/emergencybeds/${data.id}`, { method: 'PUT', body: JSON.stringify(data) });
-    await delay(400);
-    const index = stubEmergencyBeds.findIndex(b => b.id === data.id);
-    if (index === -1) {
-      throw new Error(`EmergencyBed with id ${data.id} not found`);
+    try {
+      // Validate required fields
+      if (!data.id || data.id <= 0) {
+        throw new Error('Valid emergency bed ID is required for update');
+      }
+
+      // Convert frontend camelCase to backend PascalCase
+      const backendData: any = {};
+      
+      if (data.emergencyBedNo !== undefined && data.emergencyBedNo !== null && data.emergencyBedNo.trim() !== '') {
+        backendData.EmergencyBedNo = data.emergencyBedNo.trim();
+      }
+      if (data.emergencyRoomNameNo !== undefined && data.emergencyRoomNameNo !== null && data.emergencyRoomNameNo.trim() !== '') {
+        backendData.EmergencyRoomNameNo = data.emergencyRoomNameNo.trim();
+      }
+      if (data.emergencyRoomDescription !== undefined && data.emergencyRoomDescription !== null && data.emergencyRoomDescription.trim() !== '') {
+        backendData.EmergencyRoomDescription = data.emergencyRoomDescription.trim();
+      }
+      if (data.chargesPerDay !== undefined && data.chargesPerDay !== null) {
+        backendData.ChargesPerDay = Number(data.chargesPerDay);
+      }
+      if (data.createdBy !== undefined && data.createdBy !== null) {
+        backendData.CreatedBy = Number(data.createdBy);
+      }
+      if (data.status !== undefined && data.status !== null) {
+        // Normalize status to "Active" or "Inactive" for backend
+        backendData.Status = data.status === 'active' ? 'Active' : 'Inactive';
+      }
+
+      console.log('Updating emergency bed with data:', JSON.stringify(backendData, null, 2));
+      console.log('Emergency bed ID:', data.id);
+
+      // Call the actual API endpoint
+      const response = await apiRequest<any>(`/emergency-beds/${data.id}`, {
+        method: 'PUT',
+        body: JSON.stringify(backendData),
+      });
+
+      console.log('Update emergency bed API response:', response);
+
+      // Handle response structure: { success, message, data: {...} }
+      const responseData = response?.data || response;
+      
+      if (!responseData) {
+        throw new Error('No emergency bed data received from API');
+      }
+
+      // Normalize the response to match EmergencyBed interface
+      const normalizedEmergencyBed: EmergencyBed = {
+        id: responseData.EmergencyBedId || responseData.emergencyBedId || data.id,
+        emergencyBedId: String(responseData.EmergencyBedId || responseData.emergencyBedId || data.id),
+        emergencyBedNo: responseData.EmergencyBedNo || responseData.emergencyBedNo || '',
+        emergencyRoomNameNo: responseData.EmergencyRoomNameNo || responseData.emergencyRoomNameNo || undefined,
+        emergencyRoomDescription: responseData.EmergencyRoomDescription || responseData.emergencyRoomDescription || undefined,
+        chargesPerDay: Number(responseData.ChargesPerDay || responseData.chargesPerDay || 0),
+        createdBy: String(responseData.CreatedBy || responseData.createdBy || ''),
+        createdAt: responseData.CreatedAt || responseData.createdAt || new Date().toISOString(),
+        status: (responseData.Status || responseData.status || 'active').toLowerCase() as 'active' | 'inactive',
+      };
+
+      return normalizedEmergencyBed;
+    } catch (error: any) {
+      console.error('Error updating emergency bed:', error);
+      console.error('Error details:', {
+        message: error.message,
+        status: error.status,
+        data: error.data,
+        stack: error.stack
+      });
+      
+      // If stub data is enabled and API fails, fall back to stub data
+      if (ENABLE_STUB_DATA) {
+        console.warn('API call failed, using stub data for emergency bed update');
+        await delay(400);
+        const index = stubEmergencyBeds.findIndex(b => b.id === data.id);
+        if (index === -1) {
+          throw new Error(`EmergencyBed with id ${data.id} not found`);
+        }
+        // Convert createdBy to string if it's a number, and ensure all fields match EmergencyBed type
+        const updateData: Partial<EmergencyBed> = {};
+        if (data.emergencyBedNo !== undefined) updateData.emergencyBedNo = data.emergencyBedNo;
+        if (data.emergencyRoomNameNo !== undefined) updateData.emergencyRoomNameNo = data.emergencyRoomNameNo;
+        if (data.emergencyRoomDescription !== undefined) updateData.emergencyRoomDescription = data.emergencyRoomDescription;
+        if (data.chargesPerDay !== undefined) updateData.chargesPerDay = data.chargesPerDay;
+        if (data.status !== undefined) updateData.status = data.status;
+        if (data.createdBy !== undefined) {
+          updateData.createdBy = String(data.createdBy);
+        }
+        stubEmergencyBeds[index] = { ...stubEmergencyBeds[index], ...updateData };
+        return stubEmergencyBeds[index];
+      }
+      
+      // Re-throw API errors with detailed message
+      if (error instanceof ApiError) {
+        const errorData = error.data as any;
+        const errorMessage = errorData?.message || errorData?.error || error.message || 'Failed to update emergency bed';
+        const errorDetails = errorData?.errors || errorData?.details;
+        
+        let fullErrorMessage = errorMessage;
+        if (errorDetails) {
+          if (Array.isArray(errorDetails)) {
+            fullErrorMessage += ': ' + errorDetails.join(', ');
+          } else if (typeof errorDetails === 'object') {
+            fullErrorMessage += ': ' + JSON.stringify(errorDetails);
+          } else {
+            fullErrorMessage += ': ' + errorDetails;
+          }
+        }
+        
+        throw new Error(fullErrorMessage);
+      }
+      
+      // Re-throw validation errors
+      if (error instanceof Error) {
+        throw error;
+      }
+      
+      // Fallback error
+      throw new Error('Failed to update emergency bed. Please check the console for details.');
     }
-    stubEmergencyBeds[index] = { ...stubEmergencyBeds[index], ...data };
-    return Promise.resolve(stubEmergencyBeds[index]);
   },
 
   async delete(id: number): Promise<void> {
-    // Replace with: return apiRequest<void>(`/emergencybeds/${id}`, { method: 'DELETE' });
-    await delay(300);
-    const index = stubEmergencyBeds.findIndex(b => b.id === id);
-    if (index === -1) {
-      throw new Error(`EmergencyBed with id ${id} not found`);
+    try {
+      // Validate ID before making API call
+      if (!id || id <= 0) {
+        throw new Error(`Invalid emergency bed ID: ${id}. Cannot delete emergency bed.`);
+      }
+
+      console.log(`Deleting emergency bed with ID: ${id}`);
+
+      // Call the actual API endpoint
+      const response = await apiRequest<any>(`/emergency-beds/${id}`, {
+        method: 'DELETE',
+      });
+
+      console.log('Delete emergency bed API response:', response);
+
+      // The API returns the deleted emergency bed data in the response
+      // We don't need to return it, but we can log it for debugging
+      if (response?.data) {
+        console.log('Deleted emergency bed:', response.data);
+      }
+
+      // Delete operation is successful if we reach here
+      return;
+    } catch (error: any) {
+      console.error(`Error deleting emergency bed with id ${id}:`, error);
+      console.error('Error details:', {
+        message: error.message,
+        status: error.status,
+        data: error.data,
+        stack: error.stack
+      });
+      
+      // If stub data is enabled and API fails, fall back to stub data
+      if (ENABLE_STUB_DATA) {
+        console.warn('API call failed, using stub data for emergency bed deletion');
+        await delay(300);
+        const index = stubEmergencyBeds.findIndex(b => b.id === id);
+        if (index === -1) {
+          throw new Error(`EmergencyBed with id ${id} not found`);
+        }
+        stubEmergencyBeds.splice(index, 1);
+        return;
+      }
+      
+      // Re-throw API errors with detailed message
+      if (error instanceof ApiError) {
+        const errorData = error.data as any;
+        const errorMessage = errorData?.message || errorData?.error || error.message || `Failed to delete emergency bed with id ${id}`;
+        const errorDetails = errorData?.errors || errorData?.details;
+        
+        let fullErrorMessage = errorMessage;
+        if (errorDetails) {
+          if (Array.isArray(errorDetails)) {
+            fullErrorMessage += ': ' + errorDetails.join(', ');
+          } else if (typeof errorDetails === 'object') {
+            fullErrorMessage += ': ' + JSON.stringify(errorDetails);
+          } else {
+            fullErrorMessage += ': ' + errorDetails;
+          }
+        }
+        
+        throw new Error(fullErrorMessage);
+      }
+      
+      // Re-throw validation errors
+      if (error instanceof Error) {
+        throw error;
+      }
+      
+      // Fallback error
+      throw new Error(`Failed to delete emergency bed with id ${id}. Please check the console for details.`);
     }
-    stubEmergencyBeds.splice(index, 1);
-    return Promise.resolve();
   },
 };
 

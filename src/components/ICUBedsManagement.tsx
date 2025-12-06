@@ -197,8 +197,8 @@ export function ICUBedsManagement() {
   }
 
   return (
-    <div className="flex-1 bg-blue-100 flex flex-col overflow-hidden min-h-0">
-      <div className="px-4 pt-4 pb-0 flex-shrink-0">
+    <div className="px-4 pt-4 pb-4 bg-blue-100 h-screen flex flex-col overflow-hidden">
+      <div className="flex-shrink-0">
         <div className="flex items-center justify-between mb-4 flex-shrink-0">
           <div>
             <h1 className="text-gray-900 mb-0 text-xl">ICU Bed Management</h1>
@@ -301,17 +301,17 @@ export function ICUBedsManagement() {
         </div>
       </div>
 
-      <div className="overflow-y-auto overflow-x-hidden px-4 pb-4 icu-beds-scrollable" style={{ maxHeight: 'calc(100vh - 100px)', minHeight: 0 }}>
+      <div className="flex-1 flex flex-col overflow-hidden min-h-0">
         {/* ICU Beds Table */}
-        <Card>
-          <CardHeader>
+        <Card className="flex-1 flex flex-col overflow-hidden min-h-0 mb-4">
+          <CardHeader className="flex-shrink-0">
             <CardTitle className="flex items-center gap-2">
               <HeartPulse className="size-5" />
               ICU Beds List ({icuBeds.length})
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
+          <CardContent className="p-0 flex-1 overflow-hidden flex flex-col min-h-0">
+            <div className="overflow-x-auto overflow-y-scroll border border-gray-200 rounded flex-1 min-h-0 icu-beds-scrollable doctors-scrollable" style={{ maxHeight: 'calc(100vh - 160px)' }}>
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-gray-200">
@@ -340,7 +340,7 @@ export function ICUBedsManagement() {
                         <td className="py-3 px-4 text-sm text-gray-900 font-medium">{icuBed.icuBedNo}</td>
                         <td className="py-3 px-4 text-sm text-gray-700">{icuBed.icuType}</td>
                         <td className="py-3 px-4 text-sm text-gray-700">{icuBed.icuRoomNameNo}</td>
-                        <td className="py-3 px-4 text-sm text-gray-700 max-w-xs truncate" title={icuBed.icuDescription}>{icuBed.icuDescription || '-'}</td>
+                        <td className="py-3 px-4 text-sm text-gray-700 max-w-xs break-words whitespace-normal">{icuBed.icuDescription || '-'}</td>
                         <td className="py-3 px-4 text-sm text-gray-700">{icuBed.isVentilatorAttached ? 'Yes' : 'No'}</td>
                         <td className="py-3 px-4 text-sm">{getStatusBadge(icuBed.status)}</td>
                         <td className="py-3 px-4 text-sm text-gray-500">{new Date(icuBed.createdAt).toLocaleDateString()}</td>

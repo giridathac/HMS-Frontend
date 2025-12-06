@@ -143,7 +143,7 @@ function DoctorsView({
 
   return (
     <>
-      <div className="px-4 pt-4 pb-0 bg-blue-100 h-full flex flex-col overflow-hidden">
+      <div className="px-4 pt-4 pb-2 bg-blue-100 h-screen flex flex-col overflow-hidden">
         <div className="flex items-center justify-between mb-4 flex-shrink-0">
           <div>
             <h1 className="text-gray-900 mb-0 text-xl">Doctors Management</h1>
@@ -152,7 +152,7 @@ function DoctorsView({
         </div>
 
         {/* Status Filter Tabs */}
-        <div className="mb-0 flex-shrink-0">
+        <div className="mb-2 flex-shrink-0">
           <Tabs 
             value={selectedStatus} 
             onValueChange={(value) => onStatusFilterChange(value as 'Active' | 'InActive' | 'all')}
@@ -179,9 +179,9 @@ function DoctorsView({
           </TabsList>
 
           <TabsContent value="doctors" className="flex-1 flex flex-col overflow-hidden min-h-0 mt-0">
-            <Card className="flex-1 flex flex-col overflow-hidden min-h-0">
+            <Card className="flex-1 flex flex-col overflow-hidden min-h-0 mb-2">
               <CardContent className="p-0 flex-1 overflow-hidden flex flex-col min-h-0">
-                <div className="overflow-x-auto overflow-y-scroll border border-gray-200 rounded flex-1" style={{ maxHeight: 'calc(100vh - 100px)' }}>
+                <div className="overflow-x-auto overflow-y-scroll border border-gray-200 rounded flex-1 min-h-0 doctors-scrollable" style={{ maxHeight: 'calc(100vh - 160px)' }}>
                   <table className="w-full">
                     <thead className="sticky top-0 bg-white z-10 shadow-sm">
                       <tr className="border-b border-gray-200">
@@ -246,9 +246,9 @@ function DoctorsView({
           </TabsContent>
 
           <TabsContent value="attendance" className="flex-1 flex flex-col overflow-hidden min-h-0 mt-0">
-            <Card className="flex-1 flex flex-col overflow-hidden min-h-0">
+            <Card className="flex-1 flex flex-col overflow-hidden min-h-0 mb-2">
               <CardContent className="p-0 flex-1 overflow-hidden flex flex-col min-h-0">
-                <div className="overflow-x-auto overflow-y-scroll border border-gray-200 rounded flex-1" style={{ maxHeight: 'calc(100vh - 100px)' }}>
+                <div className="overflow-x-auto overflow-y-scroll border border-gray-200 rounded flex-1 min-h-0 doctors-scrollable" style={{ maxHeight: 'calc(100vh - 160px)' }}>
                   <table className="w-full">
                     <thead className="sticky top-0 bg-white z-10 shadow-sm">
                       <tr className="border-b border-gray-200">

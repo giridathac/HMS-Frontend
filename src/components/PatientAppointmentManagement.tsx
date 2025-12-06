@@ -310,7 +310,7 @@ export function PatientAppointmentManagement() {
 
   return (
     <>
-      <div className="px-4 pt-4 pb-0 bg-blue-100 h-full flex flex-col overflow-hidden">
+      <div className="px-4 pt-4 pb-2 bg-blue-100 h-screen flex flex-col overflow-hidden">
         <div className="flex items-center justify-between mb-4 flex-shrink-0">
           <div>
             <h1 className="text-gray-900 mb-0 text-xl">Patient Appointments</h1>
@@ -573,7 +573,7 @@ export function PatientAppointmentManagement() {
         </Dialog>
         </div>
 
-        <Card className="flex-1 flex flex-col overflow-hidden min-h-0">
+        <Card className="flex-1 flex flex-col overflow-hidden min-h-0 mb-2">
           <CardContent className="p-0 flex-1 overflow-hidden flex flex-col min-h-0">
             <div className="overflow-x-auto overflow-y-scroll border border-gray-200 rounded flex-1" style={{ maxHeight: 'calc(100vh - 100px)' }}>
               <table className="w-full">

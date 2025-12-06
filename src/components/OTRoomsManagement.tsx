@@ -271,8 +271,8 @@ export function OTRoomsManagement() {
   }
 
   return (
-    <div className="flex-1 bg-blue-100 flex flex-col overflow-hidden min-h-0">
-      <div className="px-4 pt-4 pb-0 flex-shrink-0">
+    <div className="px-4 pt-4 pb-4 bg-blue-100 h-screen flex flex-col overflow-hidden">
+      <div className="flex-shrink-0">
         <div className="flex items-center justify-between mb-4 flex-shrink-0">
           <div>
             <h1 className="text-gray-900 mb-0 text-xl">OT Rooms Management</h1>
@@ -383,17 +383,17 @@ export function OTRoomsManagement() {
         </div>
       </div>
 
-      <div className="overflow-y-auto overflow-x-hidden px-4 pb-4 ot-rooms-scrollable" style={{ maxHeight: 'calc(100vh - 100px)', minHeight: 0 }}>
+      <div className="flex-1 flex flex-col overflow-hidden min-h-0">
         {/* OT Rooms Table */}
-        <Card>
-          <CardHeader>
+        <Card className="flex-1 flex flex-col overflow-hidden min-h-0 mb-4">
+          <CardHeader className="flex-shrink-0">
             <CardTitle className="flex items-center gap-2">
               <Scissors className="size-5" />
               OT Rooms List ({total > 0 ? `${otRooms.length} of ${total}` : otRooms.length})
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
+          <CardContent className="p-0 flex-1 overflow-hidden flex flex-col min-h-0">
+            <div className="overflow-x-auto overflow-y-scroll border border-gray-200 rounded flex-1 min-h-0 ot-rooms-scrollable doctors-scrollable" style={{ maxHeight: 'calc(100vh - 160px)' }}>
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-gray-200">
@@ -435,7 +435,7 @@ export function OTRoomsManagement() {
                         <td className="py-3 px-4 text-sm text-gray-900 font-medium">{otRoom.otNo}</td>
                         <td className="py-3 px-4 text-sm text-gray-700">{otRoom.otType}</td>
                         <td className="py-3 px-4 text-sm text-gray-700">{otRoom.otName}</td>
-                        <td className="py-3 px-4 text-sm text-gray-700 max-w-xs truncate" title={otRoom.otDescription}>{otRoom.otDescription || '-'}</td>
+                        <td className="py-3 px-4 text-sm text-gray-700 max-w-xs break-words whitespace-normal">{otRoom.otDescription || '-'}</td>
                         <td className="py-3 px-4 text-sm text-gray-700">{otRoom.startTimeofDay}</td>
                         <td className="py-3 px-4 text-sm text-gray-700">{otRoom.endTimeofDay}</td>
                         <td className="py-3 px-4 text-sm text-gray-700">{otRoom.createdBy}</td>
@@ -466,22 +466,22 @@ export function OTRoomsManagement() {
                   )}
                 </tbody>
               </table>
+              {/* Infinite scroll trigger */}
+              {hasMore && (
+                <div ref={loadMoreRef} className="py-4 text-center">
+                  {loadingMore ? (
+                    <div className="text-blue-600">Loading more rooms...</div>
+                  ) : (
+                    <div className="text-gray-400 text-sm">Scroll for more</div>
+                  )}
+                </div>
+              )}
+              {!hasMore && otRooms.length > 0 && (
+                <div className="py-4 text-center text-gray-500 text-sm">
+                  All {total} rooms loaded
+                </div>
+              )}
             </div>
-            {/* Infinite scroll trigger */}
-            {hasMore && (
-              <div ref={loadMoreRef} className="py-4 text-center">
-                {loadingMore ? (
-                  <div className="text-blue-600">Loading more rooms...</div>
-                ) : (
-                  <div className="text-gray-400 text-sm">Scroll for more</div>
-                )}
-              </div>
-            )}
-            {!hasMore && otRooms.length > 0 && (
-              <div className="py-4 text-center text-gray-500 text-sm">
-                All {total} rooms loaded
-              </div>
-            )}
           </CardContent>
         </Card>
       </div>

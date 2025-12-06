@@ -233,7 +233,7 @@ export function DashboardView({
       </div>
 
       {/* Doctor Queue Status */}
-      <Card>
+      <Card className="mb-8">
         <CardHeader>
           <CardTitle>Doctor Queue Status - Live</CardTitle>
         </CardHeader>
@@ -290,7 +290,7 @@ export function DashboardView({
       </Card>
 
       {/* Departments Overview */}
-      <Card className="mt-8">
+      <Card className="mt-8 mb-4">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Building2 className="size-5" />

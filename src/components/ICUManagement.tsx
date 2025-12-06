@@ -146,8 +146,8 @@ export function ICUManagement() {
   const selectedPatient = icuBeds.find(bed => bed.bedNumber === selectedBed)?.patient;
 
   return (
-    <div className="flex-1 bg-blue-100 flex flex-col overflow-hidden min-h-0">
-      <div className="px-4 pt-4 pb-0 flex-shrink-0">
+    <div className="px-4 pt-4 pb-4 bg-blue-100 h-screen flex flex-col overflow-hidden">
+      <div className="flex-shrink-0">
         <div className="flex items-center justify-between mb-4 flex-shrink-0">
           <div>
             <h1 className="text-gray-900 mb-0 text-xl">ICU Management</h1>
@@ -155,7 +155,7 @@ export function ICUManagement() {
           </div>
         </div>
       </div>
-      <div className="overflow-y-auto overflow-x-hidden px-4 pb-4 icu-scrollable" style={{ maxHeight: 'calc(100vh - 100px)', minHeight: 0 }}>
+      <div className="flex-1 overflow-y-auto overflow-x-hidden icu-scrollable min-h-0">
       <Tabs defaultValue="patients" className="space-y-6">
         <TabsList>
           <TabsTrigger value="patients">ICU Patient Management</TabsTrigger>

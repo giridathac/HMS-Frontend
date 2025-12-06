@@ -17,6 +17,7 @@ export function EmergencyBedManagement() {
   const [selectedEmergencyBed, setSelectedEmergencyBed] = useState<EmergencyBed | null>(null);
   const [formData, setFormData] = useState({
     emergencyBedNo: '',
+    emergencyRoomNameNo: '',
     emergencyRoomDescription: '',
     chargesPerDay: '',
     createdBy: '1',
@@ -24,10 +25,11 @@ export function EmergencyBedManagement() {
   });
 
   const handleCreateEmergencyBed = async (data: {
-    emergencyBedNo: string;
+    emergencyBedNo?: string;
+    emergencyRoomNameNo?: string;
     emergencyRoomDescription?: string;
-    chargesPerDay: number;
-    createdBy: string;
+    chargesPerDay?: number;
+    createdBy?: number;
     status?: 'active' | 'inactive';
   }) => {
     try {
@@ -39,10 +41,11 @@ export function EmergencyBedManagement() {
   };
 
   const handleUpdateEmergencyBed = async (id: number, data: Partial<{
-    emergencyBedNo: string;
+    emergencyBedNo?: string;
+    emergencyRoomNameNo?: string;
     emergencyRoomDescription?: string;
-    chargesPerDay: number;
-    createdBy: string;
+    chargesPerDay?: number;
+    createdBy?: number;
     status?: 'active' | 'inactive';
   }>) => {
     try {
@@ -70,15 +73,17 @@ export function EmergencyBedManagement() {
     }
     try {
       await handleCreateEmergencyBed({
-        emergencyBedNo: formData.emergencyBedNo,
+        emergencyBedNo: formData.emergencyBedNo || undefined,
+        emergencyRoomNameNo: formData.emergencyRoomNameNo || undefined,
         emergencyRoomDescription: formData.emergencyRoomDescription || undefined,
         chargesPerDay: parseFloat(formData.chargesPerDay),
-        createdBy: formData.createdBy,
+        createdBy: formData.createdBy ? parseInt(formData.createdBy, 10) : undefined,
         status: formData.status,
       });
       setIsAddDialogOpen(false);
       setFormData({
         emergencyBedNo: '',
+        emergencyRoomNameNo: '',
         emergencyRoomDescription: '',
         chargesPerDay: '',
         createdBy: '1',
@@ -97,16 +102,18 @@ export function EmergencyBedManagement() {
     }
     try {
       await handleUpdateEmergencyBed(selectedEmergencyBed.id, {
-        emergencyBedNo: formData.emergencyBedNo,
+        emergencyBedNo: formData.emergencyBedNo || undefined,
+        emergencyRoomNameNo: formData.emergencyRoomNameNo || undefined,
         emergencyRoomDescription: formData.emergencyRoomDescription || undefined,
         chargesPerDay: parseFloat(formData.chargesPerDay),
-        createdBy: formData.createdBy,
+        createdBy: formData.createdBy ? parseInt(formData.createdBy, 10) : undefined,
         status: formData.status,
       });
       setIsEditDialogOpen(false);
       setSelectedEmergencyBed(null);
       setFormData({
         emergencyBedNo: '',
+        emergencyRoomNameNo: '',
         emergencyRoomDescription: '',
         chargesPerDay: '',
         createdBy: '1',
@@ -120,7 +127,8 @@ export function EmergencyBedManagement() {
   const handleEdit = (emergencyBed: EmergencyBed) => {
     setSelectedEmergencyBed(emergencyBed);
     setFormData({
-      emergencyBedNo: emergencyBed.emergencyBedNo,
+      emergencyBedNo: emergencyBed.emergencyBedNo || '',
+      emergencyRoomNameNo: emergencyBed.emergencyRoomNameNo || '',
       emergencyRoomDescription: emergencyBed.emergencyRoomDescription || '',
       chargesPerDay: emergencyBed.chargesPerDay.toString(),
       createdBy: emergencyBed.createdBy,
@@ -183,8 +191,17 @@ export function EmergencyBedManagement() {
                   placeholder="e.g., ER-001"
                   value={formData.emergencyBedNo}
                   onChange={(e) => setFormData({ ...formData, emergencyBedNo: e.target.value })}
+                  required
                 />
-                <p className="text-xs text-gray-500 mt-1">Unique identifier for the emergency bed</p>
+              </div>
+              <div>
+                <Label htmlFor="emergencyRoomNameNo">Emergency Room Name/No</Label>
+                <Input
+                  id="emergencyRoomNameNo"
+                  placeholder="e.g., ER-Room-101"
+                  value={formData.emergencyRoomNameNo}
+                  onChange={(e) => setFormData({ ...formData, emergencyRoomNameNo: e.target.value })}
+                />
               </div>
               <div>
                 <Label htmlFor="emergencyRoomDescription">Emergency Room Description</Label>
@@ -246,7 +263,7 @@ export function EmergencyBedManagement() {
       </div>
 
       {/* Emergency Beds Table */}
-      <Card>
+      <Card className="mb-4">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <BedDouble className="size-5" />
@@ -257,9 +274,10 @@ export function EmergencyBedManagement() {
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-gray-200">
+                  <tr className="border-b border-gray-200">
                   <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Emergency Bed ID</th>
                   <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Emergency Bed No</th>
+                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Room Name/No</th>
                   <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Room Description</th>
                   <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Charges Per Day (₹)</th>
                   <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Created By</th>
@@ -271,7 +289,7 @@ export function EmergencyBedManagement() {
               <tbody>
                 {emergencyBeds.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="text-center py-8 text-gray-500">
+                    <td colSpan={9} className="text-center py-8 text-gray-500">
                       No Emergency beds found. Add a new Emergency bed to get started.
                     </td>
                   </tr>
@@ -280,6 +298,7 @@ export function EmergencyBedManagement() {
                     <tr key={emergencyBed.id} className="border-b border-gray-100 hover:bg-gray-50">
                       <td className="py-3 px-4 text-sm text-gray-900 font-mono font-medium">{emergencyBed.emergencyBedId}</td>
                       <td className="py-3 px-4 text-sm text-gray-900 font-medium">{emergencyBed.emergencyBedNo}</td>
+                      <td className="py-3 px-4 text-sm text-gray-700">{emergencyBed.emergencyRoomNameNo || '-'}</td>
                       <td className="py-3 px-4 text-sm text-gray-700 max-w-xs truncate" title={emergencyBed.emergencyRoomDescription}>{emergencyBed.emergencyRoomDescription || '-'}</td>
                       <td className="py-3 px-4 text-sm text-gray-900 font-semibold">
                         ₹{emergencyBed.chargesPerDay.toFixed(2)}
@@ -341,6 +360,16 @@ export function EmergencyBedManagement() {
                 placeholder="e.g., ER-001"
                 value={formData.emergencyBedNo}
                 onChange={(e) => setFormData({ ...formData, emergencyBedNo: e.target.value })}
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-emergencyRoomNameNo">Emergency Room Name/No</Label>
+              <Input
+                id="edit-emergencyRoomNameNo"
+                placeholder="e.g., ER-Room-101"
+                value={formData.emergencyRoomNameNo}
+                onChange={(e) => setFormData({ ...formData, emergencyRoomNameNo: e.target.value })}
               />
             </div>
             <div>
@@ -392,7 +421,6 @@ export function EmergencyBedManagement() {
                 </select>
               </div>
             </div>
-          </div>
           </div>
           <div className="flex justify-end gap-2 px-6 py-2 border-t bg-gray-50 flex-shrink-0">
             <Button variant="outline" onClick={() => setIsEditDialogOpen(false)} className="py-1">Cancel</Button>

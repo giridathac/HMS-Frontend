@@ -143,8 +143,8 @@ function FrontDeskView({
   };
 
   return (
-    <div className="flex-1 bg-blue-100 flex flex-col overflow-hidden min-h-0">
-      <div className="px-4 pt-4 pb-0 flex-shrink-0">
+    <div className="px-4 pt-4 pb-4 bg-blue-100 h-screen flex flex-col overflow-hidden">
+      <div className="flex-shrink-0">
         <div className="flex items-center justify-between mb-4 flex-shrink-0">
           <div>
             <h1 className="text-gray-900 mb-0 text-xl">Front Desk - Token Management</h1>
@@ -229,11 +229,11 @@ function FrontDeskView({
             </div>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
-      </div>
-      <div className="overflow-y-auto overflow-x-hidden px-4 pb-4 frontdesk-scrollable" style={{ maxHeight: 'calc(100vh - 100px)', minHeight: 0 }}>
-      {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden frontdesk-scrollable min-h-0">
+        {/* Quick Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -330,7 +330,7 @@ function FrontDeskView({
 
 function TokenList({ tokens, doctors }: { tokens: Token[]; doctors: Array<{ id: number; name: string; specialty: string; type: 'inhouse' | 'consulting' }> }) {
   return (
-    <Card>
+    <Card className="mb-4">
       <CardContent className="p-6">
         <div className="overflow-x-auto">
           <table className="w-full">
