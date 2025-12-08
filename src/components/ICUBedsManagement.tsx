@@ -13,7 +13,7 @@ const icuTypeOptions = ['Medical', 'Surgical', 'Pediatric', 'Cardiac', 'Neurolog
 const statusOptions: ICUBed['status'][] = ['active', 'inactive'];
 
 export function ICUBedsManagement() {
-  const { icuBeds, loading, error, createICUBed, updateICUBed, deleteICUBed } = useICUBeds();
+  const { icuBeds, loading, error, createICUBed, updateICUBed } = useICUBeds();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedICUBed, setSelectedICUBed] = useState<ICUBed | null>(null);
@@ -55,16 +55,6 @@ export function ICUBedsManagement() {
     } catch (err) {
       console.error('Failed to update ICU bed:', err);
       throw err;
-    }
-  };
-
-  const handleDelete = async (icuBedId: number) => {
-    if (confirm('Are you sure you want to delete this ICU bed? This action cannot be undone.')) {
-      try {
-        await deleteICUBed(icuBedId);
-      } catch (err) {
-        console.error('Failed to delete ICU bed:', err);
-      }
     }
   };
 
@@ -355,14 +345,6 @@ export function ICUBedsManagement() {
                               className="h-8 w-8 p-0"
                             >
                               <Edit className="size-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDelete(icuBed.id)}
-                              className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                            >
-                              <XCircle className="size-4" />
                             </Button>
                           </div>
                         </td>
