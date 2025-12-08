@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Card, CardContent } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -7,501 +7,822 @@ import { Textarea } from './ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Badge } from './ui/badge';
-import { UserCheck, FileText, TestTube, Pill, BedDouble, Clock } from 'lucide-react';
-
-interface Patient {
-  tokenNumber: string;
-  name: string;
-  age: number;
-  gender: string;
-  phone: string;
-  complaint: string;
-}
-
-interface Consultation {
-  patientId: string;
-  diagnosis: string;
-  labTests: string[];
-  medicines: { name: string; dosage: string; duration: string }[];
-  followUp: string;
-  admitAsIPD: boolean;
-  roomType?: string;
-}
-
-const waitingQueue: Patient[] = [
-  { tokenNumber: 'SJ-003', name: 'Robert Brown', age: 45, gender: 'Male', phone: '555-0103', complaint: 'Chest pain' },
-  { tokenNumber: 'SJ-004', name: 'Mary Johnson', age: 38, gender: 'Female', phone: '555-0106', complaint: 'Irregular heartbeat' },
-  { tokenNumber: 'SJ-005', name: 'James Wilson', age: 52, gender: 'Male', phone: '555-0107', complaint: 'Hypertension follow-up' },
-];
-
-const consultingPatient: Patient = {
-  tokenNumber: 'SJ-002',
-  name: 'Emma Wilson',
-  age: 32,
-  gender: 'Female',
-  phone: '555-0102',
-  complaint: 'Heart palpitations'
-};
+import { Search, Clock, Stethoscope, CheckCircle2, Hospital, Eye, Edit } from 'lucide-react';
+import { usePatientAppointments } from '../hooks/usePatientAppointments';
+import { useStaff } from '../hooks/useStaff';
+import { useRoles } from '../hooks/useRoles';
+import { useDepartments } from '../hooks/useDepartments';
+import { patientsApi } from '../api/patients';
+import { PatientAppointment, Patient, Doctor } from '../types';
 
 export function DoctorConsultation() {
-  const [currentPatient, setCurrentPatient] = useState<Patient | null>(consultingPatient);
-  const [queue, setQueue] = useState<Patient[]>(waitingQueue);
-  const [showPrescriptionDialog, setShowPrescriptionDialog] = useState(false);
-  
-  // Consultation form states
-  const [diagnosis, setDiagnosis] = useState('');
-  const [labTests, setLabTests] = useState<string[]>([]);
-  const [medicines, setMedicines] = useState<{ name: string; dosage: string; duration: string }[]>([]);
-  const [followUp, setFollowUp] = useState('');
-  const [admitAsIPD, setAdmitAsIPD] = useState(false);
-  const [roomType, setRoomType] = useState('');
-  const [newLabTest, setNewLabTest] = useState('');
-  const [newMedicine, setNewMedicine] = useState({ name: '', dosage: '', duration: '' });
+  const { patientAppointments, loading, error, updatePatientAppointment, fetchPatientAppointments } = usePatientAppointments();
+  const { staff } = useStaff();
+  const { roles } = useRoles();
+  const { departments } = useDepartments();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [selectedAppointment, setSelectedAppointment] = useState<PatientAppointment | null>(null);
+  const [editFormData, setEditFormData] = useState({
+    patientId: '',
+    doctorId: '',
+    appointmentStatus: 'Waiting' as PatientAppointment['appointmentStatus'],
+    consultationCharge: 0,
+    diagnosis: '',
+    followUpDetails: '',
+    prescriptionsUrl: '',
+    toBeAdmitted: false,
+    referToAnotherDoctor: false,
+    referredDoctorId: '',
+    transferToIPDOTICU: false,
+    transferTo: undefined as 'IPD Room Admission' | 'ICU' | 'OT' | undefined,
+    transferDetails: '',
+    billId: '',
+  });
 
-  const commonLabTests = ['Blood Test (CBC)', 'ECG', 'X-Ray', 'Ultrasound', 'MRI', 'CT Scan', 'Urine Test', 'Blood Sugar', 'Lipid Profile', 'Thyroid Test'];
-  
-  const addLabTest = (test: string) => {
-    if (test && !labTests.includes(test)) {
-      setLabTests([...labTests, test]);
-    }
+  // Filter to show only doctors and surgeons from staff
+  const appointmentDoctors = useMemo(() => {
+    if (!staff || !roles || !departments) return [];
+    
+    return staff
+      .filter((member) => {
+        if (!member.RoleId) return false;
+        const role = roles.find(r => r.id === member.RoleId);
+        if (!role || !role.name) return false;
+        const roleNameLower = role.name.toLowerCase();
+        return roleNameLower.includes('doctor') || roleNameLower.includes('surgeon');
+      })
+      .map((member) => {
+        const department = member.DoctorDepartmentId 
+          ? departments.find(d => 
+              d.id.toString() === member.DoctorDepartmentId || 
+              d.id === Number(member.DoctorDepartmentId)
+            )
+          : null;
+        
+        return {
+          id: member.UserId || 0,
+          name: member.UserName || 'Unknown',
+          specialty: department?.name || 'General',
+          type: member.DoctorType === 'INHOUSE' ? 'inhouse' as const : 'consulting' as const,
+        } as Doctor;
+      });
+  }, [staff, roles, departments]);
+
+  // Fetch patients
+  useEffect(() => {
+    const fetchPatients = async () => {
+      try {
+        const patientsData = await patientsApi.getAll();
+        setPatients(patientsData);
+      } catch (err) {
+        console.error('Failed to fetch patients:', err);
+      }
+    };
+    fetchPatients();
+  }, []);
+
+  const filteredAppointments = patientAppointments.filter(appointment => {
+    const patient = patients.find(p => 
+      (p as any).patientId === appointment.patientId || 
+      (p as any).PatientId === appointment.patientId
+    );
+    const patientName = patient 
+      ? `${(patient as any).patientName || (patient as any).PatientName || ''} ${(patient as any).lastName || (patient as any).LastName || ''}`.trim() 
+      : appointment.patientId === '00000000-0000-0000-0000-000000000001' 
+        ? 'Dummy Patient Name' 
+        : appointment.patientId;
+    const doctor = appointmentDoctors.find(d => d.id.toString() === appointment.doctorId);
+    const doctorName = doctor ? doctor.name : appointment.doctorId;
+    
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      patientName.toLowerCase().includes(searchLower) ||
+      doctorName.toLowerCase().includes(searchLower) ||
+      (appointment.diagnosis || '').toLowerCase().includes(searchLower)
+    );
+  });
+
+  const getAppointmentsByStatus = (status: PatientAppointment['appointmentStatus']) => {
+    return filteredAppointments.filter(a => a.appointmentStatus === status);
   };
 
-  const addMedicine = () => {
-    if (newMedicine.name && newMedicine.dosage && newMedicine.duration) {
-      setMedicines([...medicines, newMedicine]);
-      setNewMedicine({ name: '', dosage: '', duration: '' });
-    }
-  };
+  if (loading) {
+    return (
+      <div className="p-8">
+        <div className="text-center py-12 text-gray-500">Loading appointments...</div>
+      </div>
+    );
+  }
 
-  const completeConsultation = () => {
-    if (!diagnosis) {
-      alert('Please enter diagnosis');
-      return;
-    }
-
-    if (admitAsIPD && !roomType) {
-      alert('Please select room type for IPD admission');
-      return;
-    }
-
-    setShowPrescriptionDialog(true);
-  };
-
-  const callNextPatient = () => {
-    if (queue.length > 0) {
-      const [nextPatient, ...remainingQueue] = queue;
-      setCurrentPatient(nextPatient);
-      setQueue(remainingQueue);
-      
-      // Reset form
-      setDiagnosis('');
-      setLabTests([]);
-      setMedicines([]);
-      setFollowUp('');
-      setAdmitAsIPD(false);
-      setRoomType('');
-      setShowPrescriptionDialog(false);
-    } else {
-      setCurrentPatient(null);
-      alert('No more patients in queue');
-    }
-  };
+  if (error) {
+    return (
+      <div className="p-8">
+        <div className="text-center py-12 text-red-500">Error: {error}</div>
+      </div>
+    );
+  }
 
   return (
     <div className="px-4 pt-4 pb-4 bg-blue-100 h-screen flex flex-col overflow-hidden">
       <div className="flex-shrink-0">
-        <div className="mb-4 flex-shrink-0">
-          <h1 className="text-gray-900 mb-0 text-xl">Doctor Consultation - Dr. Sarah Johnson</h1>
-          <p className="text-gray-500 text-sm">Cardiology Department</p>
+        <div className="flex items-center justify-between mb-4 flex-shrink-0">
+          <div>
+            <h1 className="text-gray-900 mb-0 text-xl">Doctor Consultation</h1>
+            <p className="text-gray-500 text-sm">Manage patient consultations</p>
+          </div>
         </div>
       </div>
-      <div className="flex-1 flex flex-col overflow-hidden min-h-0">
-      <div className="overflow-y-auto overflow-x-hidden px-4 pb-4 doctorconsultation-scrollable" style={{ maxHeight: 'calc(100vh - 100px)', minHeight: 0 }}>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        {/* Current Patient */}
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <UserCheck className="size-5 text-blue-600" />
-              Current Patient
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {currentPatient ? (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden doctorconsultation-scrollable min-h-0">
+        <div className="space-y-6">
+          {/* Quick Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
                   <div>
-                    <div className="flex items-center gap-3 mb-2">
-                      <Badge className="text-lg">{currentPatient.tokenNumber}</Badge>
-                      <h3 className="text-gray-900">{currentPatient.name}</h3>
-                    </div>
-                    <div className="grid grid-cols-4 gap-4 text-sm">
-                      <div>
-                        <p className="text-gray-500">Age</p>
-                        <p className="text-gray-900">{currentPatient.age}</p>
-                      </div>
-                      <div>
-                        <p className="text-gray-500">Gender</p>
-                        <p className="text-gray-900">{currentPatient.gender}</p>
-                      </div>
-                      <div>
-                        <p className="text-gray-500">Phone</p>
-                        <p className="text-gray-900">{currentPatient.phone}</p>
-                      </div>
-                    </div>
+                    <p className="text-sm text-gray-500 mb-1">Total Appointments</p>
+                    <h3 className="text-gray-900">{patientAppointments.length}</h3>
                   </div>
                 </div>
-                <div className="p-4 bg-gray-50 rounded-lg">
-                  <p className="text-sm text-gray-500 mb-1">Chief Complaint</p>
-                  <p className="text-gray-900">{currentPatient.complaint}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-500 mb-1">Waiting</p>
+                    <h3 className="text-gray-900">{getAppointmentsByStatus('Waiting').length}</h3>
+                  </div>
+                  <div className="size-8 bg-yellow-100 rounded-full flex items-center justify-center">
+                    <span className="text-yellow-700">⏳</span>
+                  </div>
                 </div>
-              </div>
-            ) : (
-              <div className="text-center py-12 text-gray-500">
-                No patient currently consulting
-              </div>
-            )}
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-500 mb-1">Consulting</p>
+                    <h3 className="text-gray-900">{getAppointmentsByStatus('Consulting').length}</h3>
+                  </div>
+                  <div className="size-8 bg-blue-100 rounded-full flex items-center justify-center">
+                    <span className="text-blue-700">👨‍⚕️</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-500 mb-1">Completed</p>
+                    <h3 className="text-gray-900">{getAppointmentsByStatus('Completed').length}</h3>
+                  </div>
+                  <div className="size-8 bg-green-100 rounded-full flex items-center justify-center">
+                    <span className="text-green-700">✓</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
-        {/* Waiting Queue */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Clock className="size-5 text-orange-600" />
-              Waiting Queue ({queue.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {queue.map((patient, index) => (
-                <div key={patient.tokenNumber} className="p-3 border border-gray-200 rounded-lg">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs text-gray-500">#{index + 1}</span>
-                    <Badge variant="outline">{patient.tokenNumber}</Badge>
-                  </div>
-                  <p className="text-sm text-gray-900">{patient.name}</p>
-                  <p className="text-xs text-gray-500">{patient.complaint}</p>
-                </div>
-              ))}
-              {queue.length === 0 && (
-                <div className="text-center py-8 text-gray-500 text-sm">
-                  No patients waiting
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+          {/* Search */}
+          <Card className="mb-6">
+            <CardContent className="p-6">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
+                <Input
+                  placeholder="Search by patient, doctor, or diagnosis..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Appointments by Status */}
+          <Tabs defaultValue="all" className="space-y-6">
+            <TabsList>
+              <TabsTrigger value="all">All Appointments ({patientAppointments.length})</TabsTrigger>
+              <TabsTrigger value="waiting">Waiting ({getAppointmentsByStatus('Waiting').length})</TabsTrigger>
+              <TabsTrigger value="consulting">Consulting ({getAppointmentsByStatus('Consulting').length})</TabsTrigger>
+              <TabsTrigger value="completed">Completed ({getAppointmentsByStatus('Completed').length})</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="all">
+              <AppointmentList 
+                appointments={patientAppointments} 
+                doctors={appointmentDoctors} 
+                patients={patients}
+                onView={(appointment) => {
+                  setSelectedAppointment(appointment);
+                  setIsViewDialogOpen(true);
+                }}
+                onEdit={(appointment) => {
+                  setSelectedAppointment(appointment);
+                  setEditFormData({
+                    patientId: appointment.patientId,
+                    doctorId: appointment.doctorId,
+                    appointmentStatus: appointment.appointmentStatus,
+                    consultationCharge: appointment.consultationCharge,
+                    diagnosis: appointment.diagnosis || '',
+                    followUpDetails: appointment.followUpDetails || '',
+                    prescriptionsUrl: appointment.prescriptionsUrl || '',
+                    toBeAdmitted: appointment.toBeAdmitted,
+                    referToAnotherDoctor: appointment.referToAnotherDoctor,
+                    referredDoctorId: appointment.referredDoctorId || '',
+                    transferToIPDOTICU: appointment.transferToIPDOTICU,
+                    transferTo: appointment.transferTo,
+                    transferDetails: appointment.transferDetails || '',
+                    billId: appointment.billId || '',
+                  });
+                  setIsEditDialogOpen(true);
+                }}
+              />
+            </TabsContent>
+            <TabsContent value="waiting">
+              <AppointmentList 
+                appointments={getAppointmentsByStatus('Waiting')} 
+                doctors={appointmentDoctors} 
+                patients={patients}
+                onView={(appointment) => {
+                  setSelectedAppointment(appointment);
+                  setIsViewDialogOpen(true);
+                }}
+                onEdit={(appointment) => {
+                  setSelectedAppointment(appointment);
+                  setEditFormData({
+                    patientId: appointment.patientId,
+                    doctorId: appointment.doctorId,
+                    appointmentStatus: appointment.appointmentStatus,
+                    consultationCharge: appointment.consultationCharge,
+                    diagnosis: appointment.diagnosis || '',
+                    followUpDetails: appointment.followUpDetails || '',
+                    prescriptionsUrl: appointment.prescriptionsUrl || '',
+                    toBeAdmitted: appointment.toBeAdmitted,
+                    referToAnotherDoctor: appointment.referToAnotherDoctor,
+                    referredDoctorId: appointment.referredDoctorId || '',
+                    transferToIPDOTICU: appointment.transferToIPDOTICU,
+                    transferTo: appointment.transferTo,
+                    transferDetails: appointment.transferDetails || '',
+                    billId: appointment.billId || '',
+                  });
+                  setIsEditDialogOpen(true);
+                }}
+              />
+            </TabsContent>
+            <TabsContent value="consulting">
+              <AppointmentList 
+                appointments={getAppointmentsByStatus('Consulting')} 
+                doctors={appointmentDoctors} 
+                patients={patients}
+                onView={(appointment) => {
+                  setSelectedAppointment(appointment);
+                  setIsViewDialogOpen(true);
+                }}
+                onEdit={(appointment) => {
+                  setSelectedAppointment(appointment);
+                  setEditFormData({
+                    patientId: appointment.patientId,
+                    doctorId: appointment.doctorId,
+                    appointmentStatus: appointment.appointmentStatus,
+                    consultationCharge: appointment.consultationCharge,
+                    diagnosis: appointment.diagnosis || '',
+                    followUpDetails: appointment.followUpDetails || '',
+                    prescriptionsUrl: appointment.prescriptionsUrl || '',
+                    toBeAdmitted: appointment.toBeAdmitted,
+                    referToAnotherDoctor: appointment.referToAnotherDoctor,
+                    referredDoctorId: appointment.referredDoctorId || '',
+                    transferToIPDOTICU: appointment.transferToIPDOTICU,
+                    transferTo: appointment.transferTo,
+                    transferDetails: appointment.transferDetails || '',
+                    billId: appointment.billId || '',
+                  });
+                  setIsEditDialogOpen(true);
+                }}
+              />
+            </TabsContent>
+            <TabsContent value="completed">
+              <AppointmentList 
+                appointments={getAppointmentsByStatus('Completed')} 
+                doctors={appointmentDoctors} 
+                patients={patients}
+                onView={(appointment) => {
+                  setSelectedAppointment(appointment);
+                  setIsViewDialogOpen(true);
+                }}
+                onEdit={(appointment) => {
+                  setSelectedAppointment(appointment);
+                  setEditFormData({
+                    patientId: appointment.patientId,
+                    doctorId: appointment.doctorId,
+                    appointmentStatus: appointment.appointmentStatus,
+                    consultationCharge: appointment.consultationCharge,
+                    diagnosis: appointment.diagnosis || '',
+                    followUpDetails: appointment.followUpDetails || '',
+                    prescriptionsUrl: appointment.prescriptionsUrl || '',
+                    toBeAdmitted: appointment.toBeAdmitted,
+                    referToAnotherDoctor: appointment.referToAnotherDoctor,
+                    referredDoctorId: appointment.referredDoctorId || '',
+                    transferToIPDOTICU: appointment.transferToIPDOTICU,
+                    transferTo: appointment.transferTo,
+                    transferDetails: appointment.transferDetails || '',
+                    billId: appointment.billId || '',
+                  });
+                  setIsEditDialogOpen(true);
+                }}
+              />
+            </TabsContent>
+          </Tabs>
+        </div>
       </div>
 
-      {/* Consultation Form */}
-      {currentPatient && (
-        <Card className="mb-4">
-          <CardHeader>
-            <CardTitle>Consultation Details</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Tabs defaultValue="diagnosis" className="space-y-6">
-              <TabsList className="grid grid-cols-4 w-full">
-                <TabsTrigger value="diagnosis">Diagnosis</TabsTrigger>
-                <TabsTrigger value="labtests">Lab Tests</TabsTrigger>
-                <TabsTrigger value="medicines">Medicines</TabsTrigger>
-                <TabsTrigger value="followup">Follow-up & Admission</TabsTrigger>
-              </TabsList>
+      {/* View Appointment Dialog */}
+      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>View Patient Appointment</DialogTitle>
+          </DialogHeader>
+          {selectedAppointment && (() => {
+            const patient = patients.find(p => 
+              (p as any).patientId === selectedAppointment.patientId || 
+              (p as any).PatientId === selectedAppointment.patientId
+            );
+            const doctor = appointmentDoctors.find(d => d.id.toString() === selectedAppointment.doctorId);
+            const patientName = patient 
+              ? `${(patient as any).patientName || (patient as any).PatientName || ''} ${(patient as any).lastName || (patient as any).LastName || ''}`.trim() 
+              : selectedAppointment.patientId;
+            const doctorName = doctor ? doctor.name : selectedAppointment.doctorId;
+            const patientPhone = patient 
+              ? (patient as any).PhoneNo || (patient as any).phoneNo || (patient as any).phone || '-'
+              : '-';
 
-              <TabsContent value="diagnosis" className="space-y-4">
-                <div>
-                  <Label htmlFor="diagnosis">Diagnosis</Label>
-                  <Textarea
-                    id="diagnosis"
-                    placeholder="Enter diagnosis details..."
-                    value={diagnosis}
-                    onChange={(e) => setDiagnosis(e.target.value)}
-                    rows={4}
-                  />
+            const getStatusBadge = (status: PatientAppointment['appointmentStatus']) => {
+              switch (status) {
+                case 'Waiting':
+                  return <Badge variant="outline" className="bg-yellow-100 text-yellow-700 border-yellow-300"><Clock className="size-3 mr-1" />Waiting</Badge>;
+                case 'Consulting':
+                  return <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-300"><Stethoscope className="size-3 mr-1" />Consulting</Badge>;
+                case 'Completed':
+                  return <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300"><CheckCircle2 className="size-3 mr-1" />Completed</Badge>;
+                default:
+                  return <Badge variant="outline">{status}</Badge>;
+              }
+            };
+
+            return (
+              <div className="space-y-4 py-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Patient</Label>
+                    <Input value={patientName} disabled className="bg-gray-50" />
+                  </div>
+                  <div>
+                    <Label>Phone</Label>
+                    <Input value={patientPhone} disabled className="bg-gray-50" />
+                  </div>
                 </div>
-              </TabsContent>
-
-              <TabsContent value="labtests" className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Doctor</Label>
+                    <Input value={doctorName} disabled className="bg-gray-50" />
+                  </div>
+                  <div>
+                    <Label>Status</Label>
+                    <div className="pt-2">{getStatusBadge(selectedAppointment.appointmentStatus)}</div>
+                  </div>
+                </div>
                 <div>
-                  <Label>Prescribed Lab Tests</Label>
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    {labTests.map((test, index) => (
-                      <Badge key={index} variant="secondary" className="gap-2">
-                        {test}
-                        <button onClick={() => setLabTests(labTests.filter((_, i) => i !== index))}>×</button>
+                  <Label>Charges (₹)</Label>
+                  <Input value={`₹${selectedAppointment.consultationCharge.toFixed(2)}`} disabled className="bg-gray-50" />
+                </div>
+                <div>
+                  <Label>Diagnosis</Label>
+                  <Textarea value={selectedAppointment.diagnosis || '-'} disabled className="bg-gray-50" rows={3} />
+                </div>
+                {selectedAppointment.followUpDetails && (
+                  <div>
+                    <Label>Follow Up Details</Label>
+                    <Textarea value={selectedAppointment.followUpDetails} disabled className="bg-gray-50" rows={2} />
+                  </div>
+                )}
+                <div>
+                  <Label>To Be Admitted</Label>
+                  <div className="pt-2">
+                    {selectedAppointment.toBeAdmitted ? (
+                      <Badge variant="outline" className="bg-red-100 text-red-700 border-red-300">
+                        <Hospital className="size-3 mr-1" />Yes
                       </Badge>
-                    ))}
+                    ) : (
+                      <span className="text-gray-500">No</span>
+                    )}
                   </div>
-                  <Label>Select Common Tests</Label>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                    {commonLabTests.map((test) => (
-                      <Button
-                        key={test}
-                        variant="outline"
-                        size="sm"
-                        onClick={() => addLabTest(test)}
-                        disabled={labTests.includes(test)}
+                </div>
+                <div className="flex justify-end gap-2 pt-4">
+                  <Button variant="outline" onClick={() => setIsViewDialogOpen(false)}>Close</Button>
+                </div>
+              </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Appointment Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="p-0 gap-0 large-dialog max-h-[90vh]">
+          <DialogHeader className="px-6 pt-4 pb-3 flex-shrink-0">
+            <DialogTitle>Edit Patient Appointment</DialogTitle>
+          </DialogHeader>
+          {selectedAppointment && (
+            <>
+              <div className="flex-1 overflow-y-auto px-6 pb-1 patient-list-scrollable min-h-0">
+                <div className="space-y-4 py-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="edit-patientId">Patient *</Label>
+                      <select
+                        id="edit-patientId"
+                        aria-label="Patient"
+                        className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                        value={editFormData.patientId}
+                        onChange={(e) => setEditFormData({ ...editFormData, patientId: e.target.value })}
                       >
-                        <TestTube className="size-4 mr-2" />
-                        {test}
-                      </Button>
-                    ))}
+                        <option value="">Select Patient</option>
+                        {patients.length > 0 ? (
+                          patients.map(patient => {
+                            const patientId = (patient as any).patientId || (patient as any).PatientId || '';
+                            const patientName = (patient as any).patientName || (patient as any).PatientName || '';
+                            const lastName = (patient as any).lastName || (patient as any).LastName || '';
+                            return (
+                              <option key={patientId} value={patientId}>
+                                {patientName} {lastName}
+                              </option>
+                            );
+                          })
+                        ) : (
+                          <>
+                            <option value="00000000-0000-0000-0000-000000000001">Dummy Patient Name</option>
+                          </>
+                        )}
+                      </select>
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-doctorId">Doctor *</Label>
+                      <select
+                        id="edit-doctorId"
+                        aria-label="Doctor"
+                        className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                        value={editFormData.doctorId}
+                        onChange={(e) => setEditFormData({ ...editFormData, doctorId: e.target.value })}
+                      >
+                        <option value="">Select Doctor</option>
+                        {appointmentDoctors.length > 0 ? (
+                          appointmentDoctors.map(doctor => (
+                            <option key={doctor.id} value={doctor.id.toString()}>
+                              {doctor.name} - {doctor.specialty}
+                            </option>
+                          ))
+                        ) : (
+                          <option value="" disabled>No doctors available</option>
+                        )}
+                      </select>
+                    </div>
                   </div>
-                  <div className="mt-4">
-                    <Label htmlFor="customTest">Or Add Custom Test</Label>
-                    <div className="flex gap-2">
-                      <Input
-                        id="customTest"
-                        placeholder="Enter test name"
-                        value={newLabTest}
-                        onChange={(e) => setNewLabTest(e.target.value)}
-                      />
-                      <Button onClick={() => { addLabTest(newLabTest); setNewLabTest(''); }}>Add</Button>
-                    </div>
-                  </div>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="medicines" className="space-y-4">
-                <div>
-                  <Label>Prescribed Medicines</Label>
-                  {medicines.length > 0 && (
-                    <div className="mb-4 border border-gray-200 rounded-lg overflow-hidden">
-                      <table className="w-full">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th className="text-left py-2 px-4 text-sm text-gray-700">Medicine</th>
-                            <th className="text-left py-2 px-4 text-sm text-gray-700">Dosage</th>
-                            <th className="text-left py-2 px-4 text-sm text-gray-700">Duration</th>
-                            <th className="text-left py-2 px-4 text-sm text-gray-700">Action</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {medicines.map((med, index) => (
-                            <tr key={index} className="border-t border-gray-100">
-                              <td className="py-2 px-4 text-sm">{med.name}</td>
-                              <td className="py-2 px-4 text-sm">{med.dosage}</td>
-                              <td className="py-2 px-4 text-sm">{med.duration}</td>
-                              <td className="py-2 px-4">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => setMedicines(medicines.filter((_, i) => i !== index))}
-                                >
-                                  Remove
-                                </Button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                  <div className="grid grid-cols-3 gap-4 mb-4">
+                  <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="medName">Medicine Name</Label>
-                      <Input
-                        id="medName"
-                        placeholder="Medicine name"
-                        value={newMedicine.name}
-                        onChange={(e) => setNewMedicine({ ...newMedicine, name: e.target.value })}
-                      />
+                      <Label htmlFor="edit-appointmentStatus">Appointment Status</Label>
+                      <select
+                        id="edit-appointmentStatus"
+                        aria-label="Appointment Status"
+                        className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                        value={editFormData.appointmentStatus}
+                        onChange={(e) => setEditFormData({ ...editFormData, appointmentStatus: e.target.value as PatientAppointment['appointmentStatus'] })}
+                      >
+                        <option value="Waiting">Waiting</option>
+                        <option value="Consulting">Consulting</option>
+                        <option value="Completed">Completed</option>
+                      </select>
                     </div>
                     <div>
-                      <Label htmlFor="dosage">Dosage</Label>
+                      <Label htmlFor="edit-consultationCharge">Consultation Charge (₹) *</Label>
                       <Input
-                        id="dosage"
-                        placeholder="e.g., 1-0-1"
-                        value={newMedicine.dosage}
-                        onChange={(e) => setNewMedicine({ ...newMedicine, dosage: e.target.value })}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="duration">Duration</Label>
-                      <Input
-                        id="duration"
-                        placeholder="e.g., 7 days"
-                        value={newMedicine.duration}
-                        onChange={(e) => setNewMedicine({ ...newMedicine, duration: e.target.value })}
+                        id="edit-consultationCharge"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="e.g., 500"
+                        value={editFormData.consultationCharge}
+                        onChange={(e) => setEditFormData({ ...editFormData, consultationCharge: parseFloat(e.target.value) || 0 })}
                       />
                     </div>
                   </div>
-                  <Button onClick={addMedicine}>
-                    <Pill className="size-4 mr-2" />
-                    Add Medicine
-                  </Button>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="followup" className="space-y-4">
-                <div>
-                  <Label htmlFor="followup">Follow-up Instructions</Label>
-                  <Textarea
-                    id="followup"
-                    placeholder="Enter follow-up instructions (e.g., Next visit after 1 week)"
-                    value={followUp}
-                    onChange={(e) => setFollowUp(e.target.value)}
-                    rows={3}
-                  />
-                </div>
-
-                <div className="border-t border-gray-200 pt-4">
-                  <div className="flex items-center gap-3 mb-4">
+                  <div>
+                    <Label htmlFor="edit-diagnosis">Diagnosis</Label>
+                    <Textarea
+                      id="edit-diagnosis"
+                      placeholder="Enter diagnosis..."
+                      value={editFormData.diagnosis}
+                      onChange={(e) => setEditFormData({ ...editFormData, diagnosis: e.target.value })}
+                      rows={3}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-followUpDetails">Follow Up Details</Label>
+                    <Textarea
+                      id="edit-followUpDetails"
+                      placeholder="Enter follow up details..."
+                      value={editFormData.followUpDetails}
+                      onChange={(e) => setEditFormData({ ...editFormData, followUpDetails: e.target.value })}
+                      rows={2}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-prescriptionsUrl">Prescriptions URL</Label>
+                    <Input
+                      id="edit-prescriptionsUrl"
+                      type="url"
+                      placeholder="https://prescriptions.example.com/..."
+                      value={editFormData.prescriptionsUrl}
+                      onChange={(e) => setEditFormData({ ...editFormData, prescriptionsUrl: e.target.value })}
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Folder URL - multiple prescriptions should be saved</p>
+                  </div>
+                  <div className="flex items-center gap-2">
                     <input
                       type="checkbox"
-                      id="admitIPD"
-                      aria-label="Admit to IPD"
-                      checked={admitAsIPD}
-                      onChange={(e) => setAdmitAsIPD(e.target.checked)}
-                      className="size-4"
+                      id="edit-toBeAdmitted"
+                      aria-label="To Be Admitted (Yes - converted to IPD)"
+                      checked={editFormData.toBeAdmitted}
+                      onChange={(e) => setEditFormData({ ...editFormData, toBeAdmitted: e.target.checked })}
+                      className="rounded"
                     />
-                    <Label htmlFor="admitIPD" className="text-lg flex items-center gap-2">
-                      <BedDouble className="size-5 text-purple-600" />
-                      Admit as In-Patient (IPD)
-                    </Label>
+                    <Label htmlFor="edit-toBeAdmitted" className="cursor-pointer">To Be Admitted (Yes - converted to IPD)</Label>
                   </div>
-
-                  {admitAsIPD && (
-                    <div className="ml-7 space-y-3">
-                      <Label>Select Room Type</Label>
-                      <div className="grid grid-cols-3 gap-4">
-                        <button
-                          onClick={() => setRoomType('Regular Ward')}
-                          className={`p-4 border-2 rounded-lg text-center transition-colors ${
-                            roomType === 'Regular Ward'
-                              ? 'border-blue-500 bg-blue-50'
-                              : 'border-gray-200 hover:border-gray-300'
-                          }`}
-                        >
-                          <p className="text-gray-900">Regular Ward</p>
-                          <p className="text-sm text-gray-500">₹1,000/day</p>
-                        </button>
-                        <button
-                          onClick={() => setRoomType('Special Shared Room')}
-                          className={`p-4 border-2 rounded-lg text-center transition-colors ${
-                            roomType === 'Special Shared Room'
-                              ? 'border-blue-500 bg-blue-50'
-                              : 'border-gray-200 hover:border-gray-300'
-                          }`}
-                        >
-                          <p className="text-gray-900">Special Shared</p>
-                          <p className="text-sm text-gray-500">₹2,500/day</p>
-                        </button>
-                        <button
-                          onClick={() => setRoomType('Special Room')}
-                          className={`p-4 border-2 rounded-lg text-center transition-colors ${
-                            roomType === 'Special Room'
-                              ? 'border-blue-500 bg-blue-50'
-                              : 'border-gray-200 hover:border-gray-300'
-                          }`}
-                        >
-                          <p className="text-gray-900">Special Room</p>
-                          <p className="text-sm text-gray-500">₹5,000/day</p>
-                        </button>
-                      </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="edit-referToAnotherDoctor"
+                      aria-label="Refer to Another Doctor"
+                      checked={editFormData.referToAnotherDoctor}
+                      onChange={(e) => setEditFormData({ 
+                        ...editFormData, 
+                        referToAnotherDoctor: e.target.checked, 
+                        referredDoctorId: e.target.checked ? editFormData.referredDoctorId : '',
+                        appointmentStatus: e.target.checked ? 'Completed' : editFormData.appointmentStatus
+                      })}
+                      className="rounded"
+                    />
+                    <Label htmlFor="edit-referToAnotherDoctor" className="cursor-pointer">Refer To Another Doctor</Label>
+                  </div>
+                  {editFormData.referToAnotherDoctor && (
+                    <div>
+                      <Label htmlFor="edit-referredDoctorId">Referred Doctor *</Label>
+                      <select
+                        id="edit-referredDoctorId"
+                        aria-label="Referred Doctor"
+                        className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                        value={editFormData.referredDoctorId}
+                        onChange={(e) => setEditFormData({ ...editFormData, referredDoctorId: e.target.value })}
+                      >
+                        <option value="">Select Referred Doctor</option>
+                        {appointmentDoctors.length > 0 ? (
+                          appointmentDoctors.map(doctor => (
+                            <option key={doctor.id} value={doctor.id.toString()}>
+                              {doctor.name} - {doctor.specialty}
+                            </option>
+                          ))
+                        ) : (
+                          <option value="" disabled>No doctors available</option>
+                        )}
+                      </select>
+                      <p className="text-xs text-gray-500 mt-1">Once this is made as Yes, Appointment created for this doctor id</p>
                     </div>
                   )}
-                </div>
-              </TabsContent>
-            </Tabs>
-
-            <div className="flex justify-end gap-4 mt-6 pt-6 border-t border-gray-200">
-              <Button variant="outline" onClick={() => setCurrentPatient(null)}>
-                Cancel
-              </Button>
-              <Button onClick={completeConsultation} className="gap-2">
-                <FileText className="size-4" />
-                Complete Consultation
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-      </div>
-      </div>
-
-      {/* Prescription Summary Dialog */}
-      <Dialog open={showPrescriptionDialog} onOpenChange={setShowPrescriptionDialog}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Consultation Summary</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="p-4 bg-blue-50 rounded-lg">
-              <p className="text-sm text-gray-500">Patient</p>
-              <p className="text-gray-900">{currentPatient?.name} ({currentPatient?.tokenNumber})</p>
-            </div>
-
-            {diagnosis && (
-              <div>
-                <p className="text-sm text-gray-500 mb-1">Diagnosis</p>
-                <p className="text-gray-900">{diagnosis}</p>
-              </div>
-            )}
-
-            {labTests.length > 0 && (
-              <div>
-                <p className="text-sm text-gray-500 mb-2">Lab Tests Prescribed</p>
-                <div className="flex flex-wrap gap-2">
-                  {labTests.map((test, i) => (
-                    <Badge key={i} variant="secondary">{test}</Badge>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {medicines.length > 0 && (
-              <div>
-                <p className="text-sm text-gray-500 mb-2">Medicines Prescribed</p>
-                <div className="border border-gray-200 rounded-lg overflow-hidden">
-                  <table className="w-full text-sm">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="text-left py-2 px-4">Medicine</th>
-                        <th className="text-left py-2 px-4">Dosage</th>
-                        <th className="text-left py-2 px-4">Duration</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {medicines.map((med, i) => (
-                        <tr key={i} className="border-t border-gray-100">
-                          <td className="py-2 px-4">{med.name}</td>
-                          <td className="py-2 px-4">{med.dosage}</td>
-                          <td className="py-2 px-4">{med.duration}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="edit-transferToIPDOTICU"
+                      aria-label="Transfer to IPD/OT/ICU"
+                      checked={editFormData.transferToIPDOTICU}
+                      onChange={(e) => setEditFormData({ ...editFormData, transferToIPDOTICU: e.target.checked, transferTo: e.target.checked ? editFormData.transferTo : undefined })}
+                      className="rounded"
+                    />
+                    <Label htmlFor="edit-transferToIPDOTICU" className="cursor-pointer">Transfer To IPD/OT/ICU</Label>
+                  </div>
+                  {editFormData.transferToIPDOTICU && (
+                    <div>
+                      <Label htmlFor="edit-transferTo">Transfer To *</Label>
+                      <select
+                        id="edit-transferTo"
+                        aria-label="Transfer To"
+                        className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                        value={editFormData.transferTo || ''}
+                        onChange={(e) => setEditFormData({ ...editFormData, transferTo: e.target.value as 'IPD Room Admission' | 'ICU' | 'OT' })}
+                      >
+                        <option value="">Select Transfer Destination</option>
+                        <option value="IPD Room Admission">IPD Room Admission</option>
+                        <option value="ICU">ICU</option>
+                        <option value="OT">OT</option>
+                      </select>
+                    </div>
+                  )}
+                  {editFormData.transferToIPDOTICU && (
+                    <div>
+                      <Label htmlFor="edit-transferDetails">Transfer Details</Label>
+                      <Textarea
+                        id="edit-transferDetails"
+                        placeholder="Enter transfer details..."
+                        value={editFormData.transferDetails}
+                        onChange={(e) => setEditFormData({ ...editFormData, transferDetails: e.target.value })}
+                        rows={2}
+                      />
+                    </div>
+                  )}
+                  <div>
+                    <Label htmlFor="edit-billId">Bill ID</Label>
+                    <Input
+                      id="edit-billId"
+                      type="text"
+                      placeholder="e.g., BILL001"
+                      value={editFormData.billId}
+                      onChange={(e) => setEditFormData({ ...editFormData, billId: e.target.value })}
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Foreign Key to BillId</p>
+                  </div>
                 </div>
               </div>
-            )}
-
-            {followUp && (
-              <div>
-                <p className="text-sm text-gray-500 mb-1">Follow-up Instructions</p>
-                <p className="text-gray-900">{followUp}</p>
+              <div className="flex justify-end gap-2 px-6 py-2 border-t bg-gray-50 flex-shrink-0">
+                <Button variant="outline" onClick={() => setIsEditDialogOpen(false)} className="py-1">Cancel</Button>
+                <Button 
+                  onClick={async () => {
+                    if (!selectedAppointment) return;
+                    if (!editFormData.patientId || !editFormData.doctorId) {
+                      alert('Please fill in all required fields.');
+                      return;
+                    }
+                    if (editFormData.referToAnotherDoctor && !editFormData.referredDoctorId) {
+                      alert('Please select a referred doctor when "Refer To Another Doctor" is checked.');
+                      return;
+                    }
+                    if (editFormData.transferToIPDOTICU && !editFormData.transferTo) {
+                      alert('Please select a transfer destination when "Transfer To IPD/OT/ICU" is checked.');
+                      return;
+                    }
+                    try {
+                      await updatePatientAppointment({
+                        id: selectedAppointment.id,
+                        patientId: editFormData.patientId,
+                        doctorId: editFormData.doctorId,
+                        appointmentStatus: editFormData.appointmentStatus,
+                        consultationCharge: editFormData.consultationCharge,
+                        diagnosis: editFormData.diagnosis || undefined,
+                        followUpDetails: editFormData.followUpDetails || undefined,
+                        prescriptionsUrl: editFormData.prescriptionsUrl || undefined,
+                        toBeAdmitted: editFormData.toBeAdmitted,
+                        referToAnotherDoctor: editFormData.referToAnotherDoctor,
+                        referredDoctorId: editFormData.referToAnotherDoctor ? editFormData.referredDoctorId : undefined,
+                        transferToIPDOTICU: editFormData.transferToIPDOTICU,
+                        transferTo: editFormData.transferToIPDOTICU ? editFormData.transferTo : undefined,
+                        transferDetails: editFormData.transferDetails || undefined,
+                        billId: editFormData.billId || undefined,
+                      });
+                      await fetchPatientAppointments();
+                      setIsEditDialogOpen(false);
+                      setSelectedAppointment(null);
+                    } catch (err) {
+                      console.error('Failed to update appointment:', err);
+                      alert('Failed to update appointment. Please try again.');
+                    }
+                  }} 
+                  className="py-1"
+                >
+                  Update Appointment
+                </Button>
               </div>
-            )}
-
-            {admitAsIPD && (
-              <div className="p-4 bg-purple-50 rounded-lg border-2 border-purple-200">
-                <p className="text-purple-900">✓ Patient will be admitted as In-Patient</p>
-                <p className="text-sm text-purple-700">Room Type: {roomType}</p>
-              </div>
-            )}
-          </div>
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setShowPrescriptionDialog(false)}>
-              Edit
-            </Button>
-            <Button onClick={callNextPatient}>
-              Confirm & Call Next Patient
-            </Button>
-          </div>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+function AppointmentList({ 
+  appointments, 
+  doctors, 
+  patients,
+  onView,
+  onEdit
+}: { 
+  appointments: PatientAppointment[]; 
+  doctors: Doctor[]; 
+  patients: Patient[];
+  onView: (appointment: PatientAppointment) => void;
+  onEdit: (appointment: PatientAppointment) => void;
+}) {
+  const getStatusBadge = (status: PatientAppointment['appointmentStatus']) => {
+    switch (status) {
+      case 'Waiting':
+        return <Badge variant="outline" className="bg-yellow-100 text-yellow-700 border-yellow-300"><Clock className="size-3 mr-1" />Waiting</Badge>;
+      case 'Consulting':
+        return <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-300"><Stethoscope className="size-3 mr-1" />Consulting</Badge>;
+      case 'Completed':
+        return <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300"><CheckCircle2 className="size-3 mr-1" />Completed</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
+    }
+  };
+
+  return (
+    <Card className="mb-4">
+      <CardContent className="p-6">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-gray-200">
+                <th className="text-left py-3 px-4 text-gray-700 font-bold">Patient</th>
+                <th className="text-left py-3 px-4 text-gray-700 font-bold">Phone</th>
+                <th className="text-left py-3 px-4 text-gray-700 font-bold">Doctor</th>
+                <th className="text-left py-3 px-4 text-gray-700 font-bold">Status</th>
+                <th className="text-left py-3 px-4 text-gray-700 font-bold">Charges(₹)</th>
+                <th className="text-left py-3 px-4 text-gray-700 font-bold">Diagnosis</th>
+                <th className="text-left py-3 px-4 text-gray-700 font-bold">To Be Admitted</th>
+                <th className="text-left py-3 px-4 text-gray-700 font-bold">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {appointments.map((appointment) => {
+                const patient = patients.find(p => 
+                  (p as any).patientId === appointment.patientId || 
+                  (p as any).PatientId === appointment.patientId
+                );
+                const doctor = doctors.find(d => d.id.toString() === appointment.doctorId);
+                const patientName = patient 
+                  ? `${(patient as any).patientName || (patient as any).PatientName || ''} ${(patient as any).lastName || (patient as any).LastName || ''}`.trim() 
+                  : appointment.patientId === '00000000-0000-0000-0000-000000000001' 
+                    ? 'Dummy Patient Name' 
+                    : appointment.patientId;
+                const doctorName = doctor ? doctor.name : appointment.doctorId;
+                const patientPhone = patient 
+                  ? (patient as any).PhoneNo || (patient as any).phoneNo || (patient as any).phone || '-'
+                  : '-';
+                
+                return (
+                  <tr key={appointment.id} className="border-b border-gray-100 hover:bg-gray-50">
+                    <td className="py-1 px-4 text-gray-600 whitespace-nowrap">{patientName}</td>
+                    <td className="py-1 px-4 text-gray-600 whitespace-nowrap">{patientPhone}</td>
+                    <td className="py-1 px-4 text-gray-600 whitespace-nowrap">{doctorName}</td>
+                    <td className="py-1 px-4">{getStatusBadge(appointment.appointmentStatus)}</td>
+                    <td className="py-1 px-4 text-gray-900 font-semibold">
+                      ₹{appointment.consultationCharge.toFixed(2)}
+                    </td>
+                    <td className="py-1 px-4 text-gray-600 max-w-xs truncate" title={appointment.diagnosis}>{appointment.diagnosis || '-'}</td>
+                    <td className="py-1 px-4">
+                      {appointment.toBeAdmitted ? (
+                        <Badge variant="outline" className="bg-red-100 text-red-700 border-red-300">
+                          <Hospital className="size-3 mr-1" />Yes
+                        </Badge>
+                      ) : (
+                        <span className="text-gray-500">No</span>
+                      )}
+                    </td>
+                    <td className="py-1 px-4">
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => onView(appointment)}
+                          className="h-8 w-8 p-0"
+                        >
+                          <Eye className="size-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => onEdit(appointment)}
+                          className="h-8 w-8 p-0"
+                        >
+                          <Edit className="size-4" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        {appointments.length === 0 && (
+          <div className="text-center py-12 text-gray-500">
+            No appointments found
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

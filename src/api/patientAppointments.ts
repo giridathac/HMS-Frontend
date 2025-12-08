@@ -860,14 +860,115 @@ export const patientAppointmentsApi = {
   },
 
   async update(data: UpdatePatientAppointmentDto): Promise<PatientAppointment> {
-    // Replace with: return apiRequest<PatientAppointment>(`/patientappointments/${data.id}`, { method: 'PUT', body: JSON.stringify(data) });
-    await delay(400);
-    const index = stubPatientAppointments.findIndex(a => a.id === data.id);
-    if (index === -1) {
-      throw new Error(`PatientAppointment with id ${data.id} not found`);
+    try {
+      console.log('Updating patient appointment via API:', data);
+      
+      // Convert frontend DTO (camelCase) to backend request (PascalCase)
+      const backendRequest: any = {};
+      
+      if (data.patientId !== undefined) {
+        backendRequest.PatientId = data.patientId;
+      }
+      if (data.doctorId !== undefined) {
+        backendRequest.DoctorId = Number(data.doctorId); // Convert string to number
+      }
+      if (data.appointmentDate !== undefined) {
+        backendRequest.AppointmentDate = data.appointmentDate;
+      }
+      if (data.appointmentTime !== undefined) {
+        backendRequest.AppointmentTime = data.appointmentTime;
+      }
+      if (data.appointmentStatus !== undefined) {
+        backendRequest.AppointmentStatus = data.appointmentStatus;
+      }
+      if (data.consultationCharge !== undefined) {
+        backendRequest.ConsultationCharge = data.consultationCharge;
+      }
+      if (data.diagnosis !== undefined) {
+        backendRequest.Diagnosis = data.diagnosis;
+      }
+      if (data.followUpDetails !== undefined) {
+        backendRequest.FollowUpDetails = data.followUpDetails;
+      }
+      if (data.prescriptionsUrl !== undefined) {
+        backendRequest.PrescriptionsUrl = data.prescriptionsUrl;
+      }
+      if (data.toBeAdmitted !== undefined) {
+        backendRequest.ToBeAdmitted = data.toBeAdmitted ? 'Yes' : 'No';
+      }
+      if (data.referToAnotherDoctor !== undefined) {
+        backendRequest.ReferToAnotherDoctor = data.referToAnotherDoctor ? 'Yes' : 'No';
+      }
+      if (data.referredDoctorId !== undefined) {
+        backendRequest.ReferredDoctorId = data.referredDoctorId ? Number(data.referredDoctorId) : null;
+      }
+      if (data.transferToIPDOTICU !== undefined) {
+        backendRequest.TransferToIPDOTICU = data.transferToIPDOTICU ? 'Yes' : 'No';
+      }
+      if (data.transferTo !== undefined) {
+        backendRequest.TransferTo = data.transferTo;
+      }
+      if (data.transferDetails !== undefined) {
+        backendRequest.TransferDetails = data.transferDetails;
+      }
+      if (data.billId !== undefined) {
+        backendRequest.BillId = data.billId ? Number(data.billId) : null;
+      }
+      
+      console.log('Backend update request:', backendRequest);
+      
+      const response = await apiRequest<ApiResponse>(`/patient-appointments/${data.id}`, {
+        method: 'PUT',
+        body: JSON.stringify(backendRequest),
+      });
+      
+      console.log('Patient appointment update response:', response);
+      
+      if (!response.success) {
+        throw new Error(response.message || 'Failed to update patient appointment');
+      }
+      
+      // Map backend response to frontend format
+      const appointment = mapPatientAppointmentFromBackend(response.data);
+      console.log('Mapped updated patient appointment:', appointment);
+      return appointment;
+    } catch (error) {
+      console.error('Error updating patient appointment:', error);
+      
+      // Fallback to stub data if enabled
+      if (ENABLE_STUB_DATA) {
+        console.warn('API update failed, using stub data fallback');
+        await delay(400);
+        const index = stubPatientAppointments.findIndex(a => a.id === data.id);
+        if (index === -1) {
+          throw new Error(`PatientAppointment with id ${data.id} not found`);
+        }
+        
+        // Update stub data with provided fields
+        const updated = { ...stubPatientAppointments[index] };
+        if (data.patientId !== undefined) updated.patientId = data.patientId;
+        if (data.doctorId !== undefined) updated.doctorId = data.doctorId;
+        if (data.appointmentDate !== undefined) updated.appointmentDate = data.appointmentDate;
+        if (data.appointmentTime !== undefined) updated.appointmentTime = data.appointmentTime;
+        if (data.appointmentStatus !== undefined) updated.appointmentStatus = data.appointmentStatus;
+        if (data.consultationCharge !== undefined) updated.consultationCharge = data.consultationCharge;
+        if (data.diagnosis !== undefined) updated.diagnosis = data.diagnosis;
+        if (data.followUpDetails !== undefined) updated.followUpDetails = data.followUpDetails;
+        if (data.prescriptionsUrl !== undefined) updated.prescriptionsUrl = data.prescriptionsUrl;
+        if (data.toBeAdmitted !== undefined) updated.toBeAdmitted = data.toBeAdmitted;
+        if (data.referToAnotherDoctor !== undefined) updated.referToAnotherDoctor = data.referToAnotherDoctor;
+        if (data.referredDoctorId !== undefined) updated.referredDoctorId = data.referredDoctorId;
+        if (data.transferToIPDOTICU !== undefined) updated.transferToIPDOTICU = data.transferToIPDOTICU;
+        if (data.transferTo !== undefined) updated.transferTo = data.transferTo;
+        if (data.transferDetails !== undefined) updated.transferDetails = data.transferDetails;
+        if (data.billId !== undefined) updated.billId = data.billId;
+        
+        stubPatientAppointments[index] = updated;
+        return Promise.resolve(updated);
+      }
+      
+      throw error;
     }
-    stubPatientAppointments[index] = { ...stubPatientAppointments[index], ...data };
-    return Promise.resolve(stubPatientAppointments[index]);
   },
 
   async delete(id: number): Promise<void> {

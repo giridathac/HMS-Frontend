@@ -586,17 +586,17 @@ export function PatientAppointmentManagement() {
               <table className="w-full">
                 <thead className="sticky top-0 bg-white z-10 shadow-sm">
                   <tr className="border-b border-gray-200">
-                    <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">Appointment ID</th>
-                    <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">Patient Name</th>
-                    <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">Doctor Name</th>
-                    <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">Date</th>
-                    <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">Time</th>
-                    <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">Token No</th>
-                    <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">Status</th>
-                    <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">Charge (₹)</th>
-                    <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">Diagnosis</th>
-                    <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">To Be Admitted</th>
-                    <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">Actions</th>
+                    <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap font-bold">Token No</th>
+                    <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap font-bold">Id</th>
+                    <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap font-bold">Patient</th>
+                    <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap font-bold">Doctor</th>
+                    <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap font-bold">Date</th>
+                    <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap font-bold">Time</th>
+                    <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap font-bold">Status</th>
+                    <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap font-bold">Charges(₹)</th>
+                    <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap font-bold">Diagnosis</th>
+                    <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap font-bold">To Be Admitted</th>
+                    <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap font-bold">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -622,12 +622,12 @@ export function PatientAppointmentManagement() {
                       
                       return (
                         <tr key={appointment.id} className="border-b border-gray-100 hover:bg-gray-50">
+                          <td className="py-1 px-4 text-gray-900 font-mono font-medium whitespace-nowrap">{appointment.tokenNo}</td>
                           <td className="py-1 px-4 text-gray-900 font-mono font-medium whitespace-nowrap">{appointment.patientAppointmentId}</td>
                           <td className="py-1 px-4 text-gray-600 whitespace-nowrap">{patientName}</td>
                           <td className="py-1 px-4 text-gray-600 whitespace-nowrap">{doctorName}</td>
                           <td className="py-1 px-4 text-gray-600">{new Date(appointment.appointmentDate).toLocaleDateString()}</td>
                           <td className="py-1 px-4 text-gray-600">{appointment.appointmentTime}</td>
-                          <td className="py-1 px-4 text-gray-900 font-mono font-medium">{appointment.tokenNo}</td>
                           <td className="py-1 px-4">{getStatusBadge(appointment.appointmentStatus)}</td>
                           <td className="py-1 px-4 text-gray-900 font-semibold">
                             ₹{appointment.consultationCharge.toFixed(2)}

@@ -1,14 +1,21 @@
 // FrontDesk Component - Separated UI from logic
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
+import { Textarea } from './ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { Search, Plus, Printer, Users } from 'lucide-react';
+import { Badge } from './ui/badge';
+import { Search, Plus, Printer, Users, Clock, Stethoscope, CheckCircle2, Hospital, Eye, Edit } from 'lucide-react';
 import { useTokens } from '../hooks';
-import { Token } from '../types';
+import { usePatientAppointments } from '../hooks/usePatientAppointments';
+import { useStaff } from '../hooks/useStaff';
+import { useRoles } from '../hooks/useRoles';
+import { useDepartments } from '../hooks/useDepartments';
+import { patientsApi } from '../api/patients';
+import { Token, PatientAppointment, Patient, Doctor } from '../types';
 
 interface FrontDeskViewProps {
   tokens: Token[];
@@ -17,16 +24,97 @@ interface FrontDeskViewProps {
   onSearchChange: (value: string) => void;
   onCreateToken: (data: { patientName: string; patientPhone: string; doctorId: number; isFollowUp?: boolean; patientId?: number }) => Promise<Token>;
   getTokensByStatus: (status: Token['status']) => Token[];
+  patientAppointments: PatientAppointment[];
+  appointmentDoctors: Doctor[];
+  patients: Patient[];
+  appointmentSearchTerm: string;
+  onAppointmentSearchChange: (value: string) => void;
+  getAppointmentsByStatus: (status: PatientAppointment['appointmentStatus']) => PatientAppointment[];
+  updatePatientAppointment: (data: { id: number; patientId?: string; doctorId?: string; appointmentDate?: string; appointmentTime?: string; appointmentStatus?: 'Waiting' | 'Consulting' | 'Completed'; consultationCharge?: number; diagnosis?: string; followUpDetails?: string; prescriptionsUrl?: string; toBeAdmitted?: boolean; referToAnotherDoctor?: boolean; referredDoctorId?: string; transferToIPDOTICU?: boolean; transferTo?: 'IPD Room Admission' | 'ICU' | 'OT'; transferDetails?: string; billId?: string }) => Promise<PatientAppointment>;
+  fetchPatientAppointments: () => Promise<void>;
 }
 
 export function FrontDesk() {
   const { tokens, doctors, loading, error, createToken, getTokensByStatus } = useTokens();
+  const { patientAppointments, loading: appointmentsLoading, error: appointmentsError, updatePatientAppointment, fetchPatientAppointments } = usePatientAppointments();
+  const { staff } = useStaff();
+  const { roles } = useRoles();
+  const { departments } = useDepartments();
   const [searchTerm, setSearchTerm] = useState('');
+  const [appointmentSearchTerm, setAppointmentSearchTerm] = useState('');
+  const [patients, setPatients] = useState<Patient[]>([]);
+
+  // Filter to show only doctors and surgeons from staff
+  const appointmentDoctors = useMemo(() => {
+    if (!staff || !roles || !departments) return [];
+    
+    return staff
+      .filter((member) => {
+        if (!member.RoleId) return false;
+        const role = roles.find(r => r.id === member.RoleId);
+        if (!role || !role.name) return false;
+        const roleNameLower = role.name.toLowerCase();
+        return roleNameLower.includes('doctor') || roleNameLower.includes('surgeon');
+      })
+      .map((member) => {
+        const department = member.DoctorDepartmentId 
+          ? departments.find(d => 
+              d.id.toString() === member.DoctorDepartmentId || 
+              d.id === Number(member.DoctorDepartmentId)
+            )
+          : null;
+        
+        return {
+          id: member.UserId || 0,
+          name: member.UserName || 'Unknown',
+          specialty: department?.name || 'General',
+          type: member.DoctorType === 'INHOUSE' ? 'inhouse' as const : 'consulting' as const,
+        } as Doctor;
+      });
+  }, [staff, roles, departments]);
+
+  // Fetch patients
+  useEffect(() => {
+    const fetchPatients = async () => {
+      try {
+        const patientsData = await patientsApi.getAll();
+        setPatients(patientsData);
+      } catch (err) {
+        console.error('Failed to fetch patients:', err);
+      }
+    };
+    fetchPatients();
+  }, []);
 
   const filteredTokens = tokens.filter(token =>
     token.patientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     token.tokenNumber.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const filteredAppointments = patientAppointments.filter(appointment => {
+    const patient = patients.find(p => 
+      (p as any).patientId === appointment.patientId || 
+      (p as any).PatientId === appointment.patientId
+    );
+    const patientName = patient 
+      ? `${(patient as any).patientName || (patient as any).PatientName || ''} ${(patient as any).lastName || (patient as any).LastName || ''}`.trim() 
+      : appointment.patientId === '00000000-0000-0000-0000-000000000001' 
+        ? 'Dummy Patient Name' 
+        : appointment.patientId;
+    const doctor = appointmentDoctors.find(d => d.id.toString() === appointment.doctorId);
+    const doctorName = doctor ? doctor.name : appointment.doctorId;
+    
+    const searchLower = appointmentSearchTerm.toLowerCase();
+    return (
+                  appointment.tokenNo.toLowerCase().includes(searchLower) ||
+      patientName.toLowerCase().includes(searchLower) ||
+      doctorName.toLowerCase().includes(searchLower)
+    );
+  });
+
+  const getAppointmentsByStatus = (status: PatientAppointment['appointmentStatus']) => {
+    return filteredAppointments.filter(a => a.appointmentStatus === status);
+  };
 
   const handleCreateToken = async (data: { patientName: string; patientPhone: string; doctorId: number; isFollowUp?: boolean; patientId?: number }) => {
     try {
@@ -51,18 +139,18 @@ export function FrontDesk() {
     }
   };
 
-  if (loading) {
+  if (loading || appointmentsLoading) {
     return (
       <div className="p-8">
-        <div className="text-center py-12 text-gray-500">Loading tokens...</div>
+        <div className="text-center py-12 text-gray-500">Loading...</div>
       </div>
     );
   }
 
-  if (error) {
+  if (error || appointmentsError) {
     return (
       <div className="p-8">
-        <div className="text-center py-12 text-red-500">Error: {error}</div>
+        <div className="text-center py-12 text-red-500">Error: {error || appointmentsError}</div>
       </div>
     );
   }
@@ -75,6 +163,14 @@ export function FrontDesk() {
       onSearchChange={setSearchTerm}
       onCreateToken={handleCreateToken}
       getTokensByStatus={getTokensByStatus}
+      patientAppointments={filteredAppointments}
+      appointmentDoctors={appointmentDoctors}
+      patients={patients}
+      appointmentSearchTerm={appointmentSearchTerm}
+      onAppointmentSearchChange={setAppointmentSearchTerm}
+      getAppointmentsByStatus={getAppointmentsByStatus}
+      updatePatientAppointment={updatePatientAppointment}
+      fetchPatientAppointments={fetchPatientAppointments}
     />
   );
 }
@@ -85,7 +181,15 @@ function FrontDeskView({
   searchTerm, 
   onSearchChange, 
   onCreateToken, 
-  getTokensByStatus 
+  getTokensByStatus,
+  patientAppointments,
+  appointmentDoctors,
+  patients,
+  appointmentSearchTerm,
+  onAppointmentSearchChange,
+  getAppointmentsByStatus,
+  updatePatientAppointment,
+  fetchPatientAppointments
 }: FrontDeskViewProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedDoctor, setSelectedDoctor] = useState('');
@@ -93,6 +197,18 @@ function FrontDeskView({
   const [patientPhone, setPatientPhone] = useState('');
   const [isFollowUp, setIsFollowUp] = useState(false);
   const [patientId, setPatientId] = useState<number | undefined>(undefined);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [selectedAppointment, setSelectedAppointment] = useState<PatientAppointment | null>(null);
+  const [editFormData, setEditFormData] = useState({
+    patientId: '',
+    doctorId: '',
+    appointmentDate: '',
+    appointmentTime: '',
+    appointmentStatus: 'Waiting' as PatientAppointment['appointmentStatus'],
+    consultationCharge: 0,
+    followUpDetails: '',
+  });
 
   const handleGenerateToken = async () => {
     if (!selectedDoctor || !patientName || !patientPhone) {
@@ -147,183 +263,467 @@ function FrontDeskView({
       <div className="flex-shrink-0">
         <div className="flex items-center justify-between mb-4 flex-shrink-0">
           <div>
-            <h1 className="text-gray-900 mb-0 text-xl">Front Desk - Token Management</h1>
-            <p className="text-gray-500 text-sm">Generate and manage patient tokens for doctor consultation</p>
+            <h1 className="text-gray-900 mb-0 text-xl">Front Desk - Patient Appointments</h1>
+            <p className="text-gray-500 text-sm">Manage patient appointments</p>
           </div>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="gap-2">
-                <Plus className="size-4" />
-                Generate Token
-              </Button>
-            </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Generate Patient Token</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div>
-                <Label htmlFor="patientName">Patient Name</Label>
-                <Input
-                  id="patientName"
-                  placeholder="Enter patient name"
-                  value={patientName}
-                  onChange={(e) => setPatientName(e.target.value)}
-                />
-              </div>
-              <div>
-                <Label htmlFor="patientPhone">Phone Number</Label>
-                <Input
-                  id="patientPhone"
-                  placeholder="Enter phone number"
-                  value={patientPhone}
-                  onChange={(e) => handlePhoneChange(e.target.value)}
-                />
-                {patientId && (
-                  <p className="text-xs text-blue-600 mt-1">Existing patient found - Follow-up visit</p>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="isFollowUp"
-                  aria-label="This is a follow-up visit"
-                  checked={isFollowUp}
-                  onChange={(e) => setIsFollowUp(e.target.checked)}
-                  className="size-4"
-                />
-                <Label htmlFor="isFollowUp" className="text-sm">
-                  This is a follow-up visit
-                </Label>
-              </div>
-              <div>
-                <Label htmlFor="doctor">Select Doctor</Label>
-                <select
-                  id="doctor"
-                  aria-label="Select Doctor"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-md"
-                  value={selectedDoctor}
-                  onChange={(e) => setSelectedDoctor(e.target.value)}
-                >
-                  <option value="">Select a doctor</option>
-                  <optgroup label="Inhouse Doctors">
-                    {doctors.filter(d => d.type === 'inhouse').map(doc => (
-                      <option key={doc.id} value={doc.id}>
-                        {doc.name} - {doc.specialty}
-                      </option>
-                    ))}
-                  </optgroup>
-                  <optgroup label="Consulting Doctors">
-                    {doctors.filter(d => d.type === 'consulting').map(doc => (
-                      <option key={doc.id} value={doc.id}>
-                        {doc.name} - {doc.specialty}
-                      </option>
-                    ))}
-                  </optgroup>
-                </select>
-              </div>
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
-              <Button onClick={handleGenerateToken}>Generate & Print</Button>
-            </div>
-          </DialogContent>
-        </Dialog>
         </div>
       </div>
       <div className="flex-1 overflow-y-auto overflow-x-hidden frontdesk-scrollable min-h-0">
-        {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-500 mb-1">Total Tokens</p>
-                <h3 className="text-gray-900">{tokens.length}</h3>
-              </div>
-              <Users className="size-8 text-blue-500" />
+        <div className="space-y-6">
+          {/* Patient Appointments Section */}
+          {/* Quick Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-500 mb-1">Total Appointments</p>
+                      <h3 className="text-gray-900">{patientAppointments.length}</h3>
+                    </div>
+                    <Users className="size-8 text-blue-500" />
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-500 mb-1">Waiting</p>
+                      <h3 className="text-gray-900">{getAppointmentsByStatus('Waiting').length}</h3>
+                    </div>
+                    <div className="size-8 bg-yellow-100 rounded-full flex items-center justify-center">
+                      <span className="text-yellow-700">⏳</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-500 mb-1">Consulting</p>
+                      <h3 className="text-gray-900">{getAppointmentsByStatus('Consulting').length}</h3>
+                    </div>
+                    <div className="size-8 bg-blue-100 rounded-full flex items-center justify-center">
+                      <span className="text-blue-700">👨‍⚕️</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-500 mb-1">Completed</p>
+                      <h3 className="text-gray-900">{getAppointmentsByStatus('Completed').length}</h3>
+                    </div>
+                    <div className="size-8 bg-green-100 rounded-full flex items-center justify-center">
+                      <span className="text-green-700">✓</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-500 mb-1">Waiting</p>
-                <h3 className="text-gray-900">{getTokensByStatus('Waiting').length}</h3>
-              </div>
-              <div className="size-8 bg-yellow-100 rounded-full flex items-center justify-center">
-                <span className="text-yellow-700">⏳</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-500 mb-1">Consulting</p>
-                <h3 className="text-gray-900">{getTokensByStatus('Consulting').length}</h3>
-              </div>
-              <div className="size-8 bg-blue-100 rounded-full flex items-center justify-center">
-                <span className="text-blue-700">👨‍⚕️</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-500 mb-1">Completed</p>
-                <h3 className="text-gray-900">{getTokensByStatus('Completed').length}</h3>
-              </div>
-              <div className="size-8 bg-green-100 rounded-full flex items-center justify-center">
-                <span className="text-green-700">✓</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+
+            {/* Search */}
+            <Card className="mb-6">
+              <CardContent className="p-6">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
+                  <Input
+                    placeholder="Search by token no, patient, or doctor..."
+                    value={appointmentSearchTerm}
+                    onChange={(e) => onAppointmentSearchChange(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Appointments by Status */}
+            <Tabs defaultValue="all" className="space-y-6">
+              <TabsList>
+                <TabsTrigger value="all">All Appointments ({patientAppointments.length})</TabsTrigger>
+                <TabsTrigger value="waiting">Waiting ({getAppointmentsByStatus('Waiting').length})</TabsTrigger>
+                <TabsTrigger value="consulting">Consulting ({getAppointmentsByStatus('Consulting').length})</TabsTrigger>
+                <TabsTrigger value="completed">Completed ({getAppointmentsByStatus('Completed').length})</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="all">
+                <AppointmentList 
+                  appointments={patientAppointments} 
+                  doctors={appointmentDoctors} 
+                  patients={patients}
+                  onView={(appointment) => {
+                    setSelectedAppointment(appointment);
+                    setIsViewDialogOpen(true);
+                  }}
+                  onEdit={(appointment) => {
+                    setSelectedAppointment(appointment);
+                    setEditFormData({
+                      patientId: appointment.patientId,
+                      doctorId: appointment.doctorId,
+                      appointmentDate: appointment.appointmentDate,
+                      appointmentTime: appointment.appointmentTime,
+                      appointmentStatus: appointment.appointmentStatus,
+                      consultationCharge: appointment.consultationCharge,
+                      followUpDetails: appointment.followUpDetails || '',
+                    });
+                    setIsEditDialogOpen(true);
+                  }}
+                />
+              </TabsContent>
+              <TabsContent value="waiting">
+                <AppointmentList 
+                  appointments={getAppointmentsByStatus('Waiting')} 
+                  doctors={appointmentDoctors} 
+                  patients={patients}
+                  onView={(appointment) => {
+                    setSelectedAppointment(appointment);
+                    setIsViewDialogOpen(true);
+                  }}
+                  onEdit={(appointment) => {
+                    setSelectedAppointment(appointment);
+                    setEditFormData({
+                      patientId: appointment.patientId,
+                      doctorId: appointment.doctorId,
+                      appointmentDate: appointment.appointmentDate,
+                      appointmentTime: appointment.appointmentTime,
+                      appointmentStatus: appointment.appointmentStatus,
+                      consultationCharge: appointment.consultationCharge,
+                      followUpDetails: appointment.followUpDetails || '',
+                    });
+                    setIsEditDialogOpen(true);
+                  }}
+                />
+              </TabsContent>
+              <TabsContent value="consulting">
+                <AppointmentList 
+                  appointments={getAppointmentsByStatus('Consulting')} 
+                  doctors={appointmentDoctors} 
+                  patients={patients}
+                  onView={(appointment) => {
+                    setSelectedAppointment(appointment);
+                    setIsViewDialogOpen(true);
+                  }}
+                  onEdit={(appointment) => {
+                    setSelectedAppointment(appointment);
+                    setEditFormData({
+                      patientId: appointment.patientId,
+                      doctorId: appointment.doctorId,
+                      appointmentDate: appointment.appointmentDate,
+                      appointmentTime: appointment.appointmentTime,
+                      appointmentStatus: appointment.appointmentStatus,
+                      consultationCharge: appointment.consultationCharge,
+                      followUpDetails: appointment.followUpDetails || '',
+                    });
+                    setIsEditDialogOpen(true);
+                  }}
+                />
+              </TabsContent>
+              <TabsContent value="completed">
+                <AppointmentList 
+                  appointments={getAppointmentsByStatus('Completed')} 
+                  doctors={appointmentDoctors} 
+                  patients={patients}
+                  onView={(appointment) => {
+                    setSelectedAppointment(appointment);
+                    setIsViewDialogOpen(true);
+                  }}
+                  onEdit={(appointment) => {
+                    setSelectedAppointment(appointment);
+                    setEditFormData({
+                      patientId: appointment.patientId,
+                      doctorId: appointment.doctorId,
+                      appointmentDate: appointment.appointmentDate,
+                      appointmentTime: appointment.appointmentTime,
+                      appointmentStatus: appointment.appointmentStatus,
+                      consultationCharge: appointment.consultationCharge,
+                      followUpDetails: appointment.followUpDetails || '',
+                    });
+                    setIsEditDialogOpen(true);
+                  }}
+                />
+              </TabsContent>
+            </Tabs>
+        </div>
       </div>
 
-      {/* Search */}
-      <Card className="mb-6">
-        <CardContent className="p-6">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
-            <Input
-              placeholder="Search by patient name or token number..."
-              value={searchTerm}
-              onChange={(e) => onSearchChange(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-        </CardContent>
-      </Card>
+      {/* View Appointment Dialog */}
+      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>View Patient Appointment</DialogTitle>
+          </DialogHeader>
+          {selectedAppointment && (() => {
+            const patient = patients.find(p => 
+              (p as any).patientId === selectedAppointment.patientId || 
+              (p as any).PatientId === selectedAppointment.patientId
+            );
+            const doctor = appointmentDoctors.find(d => d.id.toString() === selectedAppointment.doctorId);
+            const patientName = patient 
+              ? `${(patient as any).patientName || (patient as any).PatientName || ''} ${(patient as any).lastName || (patient as any).LastName || ''}`.trim() 
+              : selectedAppointment.patientId;
+            const doctorName = doctor ? doctor.name : selectedAppointment.doctorId;
+            const patientPhone = patient 
+              ? (patient as any).PhoneNo || (patient as any).phoneNo || (patient as any).phone || '-'
+              : '-';
 
-      {/* Tokens by Status */}
-      <Tabs defaultValue="all" className="space-y-6">
-        <TabsList>
-          <TabsTrigger value="all">All Tokens ({tokens.length})</TabsTrigger>
-          <TabsTrigger value="waiting">Waiting ({getTokensByStatus('Waiting').length})</TabsTrigger>
-          <TabsTrigger value="consulting">Consulting ({getTokensByStatus('Consulting').length})</TabsTrigger>
-          <TabsTrigger value="completed">Completed ({getTokensByStatus('Completed').length})</TabsTrigger>
-        </TabsList>
+            const getStatusBadge = (status: PatientAppointment['appointmentStatus']) => {
+              switch (status) {
+                case 'Waiting':
+                  return <Badge variant="outline" className="bg-yellow-100 text-yellow-700 border-yellow-300"><Clock className="size-3 mr-1" />Waiting</Badge>;
+                case 'Consulting':
+                  return <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-300"><Stethoscope className="size-3 mr-1" />Consulting</Badge>;
+                case 'Completed':
+                  return <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300"><CheckCircle2 className="size-3 mr-1" />Completed</Badge>;
+                default:
+                  return <Badge variant="outline">{status}</Badge>;
+              }
+            };
 
-        <TabsContent value="all">
-          <TokenList tokens={tokens} doctors={doctors} />
-        </TabsContent>
-        <TabsContent value="waiting">
-          <TokenList tokens={getTokensByStatus('Waiting')} doctors={doctors} />
-        </TabsContent>
-        <TabsContent value="consulting">
-          <TokenList tokens={getTokensByStatus('Consulting')} doctors={doctors} />
-        </TabsContent>
-        <TabsContent value="completed">
-          <TokenList tokens={getTokensByStatus('Completed')} doctors={doctors} />
-        </TabsContent>
-      </Tabs>
-      </div>
+            return (
+              <div className="space-y-4 py-4">
+                <div>
+                  <Label>Token No</Label>
+                  <Input value={selectedAppointment.tokenNo} disabled className="bg-gray-50" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Patient</Label>
+                    <Input value={patientName} disabled className="bg-gray-50" />
+                  </div>
+                  <div>
+                    <Label>Phone</Label>
+                    <Input value={patientPhone} disabled className="bg-gray-50" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Doctor</Label>
+                    <Input value={doctorName} disabled className="bg-gray-50" />
+                  </div>
+                  <div>
+                    <Label>Status</Label>
+                    <div className="pt-2">{getStatusBadge(selectedAppointment.appointmentStatus)}</div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Date</Label>
+                    <Input value={new Date(selectedAppointment.appointmentDate).toLocaleDateString()} disabled className="bg-gray-50" />
+                  </div>
+                  <div>
+                    <Label>Time</Label>
+                    <Input value={selectedAppointment.appointmentTime} disabled className="bg-gray-50" />
+                  </div>
+                </div>
+                <div>
+                  <Label>Charges (₹)</Label>
+                  <Input value={`₹${selectedAppointment.consultationCharge.toFixed(2)}`} disabled className="bg-gray-50" />
+                </div>
+                <div>
+                  <Label>Diagnosis</Label>
+                  <Textarea value={selectedAppointment.diagnosis || '-'} disabled className="bg-gray-50" rows={3} />
+                </div>
+                {selectedAppointment.followUpDetails && (
+                  <div>
+                    <Label>Follow Up Details</Label>
+                    <Textarea value={selectedAppointment.followUpDetails} disabled className="bg-gray-50" rows={2} />
+                  </div>
+                )}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>To Be Admitted</Label>
+                    <div className="pt-2">
+                      {selectedAppointment.toBeAdmitted ? (
+                        <Badge variant="outline" className="bg-red-100 text-red-700 border-red-300">
+                          <Hospital className="size-3 mr-1" />Yes
+                        </Badge>
+                      ) : (
+                        <span className="text-gray-500">No</span>
+                      )}
+                    </div>
+                  </div>
+                  {selectedAppointment.prescriptionsUrl && (
+                    <div>
+                      <Label>Prescriptions URL</Label>
+                      <Input value={selectedAppointment.prescriptionsUrl} disabled className="bg-gray-50" />
+                    </div>
+                  )}
+                </div>
+                <div className="flex justify-end gap-2 pt-4">
+                  <Button variant="outline" onClick={() => setIsViewDialogOpen(false)}>Close</Button>
+                </div>
+              </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Appointment Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="p-0 gap-0 large-dialog max-h-[90vh]">
+          <DialogHeader className="px-6 pt-4 pb-3 flex-shrink-0">
+            <DialogTitle>Edit Patient Appointment</DialogTitle>
+          </DialogHeader>
+          {selectedAppointment && (
+            <>
+              <div className="flex-1 overflow-y-auto px-6 pb-1 patient-list-scrollable min-h-0">
+                <div className="space-y-4 py-4">
+                  <div>
+                    <Label>Token No</Label>
+                    <Input value={selectedAppointment.tokenNo} disabled className="bg-gray-50 text-gray-500" />
+                    <p className="text-xs text-gray-500 mt-1">Token No is auto-generated and cannot be changed</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="edit-patientId">Patient *</Label>
+                      <select
+                        id="edit-patientId"
+                        aria-label="Patient"
+                        className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                        value={editFormData.patientId}
+                        onChange={(e) => setEditFormData({ ...editFormData, patientId: e.target.value })}
+                      >
+                        <option value="">Select Patient</option>
+                        {patients.length > 0 ? (
+                          patients.map(patient => {
+                            const patientId = (patient as any).patientId || (patient as any).PatientId || '';
+                            const patientName = (patient as any).patientName || (patient as any).PatientName || '';
+                            const lastName = (patient as any).lastName || (patient as any).LastName || '';
+                            return (
+                              <option key={patientId} value={patientId}>
+                                {patientName} {lastName}
+                              </option>
+                            );
+                          })
+                        ) : (
+                          <>
+                            <option value="00000000-0000-0000-0000-000000000001">Dummy Patient Name</option>
+                          </>
+                        )}
+                      </select>
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-doctorId">Doctor *</Label>
+                      <select
+                        id="edit-doctorId"
+                        aria-label="Doctor"
+                        className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                        value={editFormData.doctorId}
+                        onChange={(e) => setEditFormData({ ...editFormData, doctorId: e.target.value })}
+                      >
+                        <option value="">Select Doctor</option>
+                        {appointmentDoctors.length > 0 ? (
+                          appointmentDoctors.map(doctor => (
+                            <option key={doctor.id} value={doctor.id.toString()}>
+                              {doctor.name} - {doctor.specialty}
+                            </option>
+                          ))
+                        ) : (
+                          <option value="" disabled>No doctors available</option>
+                        )}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="edit-appointmentDate">Appointment Date *</Label>
+                      <Input
+                        id="edit-appointmentDate"
+                        type="date"
+                        value={editFormData.appointmentDate}
+                        onChange={(e) => setEditFormData({ ...editFormData, appointmentDate: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-appointmentTime">Appointment Time *</Label>
+                      <Input
+                        id="edit-appointmentTime"
+                        type="time"
+                        value={editFormData.appointmentTime}
+                        onChange={(e) => setEditFormData({ ...editFormData, appointmentTime: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="edit-appointmentStatus">Appointment Status</Label>
+                      <select
+                        id="edit-appointmentStatus"
+                        aria-label="Appointment Status"
+                        className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                        value={editFormData.appointmentStatus}
+                        onChange={(e) => setEditFormData({ ...editFormData, appointmentStatus: e.target.value as PatientAppointment['appointmentStatus'] })}
+                      >
+                        <option value="Waiting">Waiting</option>
+                        <option value="Consulting">Consulting</option>
+                        <option value="Completed">Completed</option>
+                      </select>
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-consultationCharge">Consultation Charge (₹) *</Label>
+                      <Input
+                        id="edit-consultationCharge"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="e.g., 500"
+                        value={editFormData.consultationCharge}
+                        onChange={(e) => setEditFormData({ ...editFormData, consultationCharge: parseFloat(e.target.value) || 0 })}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-followUpDetails">Follow Up Details</Label>
+                    <Textarea
+                      id="edit-followUpDetails"
+                      placeholder="Enter follow up details..."
+                      value={editFormData.followUpDetails}
+                      onChange={(e) => setEditFormData({ ...editFormData, followUpDetails: e.target.value })}
+                      rows={2}
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 px-6 py-2 border-t bg-gray-50 flex-shrink-0">
+                <Button variant="outline" onClick={() => setIsEditDialogOpen(false)} className="py-1">Cancel</Button>
+                <Button 
+                  onClick={async () => {
+                    if (!selectedAppointment) return;
+                    if (!editFormData.patientId || !editFormData.doctorId || !editFormData.appointmentDate || !editFormData.appointmentTime) {
+                      alert('Please fill in all required fields.');
+                      return;
+                    }
+                    try {
+                      await updatePatientAppointment({
+                        id: selectedAppointment.id,
+                        patientId: editFormData.patientId,
+                        doctorId: editFormData.doctorId,
+                        appointmentDate: editFormData.appointmentDate,
+                        appointmentTime: editFormData.appointmentTime,
+                        appointmentStatus: editFormData.appointmentStatus,
+                        consultationCharge: editFormData.consultationCharge,
+                        followUpDetails: editFormData.followUpDetails || undefined,
+                      });
+                      await fetchPatientAppointments();
+                      setIsEditDialogOpen(false);
+                      setSelectedAppointment(null);
+                    } catch (err) {
+                      console.error('Failed to update appointment:', err);
+                      alert('Failed to update appointment. Please try again.');
+                    }
+                  }} 
+                  className="py-1"
+                >
+                  Update Appointment
+                </Button>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -405,6 +805,127 @@ function TokenList({ tokens, doctors }: { tokens: Token[]; doctors: Array<{ id: 
         {tokens.length === 0 && (
           <div className="text-center py-12 text-gray-500">
             No tokens found
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function AppointmentList({ 
+  appointments, 
+  doctors, 
+  patients,
+  onView,
+  onEdit
+}: { 
+  appointments: PatientAppointment[]; 
+  doctors: Doctor[]; 
+  patients: Patient[];
+  onView: (appointment: PatientAppointment) => void;
+  onEdit: (appointment: PatientAppointment) => void;
+}) {
+  const getStatusBadge = (status: PatientAppointment['appointmentStatus']) => {
+    switch (status) {
+      case 'Waiting':
+        return <Badge variant="outline" className="bg-yellow-100 text-yellow-700 border-yellow-300"><Clock className="size-3 mr-1" />Waiting</Badge>;
+      case 'Consulting':
+        return <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-300"><Stethoscope className="size-3 mr-1" />Consulting</Badge>;
+      case 'Completed':
+        return <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300"><CheckCircle2 className="size-3 mr-1" />Completed</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
+    }
+  };
+
+  return (
+    <Card className="mb-4">
+      <CardContent className="p-6">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-gray-200">
+                <th className="text-left py-3 px-4 text-gray-700 font-bold">Token No</th>
+                <th className="text-left py-3 px-4 text-gray-700 font-bold">Patient</th>
+                <th className="text-left py-3 px-4 text-gray-700 font-bold">Phone</th>
+                <th className="text-left py-3 px-4 text-gray-700 font-bold">Doctor</th>
+                <th className="text-left py-3 px-4 text-gray-700 font-bold">Date</th>
+                <th className="text-left py-3 px-4 text-gray-700 font-bold">Time</th>
+                <th className="text-left py-3 px-4 text-gray-700 font-bold">Status</th>
+                <th className="text-left py-3 px-4 text-gray-700 font-bold">Charges(₹)</th>
+                <th className="text-left py-3 px-4 text-gray-700 font-bold">Diagnosis</th>
+                <th className="text-left py-3 px-4 text-gray-700 font-bold">To Be Admitted</th>
+                <th className="text-left py-3 px-4 text-gray-700 font-bold">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {appointments.map((appointment) => {
+                const patient = patients.find(p => 
+                  (p as any).patientId === appointment.patientId || 
+                  (p as any).PatientId === appointment.patientId
+                );
+                const doctor = doctors.find(d => d.id.toString() === appointment.doctorId);
+                const patientName = patient 
+                  ? `${(patient as any).patientName || (patient as any).PatientName || ''} ${(patient as any).lastName || (patient as any).LastName || ''}`.trim() 
+                  : appointment.patientId === '00000000-0000-0000-0000-000000000001' 
+                    ? 'Dummy Patient Name' 
+                    : appointment.patientId;
+                const doctorName = doctor ? doctor.name : appointment.doctorId;
+                const patientPhone = patient 
+                  ? (patient as any).PhoneNo || (patient as any).phoneNo || (patient as any).phone || '-'
+                  : '-';
+                
+                return (
+                  <tr key={appointment.id} className="border-b border-gray-100 hover:bg-gray-50">
+                    <td className="py-1 px-4 text-gray-900 font-mono font-medium whitespace-nowrap">{appointment.tokenNo}</td>
+                    <td className="py-1 px-4 text-gray-600 whitespace-nowrap">{patientName}</td>
+                    <td className="py-1 px-4 text-gray-600 whitespace-nowrap">{patientPhone}</td>
+                    <td className="py-1 px-4 text-gray-600 whitespace-nowrap">{doctorName}</td>
+                    <td className="py-1 px-4 text-gray-600">{new Date(appointment.appointmentDate).toLocaleDateString()}</td>
+                    <td className="py-1 px-4 text-gray-600">{appointment.appointmentTime}</td>
+                    <td className="py-1 px-4">{getStatusBadge(appointment.appointmentStatus)}</td>
+                    <td className="py-1 px-4 text-gray-900 font-semibold">
+                      ₹{appointment.consultationCharge.toFixed(2)}
+                    </td>
+                    <td className="py-1 px-4 text-gray-600 max-w-xs truncate" title={appointment.diagnosis}>{appointment.diagnosis || '-'}</td>
+                    <td className="py-1 px-4">
+                      {appointment.toBeAdmitted ? (
+                        <Badge variant="outline" className="bg-red-100 text-red-700 border-red-300">
+                          <Hospital className="size-3 mr-1" />Yes
+                        </Badge>
+                      ) : (
+                        <span className="text-gray-500">No</span>
+                      )}
+                    </td>
+                    <td className="py-1 px-4">
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => onView(appointment)}
+                          className="h-8 w-8 p-0"
+                        >
+                          <Eye className="size-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => onEdit(appointment)}
+                          className="h-8 w-8 p-0"
+                        >
+                          <Edit className="size-4" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        {appointments.length === 0 && (
+          <div className="text-center py-12 text-gray-500">
+            No appointments found
           </div>
         )}
       </CardContent>
