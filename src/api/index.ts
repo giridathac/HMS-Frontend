@@ -4,4 +4,5 @@ export * from './patients';
 export * from './tokens';
 export * from './dashboard';
 export * from './appointments';
+export * from './admissions';
 
