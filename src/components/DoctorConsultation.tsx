@@ -28,6 +28,8 @@ export function DoctorConsultation() {
   const [editFormData, setEditFormData] = useState({
     patientId: '',
     doctorId: '',
+    appointmentDate: '',
+    appointmentTime: '',
     appointmentStatus: 'Waiting' as PatientAppointment['appointmentStatus'],
     consultationCharge: 0,
     diagnosis: '',
@@ -85,6 +87,8 @@ export function DoctorConsultation() {
   }, []);
 
   const filteredAppointments = patientAppointments.filter(appointment => {
+    if (!searchTerm) return true;
+    
     const patient = patients.find(p => 
       (p as any).patientId === appointment.patientId || 
       (p as any).PatientId === appointment.patientId
@@ -96,12 +100,21 @@ export function DoctorConsultation() {
         : appointment.patientId;
     const doctor = appointmentDoctors.find(d => d.id.toString() === appointment.doctorId);
     const doctorName = doctor ? doctor.name : appointment.doctorId;
+    const patientPhone = patient 
+      ? (patient as any).PhoneNo || (patient as any).phoneNo || (patient as any).phone || ''
+      : '';
+    const patientId = patient 
+      ? (patient as any).PatientNo || (patient as any).patientNo || appointment.patientId.substring(0, 8)
+      : appointment.patientId.substring(0, 8);
     
     const searchLower = searchTerm.toLowerCase();
     return (
+      appointment.tokenNo.toLowerCase().includes(searchLower) ||
       patientName.toLowerCase().includes(searchLower) ||
       doctorName.toLowerCase().includes(searchLower) ||
-      (appointment.diagnosis || '').toLowerCase().includes(searchLower)
+      patientPhone.includes(searchTerm) ||
+      patientId.toLowerCase().includes(searchLower) ||
+      appointment.patientId.toLowerCase().includes(searchLower)
     );
   });
 
@@ -112,7 +125,7 @@ export function DoctorConsultation() {
   if (loading) {
     return (
       <div className="p-8">
-        <div className="text-center py-12 text-gray-500">Loading appointments...</div>
+        <div className="text-center py-12 text-gray-700">Loading appointments...</div>
       </div>
     );
   }
@@ -131,7 +144,7 @@ export function DoctorConsultation() {
         <div className="flex items-center justify-between mb-4 flex-shrink-0">
           <div>
             <h1 className="text-gray-900 mb-0 text-xl">Doctor Consultation</h1>
-            <p className="text-gray-500 text-sm">Manage patient consultations</p>
+            <p className="text-gray-700 text-sm">Manage patient consultations</p>
           </div>
         </div>
       </div>
@@ -143,7 +156,7 @@ export function DoctorConsultation() {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-500 mb-1">Total Appointments</p>
+                    <p className="text-sm text-gray-700 mb-1">Total Appointments</p>
                     <h3 className="text-gray-900">{patientAppointments.length}</h3>
                   </div>
                 </div>
@@ -153,7 +166,7 @@ export function DoctorConsultation() {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-500 mb-1">Waiting</p>
+                    <p className="text-sm text-gray-700 mb-1">Waiting</p>
                     <h3 className="text-gray-900">{getAppointmentsByStatus('Waiting').length}</h3>
                   </div>
                   <div className="size-8 bg-yellow-100 rounded-full flex items-center justify-center">
@@ -166,7 +179,7 @@ export function DoctorConsultation() {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-500 mb-1">Consulting</p>
+                    <p className="text-sm text-gray-700 mb-1">Consulting</p>
                     <h3 className="text-gray-900">{getAppointmentsByStatus('Consulting').length}</h3>
                   </div>
                   <div className="size-8 bg-blue-100 rounded-full flex items-center justify-center">
@@ -179,7 +192,7 @@ export function DoctorConsultation() {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-500 mb-1">Completed</p>
+                    <p className="text-sm text-gray-700 mb-1">Completed</p>
                     <h3 className="text-gray-900">{getAppointmentsByStatus('Completed').length}</h3>
                   </div>
                   <div className="size-8 bg-green-100 rounded-full flex items-center justify-center">
@@ -191,24 +204,22 @@ export function DoctorConsultation() {
           </div>
 
           {/* Search */}
-          <Card className="mb-6">
-            <CardContent className="p-6">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
-                <Input
-                  placeholder="Search by patient, doctor, or diagnosis..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-            </CardContent>
-          </Card>
+          <div className="mb-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
+              <Input
+                placeholder="Search by token no, patient, or doctor..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+          </div>
 
           {/* Appointments by Status */}
           <Tabs defaultValue="all" className="space-y-6">
             <TabsList>
-              <TabsTrigger value="all">All Appointments ({patientAppointments.length})</TabsTrigger>
+              <TabsTrigger value="all">All Appointments ({filteredAppointments.length})</TabsTrigger>
               <TabsTrigger value="waiting">Waiting ({getAppointmentsByStatus('Waiting').length})</TabsTrigger>
               <TabsTrigger value="consulting">Consulting ({getAppointmentsByStatus('Consulting').length})</TabsTrigger>
               <TabsTrigger value="completed">Completed ({getAppointmentsByStatus('Completed').length})</TabsTrigger>
@@ -216,7 +227,7 @@ export function DoctorConsultation() {
 
             <TabsContent value="all">
               <AppointmentList 
-                appointments={patientAppointments} 
+                appointments={filteredAppointments} 
                 doctors={appointmentDoctors} 
                 patients={patients}
                 onView={(appointment) => {
@@ -228,6 +239,8 @@ export function DoctorConsultation() {
                   setEditFormData({
                     patientId: appointment.patientId,
                     doctorId: appointment.doctorId,
+                    appointmentDate: appointment.appointmentDate,
+                    appointmentTime: appointment.appointmentTime,
                     appointmentStatus: appointment.appointmentStatus,
                     consultationCharge: appointment.consultationCharge,
                     diagnosis: appointment.diagnosis || '',
@@ -259,6 +272,8 @@ export function DoctorConsultation() {
                   setEditFormData({
                     patientId: appointment.patientId,
                     doctorId: appointment.doctorId,
+                    appointmentDate: appointment.appointmentDate,
+                    appointmentTime: appointment.appointmentTime,
                     appointmentStatus: appointment.appointmentStatus,
                     consultationCharge: appointment.consultationCharge,
                     diagnosis: appointment.diagnosis || '',
@@ -290,6 +305,8 @@ export function DoctorConsultation() {
                   setEditFormData({
                     patientId: appointment.patientId,
                     doctorId: appointment.doctorId,
+                    appointmentDate: appointment.appointmentDate,
+                    appointmentTime: appointment.appointmentTime,
                     appointmentStatus: appointment.appointmentStatus,
                     consultationCharge: appointment.consultationCharge,
                     diagnosis: appointment.diagnosis || '',
@@ -321,6 +338,8 @@ export function DoctorConsultation() {
                   setEditFormData({
                     patientId: appointment.patientId,
                     doctorId: appointment.doctorId,
+                    appointmentDate: appointment.appointmentDate,
+                    appointmentTime: appointment.appointmentTime,
                     appointmentStatus: appointment.appointmentStatus,
                     consultationCharge: appointment.consultationCharge,
                     diagnosis: appointment.diagnosis || '',
@@ -344,8 +363,8 @@ export function DoctorConsultation() {
 
       {/* View Appointment Dialog */}
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
+        <DialogContent className="p-0 gap-0 large-dialog max-h-[90vh]">
+          <DialogHeader className="px-6 pt-4 pb-3 flex-shrink-0">
             <DialogTitle>View Patient Appointment</DialogTitle>
           </DialogHeader>
           {selectedAppointment && (() => {
@@ -358,75 +377,191 @@ export function DoctorConsultation() {
               ? `${(patient as any).patientName || (patient as any).PatientName || ''} ${(patient as any).lastName || (patient as any).LastName || ''}`.trim() 
               : selectedAppointment.patientId;
             const doctorName = doctor ? doctor.name : selectedAppointment.doctorId;
-            const patientPhone = patient 
-              ? (patient as any).PhoneNo || (patient as any).phoneNo || (patient as any).phone || '-'
-              : '-';
-
-            const getStatusBadge = (status: PatientAppointment['appointmentStatus']) => {
-              switch (status) {
-                case 'Waiting':
-                  return <Badge variant="outline" className="bg-yellow-100 text-yellow-700 border-yellow-300"><Clock className="size-3 mr-1" />Waiting</Badge>;
-                case 'Consulting':
-                  return <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-300"><Stethoscope className="size-3 mr-1" />Consulting</Badge>;
-                case 'Completed':
-                  return <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300"><CheckCircle2 className="size-3 mr-1" />Completed</Badge>;
-                default:
-                  return <Badge variant="outline">{status}</Badge>;
-              }
-            };
 
             return (
-              <div className="space-y-4 py-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>Patient</Label>
-                    <Input value={patientName} disabled className="bg-gray-50" />
-                  </div>
-                  <div>
-                    <Label>Phone</Label>
-                    <Input value={patientPhone} disabled className="bg-gray-50" />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>Doctor</Label>
-                    <Input value={doctorName} disabled className="bg-gray-50" />
-                  </div>
-                  <div>
-                    <Label>Status</Label>
-                    <div className="pt-2">{getStatusBadge(selectedAppointment.appointmentStatus)}</div>
-                  </div>
-                </div>
-                <div>
-                  <Label>Charges (₹)</Label>
-                  <Input value={`₹${selectedAppointment.consultationCharge.toFixed(2)}`} disabled className="bg-gray-50" />
-                </div>
-                <div>
-                  <Label>Diagnosis</Label>
-                  <Textarea value={selectedAppointment.diagnosis || '-'} disabled className="bg-gray-50" rows={3} />
-                </div>
-                {selectedAppointment.followUpDetails && (
-                  <div>
-                    <Label>Follow Up Details</Label>
-                    <Textarea value={selectedAppointment.followUpDetails} disabled className="bg-gray-50" rows={2} />
-                  </div>
-                )}
-                <div>
-                  <Label>To Be Admitted</Label>
-                  <div className="pt-2">
-                    {selectedAppointment.toBeAdmitted ? (
-                      <Badge variant="outline" className="bg-red-100 text-red-700 border-red-300">
-                        <Hospital className="size-3 mr-1" />Yes
-                      </Badge>
-                    ) : (
-                      <span className="text-gray-500">No</span>
+              <>
+                <div className="flex-1 overflow-y-auto px-6 pb-1 patient-list-scrollable min-h-0">
+                  <div className="space-y-4 py-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label>Patient *</Label>
+                        <Input
+                          value={(() => {
+                            const patient = patients.find(p => 
+                              (p as any).patientId === selectedAppointment.patientId || 
+                              (p as any).PatientId === selectedAppointment.patientId
+                            );
+                            if (patient) {
+                              const patientId = (patient as any).patientId || (patient as any).PatientId || '';
+                              const patientNo = (patient as any).patientNo || (patient as any).PatientNo || '';
+                              return `${patientNo ? `${patientNo} - ` : ''}${patientName} (ID: ${patientId.substring(0, 8)})`;
+                            }
+                            return `${patientName} (ID: ${selectedAppointment.patientId ? selectedAppointment.patientId.substring(0, 8) : 'N/A'})`;
+                          })()}
+                          disabled
+                          className="bg-gray-50 text-gray-700"
+                        />
+                      </div>
+                      <div>
+                        <Label>Doctor *</Label>
+                        <Input
+                          value={doctorName}
+                          disabled
+                          className="bg-gray-50 text-gray-700"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label>Appointment Date *</Label>
+                        <Input
+                          type="date"
+                          value={selectedAppointment.appointmentDate}
+                          disabled
+                          className="bg-gray-50 text-gray-700"
+                        />
+                      </div>
+                      <div>
+                        <Label>Appointment Time *</Label>
+                        <Input
+                          type="time"
+                          value={selectedAppointment.appointmentTime}
+                          disabled
+                          className="bg-gray-50 text-gray-700"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label>Appointment Status</Label>
+                        <Input
+                          value={selectedAppointment.appointmentStatus}
+                          disabled
+                          className="bg-gray-50 text-gray-700"
+                        />
+                      </div>
+                      <div>
+                        <Label>Consultation Charge (₹) *</Label>
+                        <Input
+                          type="number"
+                          value={selectedAppointment.consultationCharge}
+                          disabled
+                          className="bg-gray-50 text-gray-700"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <Label>Diagnosis</Label>
+                      <Textarea
+                        value={selectedAppointment.diagnosis || ''}
+                        disabled
+                        className="bg-gray-50 text-gray-700"
+                        rows={3}
+                      />
+                    </div>
+                    <div>
+                      <Label>Follow Up Details</Label>
+                      <Textarea
+                        value={selectedAppointment.followUpDetails || ''}
+                        disabled
+                        className="bg-gray-50 text-gray-700"
+                        rows={2}
+                      />
+                    </div>
+                    <div>
+                      <Label>Prescriptions URL</Label>
+                      <Input
+                        type="url"
+                        value={selectedAppointment.prescriptionsUrl || ''}
+                        disabled
+                        className="bg-gray-50 text-gray-700"
+                      />
+                      <p className="text-xs text-gray-700 mt-1">Folder URL - multiple prescriptions should be saved</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="view-toBeAdmitted"
+                        aria-label="To Be Admitted (Yes - converted to IPD)"
+                        checked={selectedAppointment.toBeAdmitted}
+                        disabled
+                        className="rounded"
+                      />
+                      <Label htmlFor="view-toBeAdmitted">To Be Admitted (Yes - converted to IPD)</Label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="view-referToAnotherDoctor"
+                        aria-label="Refer To Another Doctor"
+                        checked={selectedAppointment.referToAnotherDoctor}
+                        disabled
+                        className="rounded"
+                      />
+                      <Label htmlFor="view-referToAnotherDoctor">Refer To Another Doctor</Label>
+                    </div>
+                    {selectedAppointment.referToAnotherDoctor && (
+                      <div>
+                        <Label>Referred Doctor *</Label>
+                        <Input
+                          value={(() => {
+                            const referredDoctor = appointmentDoctors.find(d => d.id.toString() === selectedAppointment.referredDoctorId);
+                            return referredDoctor ? `${referredDoctor.name} - ${referredDoctor.specialty}` : selectedAppointment.referredDoctorId || '';
+                          })()}
+                          disabled
+                          className="bg-gray-50 text-gray-700"
+                        />
+                        <p className="text-xs text-gray-700 mt-1">Once this is made as Yes, Appointment created for this doctor id</p>
+                      </div>
                     )}
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="view-transferToIPDOTICU"
+                        aria-label="Transfer to IPD/OT/ICU"
+                        checked={selectedAppointment.transferToIPDOTICU}
+                        disabled
+                        className="rounded"
+                      />
+                      <Label htmlFor="view-transferToIPDOTICU">Transfer To IPD/OT/ICU</Label>
+                    </div>
+                    {selectedAppointment.transferToIPDOTICU && (
+                      <div>
+                        <Label>Transfer To *</Label>
+                        <Input
+                          value={selectedAppointment.transferTo || ''}
+                          disabled
+                          className="bg-gray-50 text-gray-700"
+                        />
+                      </div>
+                    )}
+                    {selectedAppointment.transferToIPDOTICU && (
+                      <div>
+                        <Label>Transfer Details</Label>
+                        <Textarea
+                          value={selectedAppointment.transferDetails || ''}
+                          disabled
+                          className="bg-gray-50 text-gray-700"
+                          rows={2}
+                        />
+                      </div>
+                    )}
+                    <div>
+                      <Label>Bill ID</Label>
+                      <Input
+                        type="text"
+                        value={selectedAppointment.billId || ''}
+                        disabled
+                        className="bg-gray-50 text-gray-700"
+                      />
+                      <p className="text-xs text-gray-700 mt-1">Foreign Key to BillId</p>
+                    </div>
                   </div>
                 </div>
-                <div className="flex justify-end gap-2 pt-4">
-                  <Button variant="outline" onClick={() => setIsViewDialogOpen(false)}>Close</Button>
+                <div className="flex justify-end gap-2 px-6 py-2 border-t bg-gray-50 flex-shrink-0">
+                  <Button variant="outline" onClick={() => setIsViewDialogOpen(false)} className="py-1">Close</Button>
                 </div>
-              </div>
+              </>
             );
           })()}
         </DialogContent>
@@ -445,52 +580,61 @@ export function DoctorConsultation() {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="edit-patientId">Patient *</Label>
-                      <select
+                      <Input
                         id="edit-patientId"
-                        aria-label="Patient"
-                        className="w-full px-3 py-2 border border-gray-200 rounded-md"
-                        value={editFormData.patientId}
-                        onChange={(e) => setEditFormData({ ...editFormData, patientId: e.target.value })}
-                      >
-                        <option value="">Select Patient</option>
-                        {patients.length > 0 ? (
-                          patients.map(patient => {
+                        value={(() => {
+                          const patient = patients.find(p => 
+                            (p as any).patientId === editFormData.patientId || 
+                            (p as any).PatientId === editFormData.patientId
+                          );
+                          if (patient) {
                             const patientId = (patient as any).patientId || (patient as any).PatientId || '';
+                            const patientNo = (patient as any).patientNo || (patient as any).PatientNo || '';
                             const patientName = (patient as any).patientName || (patient as any).PatientName || '';
                             const lastName = (patient as any).lastName || (patient as any).LastName || '';
-                            return (
-                              <option key={patientId} value={patientId}>
-                                {patientName} {lastName}
-                              </option>
-                            );
-                          })
-                        ) : (
-                          <>
-                            <option value="00000000-0000-0000-0000-000000000001">Dummy Patient Name</option>
-                          </>
-                        )}
-                      </select>
+                            const fullName = `${patientName} ${lastName}`.trim();
+                            return `${patientNo ? `${patientNo} - ` : ''}${fullName || 'Unknown'} (ID: ${patientId.substring(0, 8)})`;
+                          }
+                          return `Unknown (ID: ${editFormData.patientId ? editFormData.patientId.substring(0, 8) : 'N/A'})`;
+                        })()}
+                        disabled
+                        className="bg-gray-50 text-gray-700"
+                      />
                     </div>
                     <div>
                       <Label htmlFor="edit-doctorId">Doctor *</Label>
-                      <select
+                      <Input
                         id="edit-doctorId"
-                        aria-label="Doctor"
-                        className="w-full px-3 py-2 border border-gray-200 rounded-md"
-                        value={editFormData.doctorId}
-                        onChange={(e) => setEditFormData({ ...editFormData, doctorId: e.target.value })}
-                      >
-                        <option value="">Select Doctor</option>
-                        {appointmentDoctors.length > 0 ? (
-                          appointmentDoctors.map(doctor => (
-                            <option key={doctor.id} value={doctor.id.toString()}>
-                              {doctor.name} - {doctor.specialty}
-                            </option>
-                          ))
-                        ) : (
-                          <option value="" disabled>No doctors available</option>
-                        )}
-                      </select>
+                        value={(() => {
+                          const doctor = appointmentDoctors.find(d => d.id.toString() === editFormData.doctorId);
+                          if (doctor) {
+                            return `${doctor.name} - ${doctor.specialty}`;
+                          }
+                          return editFormData.doctorId || 'Unknown';
+                        })()}
+                        disabled
+                        className="bg-gray-50 text-gray-700"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="edit-appointmentDate">Appointment Date *</Label>
+                      <Input
+                        id="edit-appointmentDate"
+                        type="date"
+                        value={editFormData.appointmentDate}
+                        onChange={(e) => setEditFormData({ ...editFormData, appointmentDate: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-appointmentTime">Appointment Time *</Label>
+                      <Input
+                        id="edit-appointmentTime"
+                        type="time"
+                        value={editFormData.appointmentTime}
+                        onChange={(e) => setEditFormData({ ...editFormData, appointmentTime: e.target.value })}
+                      />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
@@ -550,7 +694,7 @@ export function DoctorConsultation() {
                       value={editFormData.prescriptionsUrl}
                       onChange={(e) => setEditFormData({ ...editFormData, prescriptionsUrl: e.target.value })}
                     />
-                    <p className="text-xs text-gray-500 mt-1">Folder URL - multiple prescriptions should be saved</p>
+                    <p className="text-xs text-gray-700 mt-1">Folder URL - multiple prescriptions should be saved</p>
                   </div>
                   <div className="flex items-center gap-2">
                     <input
@@ -600,7 +744,7 @@ export function DoctorConsultation() {
                           <option value="" disabled>No doctors available</option>
                         )}
                       </select>
-                      <p className="text-xs text-gray-500 mt-1">Once this is made as Yes, Appointment created for this doctor id</p>
+                      <p className="text-xs text-gray-700 mt-1">Once this is made as Yes, Appointment created for this doctor id</p>
                     </div>
                   )}
                   <div className="flex items-center gap-2">
@@ -652,7 +796,7 @@ export function DoctorConsultation() {
                       value={editFormData.billId}
                       onChange={(e) => setEditFormData({ ...editFormData, billId: e.target.value })}
                     />
-                    <p className="text-xs text-gray-500 mt-1">Foreign Key to BillId</p>
+                    <p className="text-xs text-gray-700 mt-1">Foreign Key to BillId</p>
                   </div>
                 </div>
               </div>
@@ -661,7 +805,7 @@ export function DoctorConsultation() {
                 <Button 
                   onClick={async () => {
                     if (!selectedAppointment) return;
-                    if (!editFormData.patientId || !editFormData.doctorId) {
+                    if (!editFormData.patientId || !editFormData.doctorId || !editFormData.appointmentDate || !editFormData.appointmentTime) {
                       alert('Please fill in all required fields.');
                       return;
                     }
@@ -678,6 +822,8 @@ export function DoctorConsultation() {
                         id: selectedAppointment.id,
                         patientId: editFormData.patientId,
                         doctorId: editFormData.doctorId,
+                        appointmentDate: editFormData.appointmentDate,
+                        appointmentTime: editFormData.appointmentTime,
                         appointmentStatus: editFormData.appointmentStatus,
                         consultationCharge: editFormData.consultationCharge,
                         diagnosis: editFormData.diagnosis || undefined,
@@ -791,7 +937,7 @@ function AppointmentList({
                           <Hospital className="size-3 mr-1" />Yes
                         </Badge>
                       ) : (
-                        <span className="text-gray-500 text-sm">No</span>
+                        <span className="text-gray-700 text-sm">No</span>
                       )}
                     </td>
                     <td className="py-1 px-2">
@@ -821,7 +967,7 @@ function AppointmentList({
           </table>
         </div>
         {appointments.length === 0 && (
-          <div className="text-center py-12 text-gray-500">
+          <div className="text-center py-12 text-gray-700">
             No appointments found
           </div>
         )}

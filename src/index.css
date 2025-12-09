@@ -2433,7 +2433,7 @@ html {
 .ot-scrollable,
 .icu-scrollable {
   scrollbar-width: auto;
-  scrollbar-color: #64748b #f1f5f9;
+  scrollbar-color: #9ca3af #000000;
 }
 
 .dashboard-scrollable::-webkit-scrollbar,
@@ -2448,7 +2448,7 @@ html {
 .frontdesk-scrollable::-webkit-scrollbar-track,
 .ot-scrollable::-webkit-scrollbar-track,
 .icu-scrollable::-webkit-scrollbar-track {
-  background: #f1f5f9;
+  background: #000000;
   border-radius: 6px;
 }
 
@@ -2456,16 +2456,41 @@ html {
 .frontdesk-scrollable::-webkit-scrollbar-thumb,
 .ot-scrollable::-webkit-scrollbar-thumb,
 .icu-scrollable::-webkit-scrollbar-thumb {
-  background: #64748b;
+  background: #9ca3af;
   border-radius: 6px;
-  border: 2px solid #f1f5f9;
+  border: 2px solid #000000;
 }
 
 .dashboard-scrollable::-webkit-scrollbar-thumb:hover,
 .frontdesk-scrollable::-webkit-scrollbar-thumb:hover,
 .ot-scrollable::-webkit-scrollbar-thumb:hover,
 .icu-scrollable::-webkit-scrollbar-thumb:hover {
-  background: #475569;
+  background: #d1d5db;
+}
+
+/* Custom scrollbar styling for left panel navigation */
+nav.overflow-y-auto::-webkit-scrollbar {
+  width: 8px;
+}
+
+nav.overflow-y-auto::-webkit-scrollbar-track {
+  background: #000000;
+  border-radius: 4px;
+}
+
+nav.overflow-y-auto::-webkit-scrollbar-thumb {
+  background: #9ca3af;
+  border-radius: 4px;
+  border: 2px solid #000000;
+}
+
+nav.overflow-y-auto::-webkit-scrollbar-thumb:hover {
+  background: #d1d5db;
+}
+
+nav.overflow-y-auto {
+  scrollbar-width: thin;
+  scrollbar-color: #9ca3af #000000;
 }
 
 /* Custom scrollbar styling for doctors management */

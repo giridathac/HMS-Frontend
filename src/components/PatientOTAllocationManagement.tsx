@@ -159,16 +159,16 @@ export function PatientOTAllocationManagement() {
   // Fetch all emergency bed slots on component load
   useEffect(() => {
     const fetchEmergencyBedSlots = async () => {
-      try {
-        const { emergencyBedSlotsApi } = await import('../api/emergencyBedSlots');
+        try {
+          const { emergencyBedSlotsApi } = await import('../api/emergencyBedSlots');
         // Fetch all emergency bed slots
         const allSlots = await emergencyBedSlotsApi.getAll();
         setEmergencyBedSlots(allSlots);
-      } catch (err) {
-        console.error('Failed to fetch emergency bed slots:', err);
-        setEmergencyBedSlots([]);
-      }
-    };
+        } catch (err) {
+          console.error('Failed to fetch emergency bed slots:', err);
+          setEmergencyBedSlots([]);
+        }
+      };
     fetchEmergencyBedSlots();
   }, []);
 
@@ -597,19 +597,19 @@ export function PatientOTAllocationManagement() {
                         return (
                           <option key={appointment.patientAppointmentId} value={appointment.id.toString()}>
                             {appointment.patientAppointmentId} - {appointment.tokenNo} (Patient ID: {patientNo})
-                          </option>
+                        </option>
                         );
                       })}
                     </select>
                   </div>
 
-                  <div>
-                    <Label htmlFor="add-emergencyBedSlotId">Emergency Bed Slot (Optional)</Label>
-                    <select
-                      id="add-emergencyBedSlotId"
-                      aria-label="Emergency Bed Slot"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-md"
-                      value={formData.emergencyBedSlotId}
+                    <div>
+                      <Label htmlFor="add-emergencyBedSlotId">Emergency Bed Slot (Optional)</Label>
+                      <select
+                        id="add-emergencyBedSlotId"
+                        aria-label="Emergency Bed Slot"
+                        className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                        value={formData.emergencyBedSlotId}
                       onChange={(e) => {
                         setFormData({ ...formData, emergencyBedSlotId: e.target.value, patientId: '', roomAdmissionId: '', patientAppointmentId: '' });
                         // Set emergency bed ID from the selected slot for reference
@@ -618,8 +618,8 @@ export function PatientOTAllocationManagement() {
                           setSelectedEmergencyBedId((slot as any).emergencyBedId);
                         }
                       }}
-                    >
-                      <option value="">Select Emergency Bed Slot</option>
+                      >
+                        <option value="">Select Emergency Bed Slot</option>
                       {emergencyBedSlots.map(slot => {
                         const bed = emergencyBeds.find(b => b.id === ((slot as any).emergencyBedId || slot.id));
                         return (
@@ -628,29 +628,29 @@ export function PatientOTAllocationManagement() {
                           </option>
                         );
                       })}
-                    </select>
-                  </div>
+                      </select>
+                    </div>
 
                   <div className="border-t pt-4">
-                    <div>
-                      <Label htmlFor="add-otId">OT *</Label>
-                      <select
-                        id="add-otId"
-                        aria-label="OT"
-                        className="w-full px-3 py-2 border border-gray-200 rounded-md"
-                        value={formData.otId}
-                        onChange={(e) => {
-                          setSelectedOTId(e.target.value);
+                      <div>
+                        <Label htmlFor="add-otId">OT *</Label>
+                        <select
+                          id="add-otId"
+                          aria-label="OT"
+                          className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                          value={formData.otId}
+                          onChange={(e) => {
+                            setSelectedOTId(e.target.value);
                           setFormData({ ...formData, otId: e.target.value });
-                        }}
-                      >
-                        <option value="">Select OT</option>
-                        {otRooms.map(ot => (
-                          <option key={ot.id} value={ot.id.toString()}>
-                            {ot.otNo} - {ot.otName} ({ot.otType})
-                          </option>
-                        ))}
-                      </select>
+                          }}
+                        >
+                          <option value="">Select OT</option>
+                          {otRooms.map(ot => (
+                            <option key={ot.id} value={ot.id.toString()}>
+                              {ot.otNo} - {ot.otName} ({ot.otType})
+                            </option>
+                          ))}
+                        </select>
                     </div>
                   </div>
 
@@ -1082,19 +1082,19 @@ export function PatientOTAllocationManagement() {
                     return (
                       <option key={appointment.patientAppointmentId} value={appointment.id.toString()}>
                         {appointment.patientAppointmentId} - {appointment.tokenNo} (Patient ID: {patientNo})
-                      </option>
+                    </option>
                     );
                   })}
                 </select>
               </div>
 
-              <div>
-                <Label htmlFor="edit-emergencyBedSlotId">Emergency Bed Slot (Optional)</Label>
-                <select
-                  id="edit-emergencyBedSlotId"
-                  aria-label="Emergency Bed Slot"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-md"
-                  value={formData.emergencyBedSlotId}
+                <div>
+                  <Label htmlFor="edit-emergencyBedSlotId">Emergency Bed Slot (Optional)</Label>
+                  <select
+                    id="edit-emergencyBedSlotId"
+                    aria-label="Emergency Bed Slot"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                    value={formData.emergencyBedSlotId}
                   onChange={(e) => {
                     setFormData({ ...formData, emergencyBedSlotId: e.target.value, patientId: '', roomAdmissionId: '', patientAppointmentId: '' });
                     const slot = emergencyBedSlots.find(s => s.id.toString() === e.target.value);
@@ -1102,8 +1102,8 @@ export function PatientOTAllocationManagement() {
                       setSelectedEmergencyBedId((slot as any).emergencyBedId);
                     }
                   }}
-                >
-                  <option value="">Select Emergency Bed Slot</option>
+                  >
+                    <option value="">Select Emergency Bed Slot</option>
                   {emergencyBedSlots.map(slot => {
                     const bed = emergencyBeds.find(b => b.id === ((slot as any).emergencyBedId || slot.id));
                     return (
@@ -1112,8 +1112,8 @@ export function PatientOTAllocationManagement() {
                       </option>
                     );
                   })}
-                </select>
-              </div>
+                  </select>
+                </div>
 
               <div className="border-t pt-4">
                 <div className="grid grid-cols-2 gap-4">

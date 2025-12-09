@@ -245,3 +245,28 @@ export interface PatientOTAllocation {
   status: 'Active' | 'InActive';
 }
 
+export interface EmergencyAdmission {
+  id: number;
+  emergencyAdmissionId: number;
+  doctorId: number;
+  patientId: string; // UUID
+  emergencyBedSlotId?: number;
+  emergencyAdmissionDate: string;
+  emergencyStatus: 'Admitted' | 'IPD' | 'OT' | 'ICU' | 'Discharged';
+  diagnosis?: string;
+  treatmentDetails?: string; // Note: API may use "TreatementDetails" (typo)
+  patientCondition: 'Critical' | 'Stable';
+  transferToIPDOTICU: boolean;
+  transferTo?: 'IPD Room Admission' | 'ICU' | 'OT';
+  transferDetails?: string;
+  admissionCreatedBy?: number;
+  admissionCreatedAt?: string;
+  status: 'Active' | 'Inactive';
+  // Additional response fields
+  patientName?: string;
+  patientNo?: string;
+  doctorName?: string;
+  emergencyBedSlotNo?: string;
+  createdByName?: string;
+}
+

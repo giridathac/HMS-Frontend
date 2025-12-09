@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -9,7 +9,14 @@ import { Badge } from './ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Siren, Plus, Ambulance, AlertTriangle, BedDouble, ArrowRight, Clock, Edit, Trash2, CheckCircle2, XCircle } from 'lucide-react';
 import { useEmergencyBeds } from '../hooks/useEmergencyBeds';
-import { EmergencyBed } from '../types';
+import { useEmergencyBedSlots } from '../hooks/useEmergencyBedSlots';
+import { useEmergencyAdmissions } from '../hooks/useEmergencyAdmissions';
+import { useStaff } from '../hooks/useStaff';
+import { useRoles } from '../hooks/useRoles';
+import { patientsApi } from '../api/patients';
+import { EmergencyBed, EmergencyAdmission, Patient } from '../types';
+import { UpdateEmergencyAdmissionDto } from '../api/emergencyAdmissions';
+import { EmergencyAdmissionManagement } from './EmergencyAdmissionManagement';
 
 interface EmergencyPatient {
   id: number;
@@ -157,12 +164,42 @@ export function Emergency() {
   const [patients, setPatients] = useState<EmergencyPatient[]>(mockEmergencyPatients);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<EmergencyPatient | null>(null);
+  const [selectedSlotId, setSelectedSlotId] = useState<number | null>(null);
+  const [showEmergencyAdmissionEdit, setShowEmergencyAdmissionEdit] = useState(false);
+  
+  const { emergencyBeds } = useEmergencyBeds();
+  const { emergencyBedSlots } = useEmergencyBedSlots();
+  const { emergencyAdmissions } = useEmergencyAdmissions();
+
+  // Get all active emergency bed slots with their bed and admission info
+  const bedSlotsWithInfo = useMemo(() => {
+    return emergencyBedSlots
+      .filter(slot => slot.status === 'Active')
+      .map(slot => {
+        const bed = emergencyBeds.find(b => b.id === slot.emergencyBedId);
+        const admission = emergencyAdmissions.find(a => a.emergencyBedSlotId === slot.id);
+        return {
+          slot,
+          bed,
+          admission,
+          roomNameNo: bed?.emergencyRoomNameNo || '-',
+          bedId: bed?.emergencyBedId || '-',
+          bedNo: bed?.emergencyBedNo || '-',
+          slotNo: slot.eBedSlotNo,
+        };
+      });
+  }, [emergencyBedSlots, emergencyBeds, emergencyAdmissions]);
 
   const redPatients = patients.filter(p => p.triageLevel === 'Red');
   const yellowPatients = patients.filter(p => p.triageLevel === 'Yellow');
   const greenPatients = patients.filter(p => p.triageLevel === 'Green');
-  const occupiedBeds = emergencyBeds.filter(b => b.status === 'Occupied').length;
+  const occupiedBeds = bedSlotsWithInfo.filter(b => b.admission).length;
   const ambulanceArrivals = patients.filter(p => p.arrivalMode === 'Ambulance').length;
+
+  const handleSlotClick = (slotId: number) => {
+    setSelectedSlotId(slotId);
+    setShowEmergencyAdmissionEdit(true);
+  };
 
   return (
     <div className="px-4 pt-4 pb-4 bg-blue-100 h-screen flex flex-col overflow-hidden">
@@ -318,8 +355,8 @@ export function Emergency() {
               <p className="text-sm text-gray-500">Beds Occupied</p>
               <BedDouble className="size-5 text-blue-600" />
             </div>
-            <h3 className="text-gray-900">{occupiedBeds}/10</h3>
-            <p className="text-xs text-gray-500">{10 - occupiedBeds} available</p>
+            <h3 className="text-gray-900">{occupiedBeds}/{bedSlotsWithInfo.length}</h3>
+            <p className="text-xs text-gray-500">{bedSlotsWithInfo.length - occupiedBeds} available</p>
           </CardContent>
         </Card>
 
@@ -343,50 +380,39 @@ export function Emergency() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-5 gap-3">
-              {emergencyBeds.map((bed) => (
-                <button
-                  key={bed.bedNumber}
-                  onClick={() => bed.patient && setSelectedPatient(bed.patient)}
-                  className={`p-4 border-2 rounded-lg text-center transition-all ${
-                    bed.status === 'Occupied'
-                      ? bed.patient?.triageLevel === 'Red'
-                        ? 'border-red-300 bg-red-50 hover:border-red-400'
-                        : bed.patient?.triageLevel === 'Yellow'
-                        ? 'border-yellow-300 bg-yellow-50 hover:border-yellow-400'
-                        : 'border-green-300 bg-green-50 hover:border-green-400'
-                      : 'border-gray-200 bg-gray-50 hover:border-gray-300'
-                  }`}
-                >
-                  <p className="text-sm text-gray-900 mb-1">{bed.bedNumber}</p>
-                  <div className="flex items-center justify-center gap-1">
-                    <span className={`size-2 rounded-full ${
-                      bed.status === 'Occupied'
-                        ? bed.patient?.triageLevel === 'Red'
-                          ? 'bg-red-600'
-                          : bed.patient?.triageLevel === 'Yellow'
-                          ? 'bg-yellow-600'
-                          : 'bg-green-600'
-                        : 'bg-gray-300'
-                    }`} />
-                  </div>
-                  {bed.patient && (
-                    <p className="text-xs text-gray-600 mt-1 truncate">{bed.patient.patientName}</p>
-                  )}
-                </button>
-              ))}
+              {bedSlotsWithInfo.map((slotInfo) => {
+                const isOccupied = !!slotInfo.admission;
+                return (
+                  <button
+                    key={slotInfo.slot.id}
+                    onClick={() => handleSlotClick(slotInfo.slot.id)}
+                    className={`p-3 border-2 rounded-lg text-center transition-all ${
+                      isOccupied
+                        ? 'border-blue-300 bg-blue-50 hover:border-blue-400 hover:bg-blue-100 cursor-pointer'
+                        : 'border-gray-200 bg-gray-50 hover:border-gray-300 cursor-pointer'
+                    }`}
+                  >
+                    <p className="text-xs text-gray-600 mb-1">Room: {slotInfo.roomNameNo}</p>
+                    <p className="text-xs text-gray-600 mb-1">Bed: {slotInfo.bedId}</p>
+                    <p className="text-sm font-medium text-gray-900 mb-1">Slot: {slotInfo.slotNo}</p>
+                    <div className="flex items-center justify-center gap-1">
+                      <span className={`size-2 rounded-full ${
+                        isOccupied ? 'bg-blue-600' : 'bg-gray-300'
+                      }`} />
+                    </div>
+                    {isOccupied && slotInfo.admission && (
+                      <p className="text-xs text-gray-600 mt-1 truncate">
+                        {slotInfo.admission.patientName || 'Occupied'}
+                      </p>
+                    )}
+                  </button>
+                );
+              })}
             </div>
             <div className="mt-6 flex items-center justify-center gap-6 text-sm">
               <div className="flex items-center gap-2">
-                <span className="size-3 rounded-full bg-red-600" />
-                <span className="text-gray-600">Critical</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="size-3 rounded-full bg-yellow-600" />
-                <span className="text-gray-600">Urgent</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="size-3 rounded-full bg-green-600" />
-                <span className="text-gray-600">Non-Urgent</span>
+                <span className="size-3 rounded-full bg-blue-600" />
+                <span className="text-gray-600">Occupied</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="size-3 rounded-full bg-gray-300" />
@@ -586,9 +612,364 @@ export function Emergency() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Emergency Bed Slot Dialog */}
+      {showEmergencyAdmissionEdit && selectedSlotId && (
+        <EmergencyBedSlotDialog
+          slotId={selectedSlotId}
+          onClose={() => {
+            setShowEmergencyAdmissionEdit(false);
+            setSelectedSlotId(null);
+          }}
+        />
+      )}
       </div>
       </div>
     </div>
+  );
+}
+
+// Component to handle emergency bed slot dialog with admission details
+function EmergencyBedSlotDialog({ slotId, onClose }: { slotId: number; onClose: () => void }) {
+  const { emergencyAdmissions, updateEmergencyAdmission } = useEmergencyAdmissions();
+  const { emergencyBedSlots } = useEmergencyBedSlots();
+  const { emergencyBeds } = useEmergencyBeds();
+  const { staff } = useStaff();
+  const { roles } = useRoles();
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [isEditMode, setIsEditMode] = useState(false);
+  
+  const slot = emergencyBedSlots.find(s => s.id === slotId);
+  const bed = slot ? emergencyBeds.find(b => b.id === slot.emergencyBedId) : null;
+  const admission = emergencyAdmissions.find(a => a.emergencyBedSlotId === slotId);
+  
+  // Filter staff to get doctors
+  const doctors = useMemo(() => {
+    if (!staff || !roles) return [];
+    return staff
+      .filter((member) => {
+        if (!member.RoleId) return false;
+        const role = roles.find(r => r.id === member.RoleId);
+        if (!role || !role.name) return false;
+        const roleNameLower = role.name.toLowerCase();
+        return roleNameLower.includes('doctor') || roleNameLower.includes('surgeon');
+      })
+      .map((member) => ({
+        id: member.UserId || 0,
+        name: member.UserName || 'Unknown',
+        role: roles.find(r => r.id === member.RoleId)?.name || 'Unknown',
+      }));
+  }, [staff, roles]);
+
+  // Fetch patients
+  useEffect(() => {
+    const fetchPatients = async () => {
+      try {
+        const patientsData = await patientsApi.getAll();
+        setPatients(patientsData);
+      } catch (err) {
+        console.error('Failed to fetch patients:', err);
+      }
+    };
+    fetchPatients();
+  }, []);
+
+  const [editFormData, setEditFormData] = useState({
+    diagnosis: '',
+    treatmentDetails: '',
+    patientCondition: 'Stable' as EmergencyAdmission['patientCondition'],
+    emergencyStatus: 'Admitted' as EmergencyAdmission['emergencyStatus'],
+    transferToIPDOTICU: false,
+    transferTo: undefined as 'IPD Room Admission' | 'ICU' | 'OT' | undefined,
+    transferDetails: '',
+  });
+
+  useEffect(() => {
+    if (admission) {
+      setEditFormData({
+        diagnosis: admission.diagnosis || '',
+        treatmentDetails: admission.treatmentDetails || '',
+        patientCondition: admission.patientCondition,
+        emergencyStatus: admission.emergencyStatus,
+        transferToIPDOTICU: admission.transferToIPD || admission.transferToOT || admission.transferToICU || false,
+        transferTo: admission.transferToIPD ? 'IPD Room Admission' : admission.transferToOT ? 'OT' : admission.transferToICU ? 'ICU' : undefined,
+        transferDetails: admission.transferDetails || '',
+      });
+    }
+  }, [admission]);
+
+  const handleUpdate = async () => {
+    if (!admission) return;
+    
+    let transferToIPD: 'Yes' | 'No' = 'No';
+    let transferToOT: 'Yes' | 'No' = 'No';
+    let transferToICU: 'Yes' | 'No' = 'No';
+    
+    if (editFormData.transferToIPDOTICU && editFormData.transferTo) {
+      if (editFormData.transferTo === 'IPD Room Admission') {
+        transferToIPD = 'Yes';
+      } else if (editFormData.transferTo === 'OT') {
+        transferToOT = 'Yes';
+      } else if (editFormData.transferTo === 'ICU') {
+        transferToICU = 'Yes';
+      }
+    }
+
+    try {
+      await updateEmergencyAdmission({
+        emergencyAdmissionId: admission.emergencyAdmissionId,
+        diagnosis: editFormData.diagnosis || null,
+        treatmentDetails: editFormData.treatmentDetails || null,
+        patientCondition: editFormData.patientCondition,
+        emergencyStatus: editFormData.emergencyStatus,
+        transferToIPD: transferToIPD,
+        transferToOT: transferToOT,
+        transferToICU: transferToICU,
+        transferTo: editFormData.transferTo,
+        transferDetails: editFormData.transferDetails || null,
+        status: admission.status,
+      });
+      setIsEditMode(false);
+      alert('Emergency admission updated successfully');
+    } catch (err) {
+      console.error('Failed to update emergency admission:', err);
+      alert('Failed to update emergency admission');
+    }
+  };
+
+  if (!slot || !bed) {
+    return null;
+  }
+
+  const getPatientName = () => {
+    if (!admission) return 'No Admission';
+    if (admission.patientName) return admission.patientName;
+    const patient = patients.find(p => {
+      const pid = (p as any).patientId || (p as any).PatientId || '';
+      return pid === admission.patientId;
+    });
+    if (patient) {
+      const patientName = (patient as any).patientName || (patient as any).PatientName || '';
+      const lastName = (patient as any).lastName || (patient as any).LastName || '';
+      return `${patientName} ${lastName}`.trim() || 'Unknown';
+    }
+    return 'Unknown';
+  };
+
+  const getDoctorName = () => {
+    if (!admission) return 'No Admission';
+    if (admission.doctorName) return admission.doctorName;
+    const doctor = doctors.find(d => d.id === admission.doctorId);
+    return doctor ? `${doctor.name} - ${doctor.role}` : 'Unknown';
+  };
+
+  return (
+    <Dialog open={true} onOpenChange={onClose}>
+      <DialogContent className="p-0 gap-0 large-dialog max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogHeader className="px-6 pt-4 pb-3 flex-shrink-0">
+          <div className="flex items-center justify-between">
+            <DialogTitle>Emergency Bed Slot Details</DialogTitle>
+            {admission && !isEditMode && (
+              <Button variant="outline" size="sm" onClick={() => setIsEditMode(true)}>
+                <Edit className="size-4 mr-2" />
+                Edit Admission
+              </Button>
+            )}
+          </div>
+        </DialogHeader>
+        <div className="flex-1 overflow-y-auto px-6 pb-1 patient-list-scrollable min-h-0">
+          <div className="space-y-4 py-4">
+            {/* Slot Information */}
+            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <h3 className="text-sm font-semibold text-blue-900 mb-3">Bed Slot Information</h3>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <p className="text-gray-600">Room Name/No:</p>
+                  <p className="text-gray-900 font-medium">{bed.emergencyRoomNameNo || '-'}</p>
+                </div>
+                <div>
+                  <p className="text-gray-600">Bed ID:</p>
+                  <p className="text-gray-900 font-medium">{bed.emergencyBedId}</p>
+                </div>
+                <div>
+                  <p className="text-gray-600">Bed No:</p>
+                  <p className="text-gray-900 font-medium">{bed.emergencyBedNo}</p>
+                </div>
+                <div>
+                  <p className="text-gray-600">Slot No:</p>
+                  <p className="text-gray-900 font-medium">{slot.eBedSlotNo}</p>
+                </div>
+                <div>
+                  <p className="text-gray-600">Slot Time:</p>
+                  <p className="text-gray-900 font-medium">{slot.eSlotStartTime} - {slot.eSlotEndTime}</p>
+                </div>
+                <div>
+                  <p className="text-gray-600">Slot Status:</p>
+                  <p className="text-gray-900 font-medium">{slot.status}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Admission Information */}
+            {admission ? (
+              <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                <h3 className="text-sm font-semibold text-green-900 mb-3">Admission Information</h3>
+                {!isEditMode ? (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <p className="text-gray-600">Admission ID:</p>
+                        <p className="text-gray-900 font-medium">{admission.emergencyAdmissionId}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-600">Patient:</p>
+                        <p className="text-gray-900 font-medium">{getPatientName()}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-600">Doctor:</p>
+                        <p className="text-gray-900 font-medium">{getDoctorName()}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-600">Admission Date:</p>
+                        <p className="text-gray-900 font-medium">{admission.emergencyAdmissionDate}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-600">Status:</p>
+                        <p className="text-gray-900 font-medium">{admission.emergencyStatus}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-600">Patient Condition:</p>
+                        <p className="text-gray-900 font-medium">{admission.patientCondition}</p>
+                      </div>
+                    </div>
+                    {admission.diagnosis && (
+                      <div>
+                        <p className="text-gray-600 text-sm mb-1">Diagnosis:</p>
+                        <p className="text-gray-900">{admission.diagnosis}</p>
+                      </div>
+                    )}
+                    {admission.treatmentDetails && (
+                      <div>
+                        <p className="text-gray-600 text-sm mb-1">Treatment Details:</p>
+                        <p className="text-gray-900">{admission.treatmentDetails}</p>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="edit-diagnosis">Diagnosis</Label>
+                      <Textarea
+                        id="edit-diagnosis"
+                        placeholder="Enter diagnosis..."
+                        value={editFormData.diagnosis}
+                        onChange={(e) => setEditFormData({ ...editFormData, diagnosis: e.target.value })}
+                        rows={3}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-treatmentDetails">Treatment Details</Label>
+                      <Textarea
+                        id="edit-treatmentDetails"
+                        placeholder="Enter treatment details..."
+                        value={editFormData.treatmentDetails}
+                        onChange={(e) => setEditFormData({ ...editFormData, treatmentDetails: e.target.value })}
+                        rows={3}
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="edit-patientCondition">Patient Condition</Label>
+                        <select
+                          id="edit-patientCondition"
+                          aria-label="Patient Condition"
+                          className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                          value={editFormData.patientCondition}
+                          onChange={(e) => setEditFormData({ ...editFormData, patientCondition: e.target.value as EmergencyAdmission['patientCondition'] })}
+                        >
+                          <option value="Stable">Stable</option>
+                          <option value="Critical">Critical</option>
+                        </select>
+                      </div>
+                      <div>
+                        <Label htmlFor="edit-emergencyStatus">Emergency Status</Label>
+                        <select
+                          id="edit-emergencyStatus"
+                          aria-label="Emergency Status"
+                          className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                          value={editFormData.emergencyStatus}
+                          onChange={(e) => setEditFormData({ ...editFormData, emergencyStatus: e.target.value as EmergencyAdmission['emergencyStatus'] })}
+                        >
+                          <option value="Admitted">Admitted</option>
+                          <option value="IPD">IPD</option>
+                          <option value="OT">OT</option>
+                          <option value="ICU">ICU</option>
+                          <option value="Discharged">Discharged</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="edit-transferToIPDOTICU"
+                        aria-label="Transfer to IPD/OT/ICU"
+                        checked={editFormData.transferToIPDOTICU}
+                        onChange={(e) => setEditFormData({ ...editFormData, transferToIPDOTICU: e.target.checked })}
+                        className="rounded"
+                      />
+                      <Label htmlFor="edit-transferToIPDOTICU">Transfer To IPD/OT/ICU</Label>
+                    </div>
+                    {editFormData.transferToIPDOTICU && (
+                      <div>
+                        <Label htmlFor="edit-transferTo">Transfer To</Label>
+                        <select
+                          id="edit-transferTo"
+                          aria-label="Transfer To"
+                          className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                          value={editFormData.transferTo || ''}
+                          onChange={(e) => setEditFormData({ ...editFormData, transferTo: e.target.value as 'IPD Room Admission' | 'ICU' | 'OT' | undefined })}
+                        >
+                          <option value="">Select destination</option>
+                          <option value="IPD Room Admission">IPD Room Admission</option>
+                          <option value="OT">OT</option>
+                          <option value="ICU">ICU</option>
+                        </select>
+                      </div>
+                    )}
+                    {editFormData.transferToIPDOTICU && (
+                      <div>
+                        <Label htmlFor="edit-transferDetails">Transfer Details</Label>
+                        <Textarea
+                          id="edit-transferDetails"
+                          placeholder="Enter transfer details..."
+                          value={editFormData.transferDetails}
+                          onChange={(e) => setEditFormData({ ...editFormData, transferDetails: e.target.value })}
+                          rows={2}
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg text-center">
+                <p className="text-gray-600">No admission found for this slot</p>
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 px-6 py-2 border-t bg-gray-50 flex-shrink-0">
+          {isEditMode ? (
+            <>
+              <Button variant="outline" onClick={() => setIsEditMode(false)}>Cancel</Button>
+              <Button onClick={handleUpdate}>Update Admission</Button>
+            </>
+          ) : (
+            <Button variant="outline" onClick={onClose}>Close</Button>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 

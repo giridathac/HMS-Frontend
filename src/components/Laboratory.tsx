@@ -524,7 +524,7 @@ export function Laboratory() {
       <div className="px-4 pt-4 pb-0 flex-shrink-0">
         <div className="flex items-center justify-between mb-4 flex-shrink-0">
           <div>
-            <h1 className="text-gray-900 mb-0 text-xl">Laboratory Management</h1>
+            <h1 className="text-gray-900 mb-1 text-2xl">Laboratory Management</h1>
             <p className="text-gray-500 text-sm">Manage lab tests, samples, and reports</p>
           </div>
           <div className="flex gap-2">
@@ -594,7 +594,7 @@ export function Laboratory() {
         </div>
       </div>
 
-      <div className="overflow-y-auto overflow-x-hidden px-4 pb-4 laboratory-scrollable" style={{ maxHeight: 'calc(100vh - 60px)', minHeight: 0 }}>
+      <div className="overflow-y-auto overflow-x-hidden px-4 pt-4 pb-4 laboratory-scrollable" style={{ maxHeight: 'calc(100vh - 60px)', minHeight: 0 }}>
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <Card>

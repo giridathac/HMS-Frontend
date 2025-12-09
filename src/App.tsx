@@ -48,8 +48,9 @@ const SurgeryManagement = lazy(() => import('./components/SurgeryManagement').th
 const ManageIPDAdmission = lazy(() => import('./components/ManageIPDAdmission').then(m => ({ default: m.ManageIPDAdmission })));
 const ManageICUCase = lazy(() => import('./components/ManageICUCase').then(m => ({ default: m.ManageICUCase })));
 const PatientOTAllocationManagement = lazy(() => import('./components/PatientOTAllocationManagement').then(m => ({ default: m.PatientOTAllocationManagement })));
+const EmergencyAdmissionManagement = lazy(() => import('./components/EmergencyAdmissionManagement').then(m => ({ default: m.EmergencyAdmissionManagement })));
 
-type View = 'dashboard' | 'frontdesk' | 'consultation' | 'admissions' | 'ot' | 'icu' | 'laboratory' | 'emergency' | 'reports' | 'doctors' | 'staff' | 'roles' | 'departments' | 'patientregistration' | 'roombeds' | 'labtests' | 'bills' | 'patientappointments' | 'otrooms' | 'icubeds' | 'emergencybeds' | 'surgerymanagement' | 'manageipdadmission' | 'manageicucase' | 'patientotallocation';
+type View = 'dashboard' | 'frontdesk' | 'consultation' | 'admissions' | 'ot' | 'icu' | 'laboratory' | 'emergency' | 'reports' | 'doctors' | 'staff' | 'roles' | 'departments' | 'patientregistration' | 'roombeds' | 'labtests' | 'bills' | 'patientappointments' | 'otrooms' | 'icubeds' | 'emergencybeds' | 'surgerymanagement' | 'manageipdadmission' | 'manageicucase' | 'patientotallocation' | 'emergencyadmission';
 
 // Loading fallback component
 function LoadingFallback() {
@@ -73,7 +74,7 @@ export default function App() {
     const hash = window.location.hash.slice(1) || 'dashboard';
     // Extract view from hash (handle query parameters like #ot?otId=...)
     const viewName = hash.split('?')[0];
-    const validViews: View[] = ['dashboard', 'frontdesk', 'consultation', 'admissions', 'ot', 'icu', 'laboratory', 'emergency', 'reports', 'doctors', 'staff', 'roles', 'departments', 'patientregistration', 'roombeds', 'labtests', 'bills', 'patientappointments', 'otrooms', 'icubeds', 'emergencybeds', 'surgerymanagement', 'manageipdadmission', 'manageicucase', 'patientotallocation'];
+    const validViews: View[] = ['dashboard', 'frontdesk', 'consultation', 'admissions', 'ot', 'icu', 'laboratory', 'emergency', 'reports', 'doctors', 'staff', 'roles', 'departments', 'patientregistration', 'roombeds', 'labtests', 'bills', 'patientappointments', 'otrooms', 'icubeds', 'emergencybeds', 'surgerymanagement', 'manageipdadmission', 'manageicucase', 'patientotallocation', 'emergencyadmission'];
     return validViews.includes(viewName as View) ? (viewName as View) : 'dashboard';
   };
 
@@ -119,6 +120,7 @@ export default function App() {
     { id: 'icu' as View, label: 'ICU Management', icon: HeartPulse },
     { id: 'icubeds' as View, label: 'ICU Bed Management', icon: HeartPulse },
     { id: 'emergencybeds' as View, label: 'Emergency Bed Management', icon: BedDouble },
+    { id: 'emergencyadmission' as View, label: 'Emergency Admission', icon: Siren },
     { id: 'bills' as View, label: 'Bill Management', icon: Receipt },   
     
     { id: 'roles' as View, label: 'Roles', icon: Shield },
@@ -133,7 +135,7 @@ export default function App() {
 
 
   return (
-    <div className="flex h-screen bg-blue-50 overflow-x-hidden">
+    <div className="flex h-screen bg-white overflow-x-hidden">
       <ResizablePanelGroup direction="horizontal" className="h-full">
         {/* Sidebar Panel - Hidden in standalone mode */}
         {!isStandalone && (
@@ -148,24 +150,29 @@ export default function App() {
                 setSidebarSize(size);
                 setIsSidebarCollapsed(size === 0);
               }}
-              className={`bg-blue-100 border-r border-blue-300 flex flex-col shadow-sm transition-all duration-300 overflow-hidden`}
+              className={`bg-white border-r border-gray-200 flex flex-col shadow-sm transition-all duration-300 overflow-hidden`}
             >
               {!isSidebarCollapsed && (
                 <>
-                  <div className="p-6 border-b border-blue-300 bg-blue-200 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Activity className="size-8 text-blue-700" />
-                      <div>
-                        <h1 className="text-blue-900 font-semibold">MediCare HMS</h1>
-                        <p className="text-sm text-blue-700">Hospital Management</p>
+                  {/* Header */}
+                  <div className="px-6 py-8 border-b border-gray-200 bg-white">
+                    <div className="flex items-center gap-3">
+                      <div className="flex-shrink-0">
+                        <Activity className="size-10 text-blue-600" strokeWidth={2.5} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h1 className="text-base font-normal text-gray-900 leading-tight">MediCare HMS</h1>
+                        <p className="text-sm text-gray-600 leading-tight mt-0.5">Hospital Management</p>
                       </div>
                     </div>
                   </div>
                   
-                  <nav className="flex-1 p-4 overflow-y-auto overflow-x-hidden bg-blue-100">
-                    <ul className="space-y-0.5">
+                  {/* Navigation */}
+                  <nav className="flex-1 px-5 py-5 overflow-y-auto overflow-x-hidden bg-white">
+                    <ul className="space-y-2">
                       {navItems.map((item) => {
                         const Icon = item.icon;
+                        const isActive = currentView === item.id;
                         return (
                           <li key={item.id}>
                             <Tooltip>
@@ -175,24 +182,26 @@ export default function App() {
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   onClick={(e) => {
-                                    // Allow default behavior to open in new tab
-                                    // Also update current view if clicked in same tab
                                     if (!e.ctrlKey && !e.metaKey) {
                                       e.preventDefault();
                                       setCurrentView(item.id);
                                     }
                                   }}
-                                  className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg transition-colors ${
-                                    currentView === item.id
-                                      ? 'bg-blue-200 text-blue-900 shadow-sm'
-                                      : 'text-blue-800 hover:bg-blue-200'
+                                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+                                    isActive
+                                      ? 'bg-blue-50 text-blue-600 shadow-sm'
+                                      : 'text-gray-900 hover:bg-gray-50'
                                   }`}
                                 >
-                                  <Icon className="size-5 flex-shrink-0" />
-                                  <span className="truncate">{item.label}</span>
+                                  <Icon className={`size-6 flex-shrink-0 ${
+                                    isActive ? 'text-blue-600' : 'text-gray-700'
+                                  }`} strokeWidth={isActive ? 2.5 : 2} />
+                                  <span className={`text-base font-normal truncate ${
+                                    isActive ? 'text-blue-600' : 'text-gray-900'
+                                  }`}>{item.label}</span>
                                 </a>
                               </TooltipTrigger>
-                              <TooltipContent side="right" className="bg-gray-100 text-gray-900 border border-gray-300">
+                              <TooltipContent side="right" className="bg-gray-900 text-white text-xs px-2 py-1.5 border-0 shadow-lg">
                                 {item.label}
                               </TooltipContent>
                             </Tooltip>
@@ -202,14 +211,15 @@ export default function App() {
                     </ul>
                   </nav>
 
-                  <div className="p-4 border-t border-blue-300 bg-blue-200">
-                    <div className="flex items-center gap-3 px-4 py-3">
-                      <div className="size-10 bg-blue-300 rounded-full flex items-center justify-center">
-                        <span className="text-blue-800 font-semibold">AD</span>
+                  {/* User Profile Footer */}
+                  <div className="px-6 py-8 border-t border-gray-200 bg-white">
+                    <div className="flex items-center gap-3">
+                      <div className="size-12 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                        <span className="text-base font-bold text-blue-600">AD</span>
                       </div>
-                      <div>
-                        <p className="text-sm text-blue-900 font-medium">Admin User</p>
-                        <p className="text-xs text-blue-700">Superadmin</p>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-base font-normal text-gray-900 truncate leading-tight">Admin User</p>
+                        <p className="text-sm text-gray-600 truncate leading-tight mt-0.5">Administrator</p>
                       </div>
                     </div>
                   </div>
@@ -225,8 +235,8 @@ export default function App() {
         {/* Main Content Panel */}
         <ResizablePanel defaultSize={isStandalone ? 100 : 84} minSize={70}>
 
-          <main className={`h-full bg-blue-50 transition-all duration-300 flex flex-col ${
-            currentView === 'dashboard' || currentView === 'frontdesk' || currentView === 'icu' || currentView === 'otrooms' || currentView === 'icubeds' || currentView === 'emergencybeds' || currentView === 'patientregistration' || currentView === 'surgerymanagement' || currentView === 'manageipdadmission' || currentView === 'manageicucase'
+          <main className={`h-full bg-white transition-all duration-300 flex flex-col ${
+            currentView === 'dashboard' || currentView === 'frontdesk' || currentView === 'icu' || currentView === 'otrooms' || currentView === 'icubeds' || currentView === 'emergencybeds' || currentView === 'patientregistration' || currentView === 'surgerymanagement' || currentView === 'manageipdadmission' || currentView === 'manageicucase' || currentView === 'emergencyadmission'
               ? 'overflow-hidden' 
               : 'overflow-auto overflow-x-hidden'
           }`}>
@@ -256,6 +266,7 @@ export default function App() {
               {currentView === 'reports' && <Reports />}
               {currentView === 'manageipdadmission' && <ManageIPDAdmission />}
               {currentView === 'manageicucase' && <ManageICUCase />}
+              {currentView === 'emergencyadmission' && <EmergencyAdmissionManagement />}
             </Suspense>
           </main>
         </ResizablePanel>

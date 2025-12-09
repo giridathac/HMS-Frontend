@@ -1,0 +1,410 @@
+// Emergency Admissions API service
+import { apiRequest, ENABLE_STUB_DATA } from './base';
+import { EmergencyAdmission } from '../types';
+
+// API Response types
+interface EmergencyAdmissionResponseItem {
+  EmergencyAdmissionId: number;
+  DoctorId: number;
+  PatientId: string; // UUID
+  EmergencyBedSlotId: number; // Required in create, optional in update
+  EmergencyAdmissionDate: string | Date;
+  EmergencyStatus: string | null; // "Admitted" | "IPD" | "OT" | "ICU" | "Discharged"
+  AllocationFromDate?: Date | null;
+  AllocationToDate?: Date | null;
+  NumberOfDays?: number | null;
+  Diagnosis?: string | null;
+  TreatementDetails?: string | null; // Note: API uses typo "TreatementDetails"
+  PatientCondition?: string | null; // "Critical" | "Stable"
+  TransferToIPD?: string | null; // "Yes" | "No"
+  TransferToOT?: string | null; // "Yes" | "No"
+  TransferToICU?: string | null; // "Yes" | "No"
+  TransferTo?: string | null; // "IPD Room Admission" | "ICU" | "OT"
+  TransferDetails?: string | null;
+  AdmissionCreatedBy?: number | null;
+  AdmissionCreatedAt?: string | Date;
+  Status: string; // "Active" | "Inactive"
+  // Additional response fields (may not be in all responses)
+  PatientName?: string | null;
+  PatientNo?: string | null;
+  DoctorName?: string | null;
+  EmergencyBedSlotNo?: string | null;
+  CreatedByName?: string | null;
+}
+
+interface EmergencyAdmissionAPIResponse {
+  success: boolean;
+  count: number;
+  data: EmergencyAdmissionResponseItem[];
+}
+
+interface EmergencyAdmissionCreateResponse {
+  success: boolean;
+  message: string;
+  data: EmergencyAdmissionResponseItem;
+}
+
+interface EmergencyAdmissionGetByIdResponse {
+  success: boolean;
+  data: EmergencyAdmissionResponseItem;
+}
+
+// Stub data
+const stubEmergencyAdmissions: EmergencyAdmissionResponseItem[] = [
+  {
+    EmergencyAdmissionId: 1,
+    DoctorId: 1,
+    PatientId: '00000000-0000-0000-0000-000000000001',
+    EmergencyBedSlotId: 1,
+    EmergencyAdmissionDate: '2025-01-15',
+    EmergencyStatus: 'Admitted',
+    Diagnosis: 'Acute Appendicitis',
+    TreatementDetails: 'Emergency surgery required',
+    PatientCondition: 'Critical',
+    TransferToIPDOTICU: false,
+    Status: 'Active',
+  },
+  {
+    EmergencyAdmissionId: 2,
+    DoctorId: 2,
+    PatientId: '00000000-0000-0000-0000-000000000002',
+    EmergencyBedSlotId: 2,
+    EmergencyAdmissionDate: '2025-01-16',
+    EmergencyStatus: 'IPD',
+    Diagnosis: 'Fractured Leg',
+    TreatementDetails: 'Surgery completed, recovery in progress',
+    PatientCondition: 'Stable',
+    TransferToIPDOTICU: true,
+    TransferTo: 'IPD Room Admission',
+    TransferDetails: 'Transferred to Room 101, Bed 1',
+    Status: 'Active',
+  },
+];
+
+// Map API response to EmergencyAdmission interface
+function mapEmergencyAdmissionResponseToEmergencyAdmission(item: EmergencyAdmissionResponseItem): EmergencyAdmission {
+  // Determine transferToIPDOTICU from separate fields or TransferTo
+  const transferToIPDOTICU = !!(item.TransferToIPD === 'Yes' || item.TransferToOT === 'Yes' || item.TransferToICU === 'Yes' || item.TransferTo);
+  
+  return {
+    id: item.EmergencyAdmissionId || 0,
+    emergencyAdmissionId: item.EmergencyAdmissionId || 0,
+    doctorId: item.DoctorId || 0,
+    patientId: item.PatientId || '',
+    emergencyBedSlotId: item.EmergencyBedSlotId ?? undefined,
+    emergencyAdmissionDate: typeof item.EmergencyAdmissionDate === 'string' 
+      ? item.EmergencyAdmissionDate 
+      : new Date(item.EmergencyAdmissionDate).toISOString().split('T')[0],
+    emergencyStatus: (item.EmergencyStatus || 'Admitted') as EmergencyAdmission['emergencyStatus'],
+    diagnosis: item.Diagnosis ?? undefined,
+    treatmentDetails: item.TreatementDetails ?? undefined, // Map typo to correct field name
+    patientCondition: (item.PatientCondition || 'Stable') as EmergencyAdmission['patientCondition'],
+    transferToIPDOTICU: transferToIPDOTICU,
+    transferTo: item.TransferTo as EmergencyAdmission['transferTo'] | undefined,
+    transferDetails: item.TransferDetails ?? undefined,
+    admissionCreatedBy: item.AdmissionCreatedBy ?? undefined,
+    admissionCreatedAt: typeof item.AdmissionCreatedAt === 'string' 
+      ? item.AdmissionCreatedAt 
+      : item.AdmissionCreatedAt 
+        ? new Date(item.AdmissionCreatedAt).toISOString() 
+        : undefined,
+    status: item.Status as EmergencyAdmission['status'],
+    // Additional response fields
+    patientName: item.PatientName ?? undefined,
+    patientNo: item.PatientNo ?? undefined,
+    doctorName: item.DoctorName ?? undefined,
+    emergencyBedSlotNo: item.EmergencyBedSlotNo ?? undefined,
+    createdByName: item.CreatedByName ?? undefined,
+  };
+}
+
+// DTOs for create and update
+export interface CreateEmergencyAdmissionDto {
+  doctorId: number; // Required
+  patientId: string; // UUID, required
+  emergencyBedSlotId: number; // Required
+  emergencyAdmissionDate: string; // YYYY-MM-DD, required
+  emergencyStatus?: 'Admitted' | 'IPD' | 'OT' | 'ICU' | 'Discharged'; // Optional
+  allocationFromDate?: string | null; // YYYY-MM-DD format, optional
+  allocationToDate?: string | null; // YYYY-MM-DD format, optional
+  numberOfDays?: number | null; // Optional
+  diagnosis?: string | null;
+  treatmentDetails?: string | null;
+  patientCondition?: 'Critical' | 'Stable'; // Optional
+  transferToIPD?: 'Yes' | 'No' | null; // Optional, defaults to "No"
+  transferToOT?: 'Yes' | 'No' | null; // Optional, defaults to "No"
+  transferToICU?: 'Yes' | 'No' | null; // Optional, defaults to "No"
+  transferTo?: string | null;
+  transferDetails?: string | null;
+  admissionCreatedBy?: number | null;
+  status?: 'Active' | 'Inactive'; // Optional, defaults to "Active"
+}
+
+export interface UpdateEmergencyAdmissionDto {
+  id: number; // EmergencyAdmissionId
+  doctorId?: number;
+  patientId?: string; // UUID
+  emergencyBedSlotId?: number | null;
+  emergencyAdmissionDate?: string; // YYYY-MM-DD
+  emergencyStatus?: 'Admitted' | 'IPD' | 'OT' | 'ICU' | 'Discharged';
+  allocationFromDate?: string | null; // YYYY-MM-DD format
+  allocationToDate?: string | null; // YYYY-MM-DD format
+  numberOfDays?: number | null;
+  diagnosis?: string | null;
+  treatmentDetails?: string | null;
+  patientCondition?: 'Critical' | 'Stable';
+  transferToIPD?: 'Yes' | 'No' | null;
+  transferToOT?: 'Yes' | 'No' | null;
+  transferToICU?: 'Yes' | 'No' | null;
+  transferTo?: string | null;
+  transferDetails?: string | null;
+  admissionCreatedBy?: number | null;
+  status?: 'Active' | 'Inactive';
+}
+
+export const emergencyAdmissionsApi = {
+  async getAll(params?: {
+    status?: string;
+    emergencyStatus?: string;
+    patientId?: string;
+    doctorId?: number;
+    emergencyBedSlotId?: number;
+  }): Promise<EmergencyAdmission[]> {
+    let apiData: EmergencyAdmission[] = [];
+    
+    if (!ENABLE_STUB_DATA) {
+      try {
+        let endpoint = '/emergency-admissions';
+        const queryParams: string[] = [];
+        
+        if (params?.status) {
+          queryParams.push(`status=${encodeURIComponent(params.status)}`);
+        }
+        if (params?.emergencyStatus) {
+          queryParams.push(`emergencyStatus=${encodeURIComponent(params.emergencyStatus)}`);
+        }
+        if (params?.patientId) {
+          queryParams.push(`patientId=${encodeURIComponent(params.patientId)}`);
+        }
+        if (params?.doctorId !== undefined) {
+          queryParams.push(`doctorId=${params.doctorId}`);
+        }
+        if (params?.emergencyBedSlotId !== undefined) {
+          queryParams.push(`emergencyBedSlotId=${params.emergencyBedSlotId}`);
+        }
+        
+        if (queryParams.length > 0) {
+          endpoint += `?${queryParams.join('&')}`;
+        }
+        
+        const response = await apiRequest<EmergencyAdmissionAPIResponse>(endpoint);
+        
+        if (response.success && response.data) {
+          apiData = response.data.map(mapEmergencyAdmissionResponseToEmergencyAdmission);
+        }
+      } catch (err) {
+        console.error('Error fetching emergency admissions:', err);
+        throw err;
+      }
+    }
+    
+    if (ENABLE_STUB_DATA || apiData.length === 0) {
+      let filteredStubData = [...stubEmergencyAdmissions];
+      
+      if (params?.status) {
+        filteredStubData = filteredStubData.filter(item => 
+          item.Status.toLowerCase() === params.status!.toLowerCase()
+        );
+      }
+      
+      if (params?.emergencyStatus) {
+        filteredStubData = filteredStubData.filter(item => 
+          (item.EmergencyStatus || '').toLowerCase() === params.emergencyStatus!.toLowerCase()
+        );
+      }
+      
+      const stubData = filteredStubData.map(mapEmergencyAdmissionResponseToEmergencyAdmission);
+      return stubData;
+    }
+    
+    return apiData;
+  },
+
+  async getById(id: number): Promise<EmergencyAdmission> {
+    if (!ENABLE_STUB_DATA) {
+      try {
+        const response = await apiRequest<EmergencyAdmissionGetByIdResponse>(`/emergency-admissions/${id}`);
+        if (response.success && response.data) {
+          return mapEmergencyAdmissionResponseToEmergencyAdmission(response.data);
+        }
+        throw new Error('Emergency admission not found');
+      } catch (err) {
+        console.error('Error fetching emergency admission:', err);
+        throw err;
+      }
+    }
+    
+    // Stub implementation
+    const stubAdmission = stubEmergencyAdmissions.find(a => a.EmergencyAdmissionId === id);
+    if (!stubAdmission) {
+      throw new Error('Emergency admission not found');
+    }
+    return mapEmergencyAdmissionResponseToEmergencyAdmission(stubAdmission);
+  },
+
+  async create(data: CreateEmergencyAdmissionDto): Promise<EmergencyAdmission> {
+    if (!ENABLE_STUB_DATA) {
+      try {
+        // Map frontend DTO to backend request format
+        const backendRequest: any = {
+          DoctorId: data.doctorId,
+          PatientId: data.patientId,
+          EmergencyBedSlotId: data.emergencyBedSlotId, // Required
+          EmergencyAdmissionDate: data.emergencyAdmissionDate,
+          EmergencyStatus: data.emergencyStatus ?? null,
+          AllocationFromDate: data.allocationFromDate ?? null,
+          AllocationToDate: data.allocationToDate ?? null,
+          NumberOfDays: data.numberOfDays ?? null,
+          Diagnosis: data.diagnosis ?? null,
+          TreatementDetails: data.treatmentDetails ?? null, // Use API typo
+          PatientCondition: data.patientCondition ?? null,
+          TransferToIPD: data.transferToIPD ?? 'No',
+          TransferToOT: data.transferToOT ?? 'No',
+          TransferToICU: data.transferToICU ?? 'No',
+          TransferTo: data.transferTo ?? null,
+          TransferDetails: data.transferDetails ?? null,
+          AdmissionCreatedBy: data.admissionCreatedBy ?? null,
+          Status: data.status ?? 'Active',
+        };
+        
+        const response = await apiRequest<EmergencyAdmissionCreateResponse>('/emergency-admissions', {
+          method: 'POST',
+          body: JSON.stringify(backendRequest),
+        });
+        
+        if (response.success && response.data) {
+          return mapEmergencyAdmissionResponseToEmergencyAdmission(response.data);
+        }
+        throw new Error('Failed to create emergency admission');
+      } catch (err) {
+        console.error('Error creating emergency admission:', err);
+        throw err;
+      }
+    }
+    
+    // Stub implementation
+    const newAdmission: EmergencyAdmissionResponseItem = {
+      EmergencyAdmissionId: stubEmergencyAdmissions.length + 1,
+      DoctorId: data.doctorId,
+      PatientId: data.patientId,
+      EmergencyBedSlotId: data.emergencyBedSlotId,
+      EmergencyAdmissionDate: data.emergencyAdmissionDate,
+      EmergencyStatus: data.emergencyStatus ?? null,
+      AllocationFromDate: data.allocationFromDate ? new Date(data.allocationFromDate) : null,
+      AllocationToDate: data.allocationToDate ? new Date(data.allocationToDate) : null,
+      NumberOfDays: data.numberOfDays ?? null,
+      Diagnosis: data.diagnosis ?? null,
+      TreatementDetails: data.treatmentDetails ?? null,
+      PatientCondition: data.patientCondition ?? null,
+      TransferToIPD: data.transferToIPD ?? 'No',
+      TransferToOT: data.transferToOT ?? 'No',
+      TransferToICU: data.transferToICU ?? 'No',
+      TransferTo: data.transferTo ?? null,
+      TransferDetails: data.transferDetails ?? null,
+      AdmissionCreatedBy: data.admissionCreatedBy ?? null,
+      Status: data.status ?? 'Active',
+    };
+    stubEmergencyAdmissions.push(newAdmission);
+    return mapEmergencyAdmissionResponseToEmergencyAdmission(newAdmission);
+  },
+
+  async update(data: UpdateEmergencyAdmissionDto): Promise<EmergencyAdmission> {
+    if (!ENABLE_STUB_DATA) {
+      try {
+        // Map frontend DTO to backend request format
+        const backendRequest: any = {};
+        
+        if (data.doctorId !== undefined) backendRequest.DoctorId = data.doctorId;
+        if (data.patientId !== undefined) backendRequest.PatientId = data.patientId;
+        if (data.emergencyBedSlotId !== undefined) backendRequest.EmergencyBedSlotId = data.emergencyBedSlotId ?? null;
+        if (data.emergencyAdmissionDate !== undefined) backendRequest.EmergencyAdmissionDate = data.emergencyAdmissionDate;
+        if (data.emergencyStatus !== undefined) backendRequest.EmergencyStatus = data.emergencyStatus;
+        if (data.allocationFromDate !== undefined) backendRequest.AllocationFromDate = data.allocationFromDate ?? null;
+        if (data.allocationToDate !== undefined) backendRequest.AllocationToDate = data.allocationToDate ?? null;
+        if (data.numberOfDays !== undefined) backendRequest.NumberOfDays = data.numberOfDays ?? null;
+        if (data.diagnosis !== undefined) backendRequest.Diagnosis = data.diagnosis ?? null;
+        if (data.treatmentDetails !== undefined) backendRequest.TreatementDetails = data.treatmentDetails ?? null; // Use API typo
+        if (data.patientCondition !== undefined) backendRequest.PatientCondition = data.patientCondition;
+        if (data.transferToIPD !== undefined) backendRequest.TransferToIPD = data.transferToIPD ?? null;
+        if (data.transferToOT !== undefined) backendRequest.TransferToOT = data.transferToOT ?? null;
+        if (data.transferToICU !== undefined) backendRequest.TransferToICU = data.transferToICU ?? null;
+        if (data.transferTo !== undefined) backendRequest.TransferTo = data.transferTo ?? null;
+        if (data.transferDetails !== undefined) backendRequest.TransferDetails = data.transferDetails ?? null;
+        if (data.admissionCreatedBy !== undefined) backendRequest.AdmissionCreatedBy = data.admissionCreatedBy ?? null;
+        if (data.status !== undefined) backendRequest.Status = data.status;
+        
+        const response = await apiRequest<EmergencyAdmissionGetByIdResponse>(`/emergency-admissions/${data.id}`, {
+          method: 'PUT',
+          body: JSON.stringify(backendRequest),
+        });
+        
+        if (response.success && response.data) {
+          return mapEmergencyAdmissionResponseToEmergencyAdmission(response.data);
+        }
+        throw new Error('Failed to update emergency admission');
+      } catch (err) {
+        console.error('Error updating emergency admission:', err);
+        throw err;
+      }
+    }
+    
+    // Stub implementation
+    const index = stubEmergencyAdmissions.findIndex(a => a.EmergencyAdmissionId === data.id);
+    if (index === -1) {
+      throw new Error('Emergency admission not found');
+    }
+    
+    const updated = { ...stubEmergencyAdmissions[index] };
+    if (data.doctorId !== undefined) updated.DoctorId = data.doctorId;
+    if (data.patientId !== undefined) updated.PatientId = data.patientId;
+    if (data.emergencyBedSlotId !== undefined) updated.EmergencyBedSlotId = data.emergencyBedSlotId ?? null;
+    if (data.emergencyAdmissionDate !== undefined) updated.EmergencyAdmissionDate = data.emergencyAdmissionDate;
+    if (data.emergencyStatus !== undefined) updated.EmergencyStatus = data.emergencyStatus;
+    if (data.allocationFromDate !== undefined) updated.AllocationFromDate = data.allocationFromDate ? new Date(data.allocationFromDate) : null;
+    if (data.allocationToDate !== undefined) updated.AllocationToDate = data.allocationToDate ? new Date(data.allocationToDate) : null;
+    if (data.numberOfDays !== undefined) updated.NumberOfDays = data.numberOfDays ?? null;
+    if (data.diagnosis !== undefined) updated.Diagnosis = data.diagnosis ?? null;
+    if (data.treatmentDetails !== undefined) updated.TreatementDetails = data.treatmentDetails ?? null;
+    if (data.patientCondition !== undefined) updated.PatientCondition = data.patientCondition;
+    if (data.transferToIPD !== undefined) updated.TransferToIPD = data.transferToIPD ?? null;
+    if (data.transferToOT !== undefined) updated.TransferToOT = data.transferToOT ?? null;
+    if (data.transferToICU !== undefined) updated.TransferToICU = data.transferToICU ?? null;
+    if (data.transferTo !== undefined) updated.TransferTo = data.transferTo ?? null;
+    if (data.transferDetails !== undefined) updated.TransferDetails = data.transferDetails ?? null;
+    if (data.admissionCreatedBy !== undefined) updated.AdmissionCreatedBy = data.admissionCreatedBy ?? null;
+    if (data.status !== undefined) updated.Status = data.status;
+    
+    stubEmergencyAdmissions[index] = updated;
+    return mapEmergencyAdmissionResponseToEmergencyAdmission(updated);
+  },
+
+  async delete(id: number): Promise<void> {
+    if (!ENABLE_STUB_DATA) {
+      try {
+        await apiRequest<void>(`/emergency-admissions/${id}`, {
+          method: 'DELETE',
+        });
+      } catch (err) {
+        console.error('Error deleting emergency admission:', err);
+        throw err;
+      }
+    } else {
+      // Stub implementation
+      const index = stubEmergencyAdmissions.findIndex(a => a.EmergencyAdmissionId === id);
+      if (index === -1) {
+        throw new Error('Emergency admission not found');
+      }
+      stubEmergencyAdmissions.splice(index, 1);
+    }
+  },
+};

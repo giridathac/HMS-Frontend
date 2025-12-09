@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Textarea } from './ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Badge } from './ui/badge';
-import { Search, Plus, Printer, Users, Clock, Stethoscope, CheckCircle2, Hospital, Eye, Edit } from 'lucide-react';
+import { Search, Plus, Printer, Users, Clock, Stethoscope, CheckCircle2, Hospital, Eye, Edit, Trash2 } from 'lucide-react';
 import { useTokens } from '../hooks';
 import { usePatientAppointments } from '../hooks/usePatientAppointments';
 import { useStaff } from '../hooks/useStaff';
@@ -32,11 +32,12 @@ interface FrontDeskViewProps {
   getAppointmentsByStatus: (status: PatientAppointment['appointmentStatus']) => PatientAppointment[];
   updatePatientAppointment: (data: { id: number; patientId?: string; doctorId?: string; appointmentDate?: string; appointmentTime?: string; appointmentStatus?: 'Waiting' | 'Consulting' | 'Completed'; consultationCharge?: number; diagnosis?: string; followUpDetails?: string; prescriptionsUrl?: string; toBeAdmitted?: boolean; referToAnotherDoctor?: boolean; referredDoctorId?: string; transferToIPDOTICU?: boolean; transferTo?: 'IPD Room Admission' | 'ICU' | 'OT'; transferDetails?: string; billId?: string }) => Promise<PatientAppointment>;
   fetchPatientAppointments: () => Promise<void>;
+  createPatientAppointment: (data: { patientId: string; doctorId: string; appointmentDate: string; appointmentTime: string; appointmentStatus?: 'Waiting' | 'Consulting' | 'Completed'; consultationCharge: number; diagnosis?: string; followUpDetails?: string; prescriptionsUrl?: string; toBeAdmitted?: boolean; referToAnotherDoctor?: boolean; referredDoctorId?: string; transferToIPDOTICU?: boolean; transferTo?: 'IPD Room Admission' | 'ICU' | 'OT'; transferDetails?: string; billId?: string }, doctorName: string) => Promise<PatientAppointment>;
 }
 
 export function FrontDesk() {
   const { tokens, doctors, loading, error, createToken, getTokensByStatus } = useTokens();
-  const { patientAppointments, loading: appointmentsLoading, error: appointmentsError, updatePatientAppointment, fetchPatientAppointments } = usePatientAppointments();
+  const { patientAppointments, loading: appointmentsLoading, error: appointmentsError, updatePatientAppointment, fetchPatientAppointments, createPatientAppointment, deletePatientAppointment } = usePatientAppointments();
   const { staff } = useStaff();
   const { roles } = useRoles();
   const { departments } = useDepartments();
@@ -92,6 +93,8 @@ export function FrontDesk() {
   );
 
   const filteredAppointments = patientAppointments.filter(appointment => {
+    if (!appointmentSearchTerm) return true;
+    
     const patient = patients.find(p => 
       (p as any).patientId === appointment.patientId || 
       (p as any).PatientId === appointment.patientId
@@ -103,12 +106,21 @@ export function FrontDesk() {
         : appointment.patientId;
     const doctor = appointmentDoctors.find(d => d.id.toString() === appointment.doctorId);
     const doctorName = doctor ? doctor.name : appointment.doctorId;
+    const patientPhone = patient 
+      ? (patient as any).PhoneNo || (patient as any).phoneNo || (patient as any).phone || ''
+      : '';
+    const patientId = patient 
+      ? (patient as any).PatientNo || (patient as any).patientNo || appointment.patientId.substring(0, 8)
+      : appointment.patientId.substring(0, 8);
     
     const searchLower = appointmentSearchTerm.toLowerCase();
     return (
                   appointment.tokenNo.toLowerCase().includes(searchLower) ||
       patientName.toLowerCase().includes(searchLower) ||
-      doctorName.toLowerCase().includes(searchLower)
+      doctorName.toLowerCase().includes(searchLower) ||
+      patientPhone.includes(appointmentSearchTerm) ||
+      patientId.toLowerCase().includes(searchLower) ||
+      appointment.patientId.toLowerCase().includes(searchLower)
     );
   });
 
@@ -142,7 +154,7 @@ export function FrontDesk() {
   if (loading || appointmentsLoading) {
     return (
       <div className="p-8">
-        <div className="text-center py-12 text-gray-500">Loading...</div>
+        <div className="text-center py-12 text-gray-700">Loading...</div>
       </div>
     );
   }
@@ -171,6 +183,7 @@ export function FrontDesk() {
       getAppointmentsByStatus={getAppointmentsByStatus}
       updatePatientAppointment={updatePatientAppointment}
       fetchPatientAppointments={fetchPatientAppointments}
+      createPatientAppointment={createPatientAppointment}
     />
   );
 }
@@ -189,7 +202,8 @@ function FrontDeskView({
   onAppointmentSearchChange,
   getAppointmentsByStatus,
   updatePatientAppointment,
-  fetchPatientAppointments
+  fetchPatientAppointments,
+  createPatientAppointment
 }: FrontDeskViewProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedDoctor, setSelectedDoctor] = useState('');
@@ -199,6 +213,7 @@ function FrontDeskView({
   const [patientId, setPatientId] = useState<number | undefined>(undefined);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<PatientAppointment | null>(null);
   const [editFormData, setEditFormData] = useState({
     patientId: '',
@@ -209,6 +224,16 @@ function FrontDeskView({
     consultationCharge: 0,
     followUpDetails: '',
   });
+  const [addFormData, setAddFormData] = useState({
+    patientId: '',
+    doctorId: '',
+    appointmentDate: '',
+    appointmentTime: '',
+    appointmentStatus: 'Waiting' as PatientAppointment['appointmentStatus'],
+    consultationCharge: 0,
+  });
+  const [patientSearchTerm, setPatientSearchTerm] = useState('');
+  const [doctorSearchTerm, setDoctorSearchTerm] = useState('');
 
   const handleGenerateToken = async () => {
     if (!selectedDoctor || !patientName || !patientPhone) {
@@ -243,7 +268,10 @@ function FrontDeskView({
         const { patientsApi } = await import('../api');
         const patient = await patientsApi.findByPhone(phone);
         if (patient) {
-          setPatientName(patient.name);
+          const patientName = (patient as any).patientName || (patient as any).PatientName || '';
+          const lastName = (patient as any).lastName || (patient as any).LastName || '';
+          const fullName = `${patientName} ${lastName}`.trim();
+          setPatientName(fullName || patientName || '');
           setPatientId(patient.id);
           setIsFollowUp(true); // Auto-check if patient exists (likely follow-up)
         } else {
@@ -264,8 +292,319 @@ function FrontDeskView({
         <div className="flex items-center justify-between mb-4 flex-shrink-0">
           <div>
             <h1 className="text-gray-900 mb-0 text-xl">Front Desk - Patient Appointments</h1>
-            <p className="text-gray-500 text-sm">Manage patient appointments</p>
+            <p className="text-gray-700 text-sm">Manage patient appointments</p>
           </div>
+          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="flex items-center gap-2">
+                <Plus className="size-4" />
+                Add Appointment
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="p-0 gap-0 large-dialog max-h-[90vh]">
+              <DialogHeader className="px-6 pt-4 pb-3 flex-shrink-0">
+                <DialogTitle>Add New Patient Appointment</DialogTitle>
+              </DialogHeader>
+              <div className="flex-1 overflow-y-auto px-6 pb-1 patient-list-scrollable min-h-0">
+                <div className="space-y-4 py-4">
+                  <div>
+                    <Label htmlFor="add-patient-search">Patient *</Label>
+                    <div className="relative mb-2">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
+                      <Input
+                        id="add-patient-search"
+                        placeholder="Search by Patient ID, Name, or Mobile Number..."
+                        value={patientSearchTerm}
+                        onChange={(e) => setPatientSearchTerm(e.target.value)}
+                        className="pl-10"
+                      />
+                    </div>
+                    {patientSearchTerm && (
+                      <div className="border border-gray-200 rounded-md max-h-60 overflow-y-auto">
+                        <table className="w-full">
+                          <thead className="sticky top-0 bg-gray-50 border-b border-gray-200">
+                            <tr>
+                              <th className="text-left py-2 px-3 text-xs text-gray-700 font-bold">Patient ID</th>
+                              <th className="text-left py-2 px-3 text-xs text-gray-700 font-bold">Name</th>
+                              <th className="text-left py-2 px-3 text-xs text-gray-700 font-bold">Mobile</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {patients
+                              .filter(patient => {
+                                if (!patientSearchTerm) return false;
+                                const searchLower = patientSearchTerm.toLowerCase();
+                                const patientId = (patient as any).patientId || (patient as any).PatientId || '';
+                                const patientNo = (patient as any).patientNo || (patient as any).PatientNo || '';
+                                const patientName = (patient as any).patientName || (patient as any).PatientName || '';
+                                const lastName = (patient as any).lastName || (patient as any).LastName || '';
+                                const fullName = `${patientName} ${lastName}`.trim();
+                                const phoneNo = (patient as any).phoneNo || (patient as any).PhoneNo || (patient as any).phone || '';
+                                return (
+                                  patientId.toLowerCase().includes(searchLower) ||
+                                  patientNo.toLowerCase().includes(searchLower) ||
+                                  fullName.toLowerCase().includes(searchLower) ||
+                                  phoneNo.includes(patientSearchTerm)
+                                );
+                              })
+                              .map(patient => {
+                                const patientId = (patient as any).patientId || (patient as any).PatientId || '';
+                                const patientNo = (patient as any).patientNo || (patient as any).PatientNo || '';
+                                const patientName = (patient as any).patientName || (patient as any).PatientName || '';
+                                const lastName = (patient as any).lastName || (patient as any).LastName || '';
+                                const fullName = `${patientName} ${lastName}`.trim();
+                                const phoneNo = (patient as any).phoneNo || (patient as any).PhoneNo || (patient as any).phone || '';
+                                const isSelected = addFormData.patientId === patientId;
+                                return (
+                                  <tr
+                                    key={patientId}
+                                    onClick={() => {
+                                      setAddFormData({ ...addFormData, patientId });
+                                      setPatientSearchTerm(`${patientNo ? `${patientNo} - ` : ''}${fullName || 'Unknown'}`);
+                                    }}
+                                    className={`border-b border-gray-100 cursor-pointer hover:bg-blue-50 ${isSelected ? 'bg-blue-100' : ''}`}
+                                  >
+                                    <td className="py-2 px-3 text-sm text-gray-900 font-mono">{patientNo || patientId.substring(0, 8)}</td>
+                                    <td className="py-2 px-3 text-sm text-gray-600">{fullName || 'Unknown'}</td>
+                                    <td className="py-2 px-3 text-sm text-gray-600">{phoneNo || '-'}</td>
+                                  </tr>
+                                );
+                              })}
+                          </tbody>
+                        </table>
+                        {patients.filter(patient => {
+                          if (!patientSearchTerm) return false;
+                          const searchLower = patientSearchTerm.toLowerCase();
+                          const patientId = (patient as any).patientId || (patient as any).PatientId || '';
+                          const patientNo = (patient as any).patientNo || (patient as any).PatientNo || '';
+                          const patientName = (patient as any).patientName || (patient as any).PatientName || '';
+                          const lastName = (patient as any).lastName || (patient as any).LastName || '';
+                          const fullName = `${patientName} ${lastName}`.trim();
+                          const phoneNo = (patient as any).phoneNo || (patient as any).PhoneNo || (patient as any).phone || '';
+                          return (
+                            patientId.toLowerCase().includes(searchLower) ||
+                            patientNo.toLowerCase().includes(searchLower) ||
+                            fullName.toLowerCase().includes(searchLower) ||
+                            phoneNo.includes(patientSearchTerm)
+                          );
+                        }).length === 0 && (
+                          <div className="text-center py-8 text-sm text-gray-700">
+                            No patients found. Try a different search term.
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {addFormData.patientId && (
+                      <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-sm text-gray-700">
+                        Selected: {(() => {
+                          const selectedPatient = patients.find(p => {
+                            const pid = (p as any).patientId || (p as any).PatientId || '';
+                            return pid === addFormData.patientId;
+                          });
+                          if (selectedPatient) {
+                            const patientId = (selectedPatient as any).patientId || (selectedPatient as any).PatientId || '';
+                            const patientNo = (selectedPatient as any).patientNo || (selectedPatient as any).PatientNo || '';
+                            const patientName = (selectedPatient as any).patientName || (selectedPatient as any).PatientName || '';
+                            const lastName = (selectedPatient as any).lastName || (selectedPatient as any).LastName || '';
+                            const fullName = `${patientName} ${lastName}`.trim();
+                            return `${patientNo ? `${patientNo} - ` : ''}${fullName || 'Unknown'} (ID: ${patientId.substring(0, 8)})`;
+                          }
+                          return `Unknown (ID: ${addFormData.patientId.substring(0, 8)})`;
+                        })()}
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <Label htmlFor="add-doctor-search">Doctor *</Label>
+                    <div className="relative mb-2">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
+                      <Input
+                        id="add-doctor-search"
+                        placeholder="Search by Doctor Name or Specialty..."
+                        value={doctorSearchTerm}
+                        onChange={(e) => setDoctorSearchTerm(e.target.value)}
+                        className="pl-10"
+                      />
+                    </div>
+                    {doctorSearchTerm && (
+                      <div className="border border-gray-200 rounded-md max-h-60 overflow-y-auto">
+                        <table className="w-full">
+                          <thead className="sticky top-0 bg-gray-50 border-b border-gray-200">
+                            <tr>
+                              <th className="text-left py-2 px-3 text-xs text-gray-700 font-bold">Name</th>
+                              <th className="text-left py-2 px-3 text-xs text-gray-700 font-bold">Specialty</th>
+                              <th className="text-left py-2 px-3 text-xs text-gray-700 font-bold">Type</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {appointmentDoctors
+                              .filter(doctor => {
+                                if (!doctorSearchTerm) return false;
+                                const searchLower = doctorSearchTerm.toLowerCase();
+                                return (
+                                  doctor.name.toLowerCase().includes(searchLower) ||
+                                  doctor.specialty.toLowerCase().includes(searchLower)
+                                );
+                              })
+                              .map(doctor => {
+                                const isSelected = addFormData.doctorId === doctor.id.toString();
+                                return (
+                                  <tr
+                                    key={doctor.id}
+                                    onClick={() => {
+                                      setAddFormData({ ...addFormData, doctorId: doctor.id.toString() });
+                                      setDoctorSearchTerm(`${doctor.name} - ${doctor.specialty}`);
+                                    }}
+                                    className={`border-b border-gray-100 cursor-pointer hover:bg-blue-50 ${isSelected ? 'bg-blue-100' : ''}`}
+                                  >
+                                    <td className="py-2 px-3 text-sm text-gray-900">{doctor.name}</td>
+                                    <td className="py-2 px-3 text-sm text-gray-600">{doctor.specialty}</td>
+                                    <td className="py-2 px-3 text-sm">
+                                      <span className={`px-2 py-0.5 rounded text-xs ${
+                                        doctor.type === 'inhouse' 
+                                          ? 'bg-blue-100 text-blue-700' 
+                                          : 'bg-purple-100 text-purple-700'
+                                      }`}>
+                                        {doctor.type === 'inhouse' ? 'Inhouse' : 'Consulting'}
+                                      </span>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                          </tbody>
+                        </table>
+                        {appointmentDoctors.filter(doctor => {
+                          if (!doctorSearchTerm) return false;
+                          const searchLower = doctorSearchTerm.toLowerCase();
+                          return (
+                            doctor.name.toLowerCase().includes(searchLower) ||
+                            doctor.specialty.toLowerCase().includes(searchLower)
+                          );
+                        }).length === 0 && (
+                          <div className="text-center py-8 text-sm text-gray-700">
+                            No doctors found. Try a different search term.
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {addFormData.doctorId && (
+                      <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-sm text-gray-700">
+                        Selected: {(() => {
+                          const selectedDoctor = appointmentDoctors.find(d => d.id.toString() === addFormData.doctorId);
+                          if (selectedDoctor) {
+                            return `${selectedDoctor.name} - ${selectedDoctor.specialty}`;
+                          }
+                          return 'Unknown';
+                        })()}
+                      </div>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="add-appointmentDate">Appointment Date *</Label>
+                      <Input
+                        id="add-appointmentDate"
+                        type="date"
+                        value={addFormData.appointmentDate}
+                        onChange={(e) => setAddFormData({ ...addFormData, appointmentDate: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="add-appointmentTime">Appointment Time *</Label>
+                      <Input
+                        id="add-appointmentTime"
+                        type="time"
+                        value={addFormData.appointmentTime}
+                        onChange={(e) => setAddFormData({ ...addFormData, appointmentTime: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="add-appointmentStatus">Appointment Status</Label>
+                      <select
+                        id="add-appointmentStatus"
+                        aria-label="Appointment Status"
+                        className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                        value={addFormData.appointmentStatus}
+                        onChange={(e) => setAddFormData({ ...addFormData, appointmentStatus: e.target.value as PatientAppointment['appointmentStatus'] })}
+                      >
+                        <option value="Waiting">Waiting</option>
+                        <option value="Consulting">Consulting</option>
+                        <option value="Completed">Completed</option>
+                      </select>
+                    </div>
+                    <div>
+                      <Label htmlFor="add-consultationCharge">Consultation Charge (₹) *</Label>
+                      <Input
+                        id="add-consultationCharge"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="e.g., 500"
+                        value={addFormData.consultationCharge}
+                        onChange={(e) => setAddFormData({ ...addFormData, consultationCharge: parseFloat(e.target.value) || 0 })}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 px-6 py-2 border-t bg-gray-50 flex-shrink-0">
+                <Button variant="outline" onClick={() => {
+                  setIsAddDialogOpen(false);
+                  setAddFormData({
+                    patientId: '',
+                    doctorId: '',
+                    appointmentDate: '',
+                    appointmentTime: '',
+                    appointmentStatus: 'Waiting',
+                    consultationCharge: 0,
+                  });
+                  setPatientSearchTerm('');
+                  setDoctorSearchTerm('');
+                }} className="py-1">Cancel</Button>
+                <Button 
+                  onClick={async () => {
+                    if (!addFormData.patientId || !addFormData.doctorId || !addFormData.appointmentDate || !addFormData.appointmentTime) {
+                      alert('Please fill in all required fields.');
+                      return;
+                    }
+                    try {
+                      const selectedDoctor = appointmentDoctors.find(d => d.id.toString() === addFormData.doctorId);
+                      const doctorName = selectedDoctor ? selectedDoctor.name : 'Unknown Doctor';
+                      await createPatientAppointment({
+                        patientId: addFormData.patientId,
+                        doctorId: addFormData.doctorId,
+                        appointmentDate: addFormData.appointmentDate,
+                        appointmentTime: addFormData.appointmentTime,
+                        appointmentStatus: addFormData.appointmentStatus,
+                        consultationCharge: addFormData.consultationCharge,
+                      }, doctorName);
+                      await fetchPatientAppointments();
+                      setIsAddDialogOpen(false);
+                      setAddFormData({
+                        patientId: '',
+                        doctorId: '',
+                        appointmentDate: '',
+                        appointmentTime: '',
+                        appointmentStatus: 'Waiting',
+                        consultationCharge: 0,
+                      });
+                      setPatientSearchTerm('');
+                      setDoctorSearchTerm('');
+                      alert('Appointment created successfully!');
+                    } catch (err) {
+                      console.error('Failed to create appointment:', err);
+                      alert('Failed to create appointment. Please try again.');
+                    }
+                  }} 
+                  className="py-1"
+                >
+                  Create Appointment
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
       <div className="flex-1 overflow-y-auto overflow-x-hidden frontdesk-scrollable min-h-0">
@@ -277,7 +616,7 @@ function FrontDeskView({
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-gray-500 mb-1">Total Appointments</p>
+                      <p className="text-sm text-gray-700 mb-1">Total Appointments</p>
                       <h3 className="text-gray-900">{patientAppointments.length}</h3>
                     </div>
                     <Users className="size-8 text-blue-500" />
@@ -288,7 +627,7 @@ function FrontDeskView({
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-gray-500 mb-1">Waiting</p>
+                      <p className="text-sm text-gray-700 mb-1">Waiting</p>
                       <h3 className="text-gray-900">{getAppointmentsByStatus('Waiting').length}</h3>
                     </div>
                     <div className="size-8 bg-yellow-100 rounded-full flex items-center justify-center">
@@ -301,7 +640,7 @@ function FrontDeskView({
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-gray-500 mb-1">Consulting</p>
+                      <p className="text-sm text-gray-700 mb-1">Consulting</p>
                       <h3 className="text-gray-900">{getAppointmentsByStatus('Consulting').length}</h3>
                     </div>
                     <div className="size-8 bg-blue-100 rounded-full flex items-center justify-center">
@@ -314,7 +653,7 @@ function FrontDeskView({
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-gray-500 mb-1">Completed</p>
+                      <p className="text-sm text-gray-700 mb-1">Completed</p>
                       <h3 className="text-gray-900">{getAppointmentsByStatus('Completed').length}</h3>
                     </div>
                     <div className="size-8 bg-green-100 rounded-full flex items-center justify-center">
@@ -326,8 +665,7 @@ function FrontDeskView({
             </div>
 
             {/* Search */}
-            <Card className="mb-6">
-              <CardContent className="p-6">
+            <div className="mb-4">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
                   <Input
@@ -337,8 +675,7 @@ function FrontDeskView({
                     className="pl-10"
                   />
                 </div>
-              </CardContent>
-            </Card>
+            </div>
 
             {/* Appointments by Status */}
             <Tabs defaultValue="all" className="space-y-6">
@@ -371,6 +708,18 @@ function FrontDeskView({
                     });
                     setIsEditDialogOpen(true);
                   }}
+                  onDelete={async (appointment) => {
+                    if (confirm('Are you sure you want to delete this appointment? This action cannot be undone.')) {
+                      try {
+                        await deletePatientAppointment(appointment.id);
+                        await fetchPatientAppointments();
+                      } catch (err) {
+                        console.error('Failed to delete appointment:', err);
+                        const errorMessage = err instanceof Error ? err.message : 'Failed to delete appointment';
+                        alert(errorMessage);
+                      }
+                    }
+                  }}
                 />
               </TabsContent>
               <TabsContent value="waiting">
@@ -394,6 +743,18 @@ function FrontDeskView({
                       followUpDetails: appointment.followUpDetails || '',
                     });
                     setIsEditDialogOpen(true);
+                  }}
+                  onDelete={async (appointment) => {
+                    if (confirm('Are you sure you want to delete this appointment? This action cannot be undone.')) {
+                      try {
+                        await deletePatientAppointment(appointment.id);
+                        await fetchPatientAppointments();
+                      } catch (err) {
+                        console.error('Failed to delete appointment:', err);
+                        const errorMessage = err instanceof Error ? err.message : 'Failed to delete appointment';
+                        alert(errorMessage);
+                      }
+                    }
                   }}
                 />
               </TabsContent>
@@ -419,6 +780,18 @@ function FrontDeskView({
                     });
                     setIsEditDialogOpen(true);
                   }}
+                  onDelete={async (appointment) => {
+                    if (confirm('Are you sure you want to delete this appointment? This action cannot be undone.')) {
+                      try {
+                        await deletePatientAppointment(appointment.id);
+                        await fetchPatientAppointments();
+                      } catch (err) {
+                        console.error('Failed to delete appointment:', err);
+                        const errorMessage = err instanceof Error ? err.message : 'Failed to delete appointment';
+                        alert(errorMessage);
+                      }
+                    }
+                  }}
                 />
               </TabsContent>
               <TabsContent value="completed">
@@ -443,6 +816,18 @@ function FrontDeskView({
                     });
                     setIsEditDialogOpen(true);
                   }}
+                  onDelete={async (appointment) => {
+                    if (confirm('Are you sure you want to delete this appointment? This action cannot be undone.')) {
+                      try {
+                        await deletePatientAppointment(appointment.id);
+                        await fetchPatientAppointments();
+                      } catch (err) {
+                        console.error('Failed to delete appointment:', err);
+                        const errorMessage = err instanceof Error ? err.message : 'Failed to delete appointment';
+                        alert(errorMessage);
+                      }
+                    }
+                  }}
                 />
               </TabsContent>
             </Tabs>
@@ -451,8 +836,8 @@ function FrontDeskView({
 
       {/* View Appointment Dialog */}
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
+        <DialogContent className="p-0 gap-0 large-dialog max-h-[90vh]">
+          <DialogHeader className="px-6 pt-4 pb-3 flex-shrink-0">
             <DialogTitle>View Patient Appointment</DialogTitle>
           </DialogHeader>
           {selectedAppointment && (() => {
@@ -469,93 +854,97 @@ function FrontDeskView({
               ? (patient as any).PhoneNo || (patient as any).phoneNo || (patient as any).phone || '-'
               : '-';
 
-            const getStatusBadge = (status: PatientAppointment['appointmentStatus']) => {
-              switch (status) {
-                case 'Waiting':
-                  return <Badge variant="outline" className="bg-yellow-100 text-yellow-700 border-yellow-300"><Clock className="size-3 mr-1" />Waiting</Badge>;
-                case 'Consulting':
-                  return <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-300"><Stethoscope className="size-3 mr-1" />Consulting</Badge>;
-                case 'Completed':
-                  return <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300"><CheckCircle2 className="size-3 mr-1" />Completed</Badge>;
-                default:
-                  return <Badge variant="outline">{status}</Badge>;
-              }
-            };
-
             return (
+              <>
+                <div className="flex-1 overflow-y-auto px-6 pb-1 patient-list-scrollable min-h-0">
               <div className="space-y-4 py-4">
                 <div>
                   <Label>Token No</Label>
-                  <Input value={selectedAppointment.tokenNo} disabled className="bg-gray-50" />
+                      <Input value={selectedAppointment.tokenNo} disabled className="bg-gray-50 text-gray-700" />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label>Patient</Label>
-                    <Input value={patientName} disabled className="bg-gray-50" />
+                        <Label>Patient *</Label>
+                        <Input
+                          value={(() => {
+                            const patient = patients.find(p => 
+                              (p as any).patientId === selectedAppointment.patientId || 
+                              (p as any).PatientId === selectedAppointment.patientId
+                            );
+                            if (patient) {
+                              const patientId = (patient as any).patientId || (patient as any).PatientId || '';
+                              const patientNo = (patient as any).patientNo || (patient as any).PatientNo || '';
+                              return `${patientNo ? `${patientNo} - ` : ''}${patientName} (ID: ${patientId.substring(0, 8)})`;
+                            }
+                            return `${patientName} (ID: ${selectedAppointment.patientId ? selectedAppointment.patientId.substring(0, 8) : 'N/A'})`;
+                          })()}
+                          disabled
+                          className="bg-gray-50 text-gray-700"
+                        />
                   </div>
                   <div>
-                    <Label>Phone</Label>
-                    <Input value={patientPhone} disabled className="bg-gray-50" />
+                        <Label>Doctor *</Label>
+                        <Input
+                          value={doctorName}
+                          disabled
+                          className="bg-gray-50 text-gray-700"
+                        />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label>Doctor</Label>
-                    <Input value={doctorName} disabled className="bg-gray-50" />
+                        <Label>Appointment Date *</Label>
+                        <Input
+                          type="date"
+                          value={selectedAppointment.appointmentDate}
+                          disabled
+                          className="bg-gray-50 text-gray-700"
+                        />
                   </div>
                   <div>
-                    <Label>Status</Label>
-                    <div className="pt-2">{getStatusBadge(selectedAppointment.appointmentStatus)}</div>
+                        <Label>Appointment Time *</Label>
+                        <Input
+                          type="time"
+                          value={selectedAppointment.appointmentTime}
+                          disabled
+                          className="bg-gray-50 text-gray-700"
+                        />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label>Date</Label>
-                    <Input value={new Date(selectedAppointment.appointmentDate).toLocaleDateString()} disabled className="bg-gray-50" />
+                        <Label>Appointment Status</Label>
+                        <Input
+                          value={selectedAppointment.appointmentStatus}
+                          disabled
+                          className="bg-gray-50 text-gray-700"
+                        />
                   </div>
                   <div>
-                    <Label>Time</Label>
-                    <Input value={selectedAppointment.appointmentTime} disabled className="bg-gray-50" />
+                        <Label>Consultation Charge (₹) *</Label>
+                        <Input
+                          type="number"
+                          value={selectedAppointment.consultationCharge}
+                          disabled
+                          className="bg-gray-50 text-gray-700"
+                        />
                   </div>
                 </div>
-                <div>
-                  <Label>Charges (₹)</Label>
-                  <Input value={`₹${selectedAppointment.consultationCharge.toFixed(2)}`} disabled className="bg-gray-50" />
-                </div>
-                <div>
-                  <Label>Diagnosis</Label>
-                  <Textarea value={selectedAppointment.diagnosis || '-'} disabled className="bg-gray-50" rows={3} />
-                </div>
-                {selectedAppointment.followUpDetails && (
                   <div>
                     <Label>Follow Up Details</Label>
-                    <Textarea value={selectedAppointment.followUpDetails} disabled className="bg-gray-50" rows={2} />
+                      <Textarea
+                        value={selectedAppointment.followUpDetails || ''}
+                        disabled
+                        className="bg-gray-50 text-gray-700"
+                        rows={2}
+                      />
                   </div>
-                )}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>To Be Admitted</Label>
-                    <div className="pt-2">
-                      {selectedAppointment.toBeAdmitted ? (
-                        <Badge variant="outline" className="bg-red-100 text-red-700 border-red-300">
-                          <Hospital className="size-3 mr-1" />Yes
-                        </Badge>
-                      ) : (
-                        <span className="text-gray-500">No</span>
-                      )}
                     </div>
                   </div>
-                  {selectedAppointment.prescriptionsUrl && (
-                    <div>
-                      <Label>Prescriptions URL</Label>
-                      <Input value={selectedAppointment.prescriptionsUrl} disabled className="bg-gray-50" />
+                <div className="flex justify-end gap-2 px-6 py-2 border-t bg-gray-50 flex-shrink-0">
+                  <Button variant="outline" onClick={() => setIsViewDialogOpen(false)} className="py-1">Close</Button>
                     </div>
-                  )}
-                </div>
-                <div className="flex justify-end gap-2 pt-4">
-                  <Button variant="outline" onClick={() => setIsViewDialogOpen(false)}>Close</Button>
-                </div>
-              </div>
+              </>
             );
           })()}
         </DialogContent>
@@ -573,58 +962,47 @@ function FrontDeskView({
                 <div className="space-y-4 py-4">
                   <div>
                     <Label>Token No</Label>
-                    <Input value={selectedAppointment.tokenNo} disabled className="bg-gray-50 text-gray-500" />
-                    <p className="text-xs text-gray-500 mt-1">Token No is auto-generated and cannot be changed</p>
+                    <Input value={selectedAppointment.tokenNo} disabled className="bg-gray-50 text-gray-700" />
+                    <p className="text-xs text-gray-700 mt-1">Token No is auto-generated and cannot be changed</p>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="edit-patientId">Patient *</Label>
-                      <select
+                      <Input
                         id="edit-patientId"
-                        aria-label="Patient"
-                        className="w-full px-3 py-2 border border-gray-200 rounded-md"
-                        value={editFormData.patientId}
-                        onChange={(e) => setEditFormData({ ...editFormData, patientId: e.target.value })}
-                      >
-                        <option value="">Select Patient</option>
-                        {patients.length > 0 ? (
-                          patients.map(patient => {
+                        value={(() => {
+                          const patient = patients.find(p => 
+                            (p as any).patientId === editFormData.patientId || 
+                            (p as any).PatientId === editFormData.patientId
+                          );
+                          if (patient) {
                             const patientId = (patient as any).patientId || (patient as any).PatientId || '';
+                            const patientNo = (patient as any).patientNo || (patient as any).PatientNo || '';
                             const patientName = (patient as any).patientName || (patient as any).PatientName || '';
                             const lastName = (patient as any).lastName || (patient as any).LastName || '';
-                            return (
-                              <option key={patientId} value={patientId}>
-                                {patientName} {lastName}
-                              </option>
-                            );
-                          })
-                        ) : (
-                          <>
-                            <option value="00000000-0000-0000-0000-000000000001">Dummy Patient Name</option>
-                          </>
-                        )}
-                      </select>
+                            const fullName = `${patientName} ${lastName}`.trim();
+                            return `${patientNo ? `${patientNo} - ` : ''}${fullName || 'Unknown'} (ID: ${patientId.substring(0, 8)})`;
+                          }
+                          return `Unknown (ID: ${editFormData.patientId ? editFormData.patientId.substring(0, 8) : 'N/A'})`;
+                        })()}
+                        disabled
+                        className="bg-gray-50 text-gray-700"
+                      />
                     </div>
                     <div>
                       <Label htmlFor="edit-doctorId">Doctor *</Label>
-                      <select
+                      <Input
                         id="edit-doctorId"
-                        aria-label="Doctor"
-                        className="w-full px-3 py-2 border border-gray-200 rounded-md"
-                        value={editFormData.doctorId}
-                        onChange={(e) => setEditFormData({ ...editFormData, doctorId: e.target.value })}
-                      >
-                        <option value="">Select Doctor</option>
-                        {appointmentDoctors.length > 0 ? (
-                          appointmentDoctors.map(doctor => (
-                            <option key={doctor.id} value={doctor.id.toString()}>
-                              {doctor.name} - {doctor.specialty}
-                            </option>
-                          ))
-                        ) : (
-                          <option value="" disabled>No doctors available</option>
-                        )}
-                      </select>
+                        value={(() => {
+                          const doctor = appointmentDoctors.find(d => d.id.toString() === editFormData.doctorId);
+                          if (doctor) {
+                            return `${doctor.name} - ${doctor.specialty}`;
+                          }
+                          return editFormData.doctorId || 'Unknown';
+                        })()}
+                        disabled
+                        className="bg-gray-50 text-gray-700"
+                      />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
@@ -803,7 +1181,7 @@ function TokenList({ tokens, doctors }: { tokens: Token[]; doctors: Array<{ id: 
           </table>
         </div>
         {tokens.length === 0 && (
-          <div className="text-center py-12 text-gray-500">
+          <div className="text-center py-12 text-gray-700">
             No tokens found
           </div>
         )}
@@ -817,13 +1195,15 @@ function AppointmentList({
   doctors, 
   patients,
   onView,
-  onEdit
+  onEdit,
+  onDelete
 }: { 
   appointments: PatientAppointment[]; 
   doctors: Doctor[]; 
   patients: Patient[];
   onView: (appointment: PatientAppointment) => void;
   onEdit: (appointment: PatientAppointment) => void;
+  onDelete: (appointment: PatientAppointment) => void;
 }) {
   const getStatusBadge = (status: PatientAppointment['appointmentStatus']) => {
     switch (status) {
@@ -840,21 +1220,21 @@ function AppointmentList({
 
   return (
     <Card className="mb-4">
-      <CardContent className="p-6">
+      <CardContent className="p-4">
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full table-auto">
             <thead>
               <tr className="border-b border-gray-200">
-                <th className="text-left py-2 px-2 text-gray-700 font-bold text-sm">Token No</th>
-                <th className="text-left py-2 px-2 text-gray-700 font-bold text-sm">Patient ID</th>
-                <th className="text-left py-2 px-2 text-gray-700 font-bold text-sm">Patient</th>
-                <th className="text-left py-2 px-2 text-gray-700 font-bold text-sm">Phone</th>
-                <th className="text-left py-2 px-2 text-gray-700 font-bold text-sm">Doctor</th>
-                <th className="text-left py-2 px-2 text-gray-700 font-bold text-sm">Time</th>
-                <th className="text-left py-2 px-2 text-gray-700 font-bold text-sm">Status</th>
-                <th className="text-left py-2 px-2 text-gray-700 font-bold text-sm">Charges(₹)</th>
-                <th className="text-left py-2 px-2 text-gray-700 font-bold text-sm">To Be Admitted</th>
-                <th className="text-left py-2 px-2 text-gray-700 font-bold text-sm">Actions</th>
+                <th className="text-left py-1.5 px-2 text-gray-700 font-bold text-xs">Token</th>
+                <th className="text-left py-1.5 px-2 text-gray-700 font-bold text-xs">Patient ID</th>
+                <th className="text-left py-1.5 px-2 text-gray-700 font-bold text-xs">Patient</th>
+                <th className="text-left py-1.5 px-2 text-gray-700 font-bold text-xs">Phone</th>
+                <th className="text-left py-1.5 px-2 text-gray-700 font-bold text-xs">Doctor</th>
+                <th className="text-left py-1.5 px-2 text-gray-700 font-bold text-xs">Time</th>
+                <th className="text-left py-1.5 px-2 text-gray-700 font-bold text-xs">Status</th>
+                <th className="text-left py-1.5 px-2 text-gray-700 font-bold text-xs">Charges</th>
+                <th className="text-left py-1.5 px-2 text-gray-700 font-bold text-xs">Admit</th>
+                <th className="text-left py-1.5 px-2 text-gray-700 font-bold text-xs">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -879,32 +1259,32 @@ function AppointmentList({
                 
                 return (
                   <tr key={appointment.id} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="py-1 px-2 text-gray-900 font-mono font-medium whitespace-nowrap text-sm">{appointment.tokenNo}</td>
-                    <td className="py-1 px-2 text-gray-600 whitespace-nowrap text-sm font-mono">{patientId}</td>
-                    <td className="py-1 px-2 text-gray-600 whitespace-nowrap text-sm">{patientName}</td>
-                    <td className="py-1 px-2 text-gray-600 whitespace-nowrap text-sm">{patientPhone}</td>
-                    <td className="py-1 px-2 text-gray-600 whitespace-nowrap text-sm">{doctorName}</td>
-                    <td className="py-1 px-2 text-gray-600 text-sm">{appointment.appointmentTime}</td>
-                    <td className="py-1 px-2">{getStatusBadge(appointment.appointmentStatus)}</td>
-                    <td className="py-1 px-2 text-gray-900 font-semibold text-sm">
+                    <td className="py-1.5 px-2 text-gray-900 font-mono font-medium text-sm break-words">{appointment.tokenNo}</td>
+                    <td className="py-1.5 px-2 text-gray-600 text-sm font-mono break-words">{patientId}</td>
+                    <td className="py-1.5 px-2 text-gray-600 text-sm break-words min-w-[120px]">{patientName}</td>
+                    <td className="py-1.5 px-2 text-gray-600 text-sm break-words">{patientPhone}</td>
+                    <td className="py-1.5 px-2 text-gray-600 text-sm break-words min-w-[100px]">{doctorName}</td>
+                    <td className="py-1.5 px-2 text-gray-600 text-sm break-words">{appointment.appointmentTime}</td>
+                    <td className="py-1.5 px-2">{getStatusBadge(appointment.appointmentStatus)}</td>
+                    <td className="py-1.5 px-2 text-gray-900 font-semibold text-sm break-words">
                       ₹{appointment.consultationCharge.toFixed(2)}
                     </td>
-                    <td className="py-1 px-2">
+                    <td className="py-1.5 px-2">
                       {appointment.toBeAdmitted ? (
                         <Badge variant="outline" className="bg-red-100 text-red-700 border-red-300 text-xs">
-                          <Hospital className="size-3 mr-1" />Yes
+                          <Hospital className="size-2.5 mr-0.5" />Yes
                         </Badge>
                       ) : (
-                        <span className="text-gray-500 text-sm">No</span>
+                        <span className="text-gray-700 text-sm">No</span>
                       )}
                     </td>
-                    <td className="py-1 px-2">
+                    <td className="py-1.5 px-2">
                       <div className="flex items-center gap-1">
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => onView(appointment)}
-                          className="h-7 w-7 p-0"
+                          className="h-6 w-6 p-0"
                         >
                           <Eye className="size-3" />
                         </Button>
@@ -912,9 +1292,17 @@ function AppointmentList({
                           variant="ghost"
                           size="sm"
                           onClick={() => onEdit(appointment)}
-                          className="h-7 w-7 p-0"
+                          className="h-6 w-6 p-0"
                         >
                           <Edit className="size-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => onDelete(appointment)}
+                          className="h-6 w-6 p-0 text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 className="size-3" />
                         </Button>
                       </div>
                     </td>
@@ -925,7 +1313,7 @@ function AppointmentList({
           </table>
         </div>
         {appointments.length === 0 && (
-          <div className="text-center py-12 text-gray-500">
+          <div className="text-center py-12 text-gray-700">
             No appointments found
           </div>
         )}

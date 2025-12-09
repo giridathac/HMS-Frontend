@@ -51,11 +51,13 @@ export function useEmergencyBeds() {
     }
   }, []);
 
-  const deleteEmergencyBed = useCallback(async (id: number) => {
+  const deleteEmergencyBed = useCallback(async (emergencyBedId: number) => {
     try {
       setError(null);
-      await emergencyBedsApi.delete(id);
-      setEmergencyBeds(prev => prev.filter(b => b.id !== id));
+      // emergencyBedId is the EmergencyBedId (Number) from the backend
+      await emergencyBedsApi.delete(emergencyBedId);
+      // Filter by id which contains the EmergencyBedId value
+      setEmergencyBeds(prev => prev.filter(b => b.id !== emergencyBedId));
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to delete Emergency bed';
       setError(errorMessage);

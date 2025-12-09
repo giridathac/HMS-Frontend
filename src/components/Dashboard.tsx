@@ -1,16 +1,19 @@
 // Dashboard UI Component - Separated from logic
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
-import { Users, ClipboardList, BedDouble, Scissors, HeartPulse, Activity, Building2, Stethoscope, Edit, Trash2 } from 'lucide-react';
+import { Users, ClipboardList, BedDouble, Scissors, HeartPulse, Activity, Building2, Stethoscope, Edit, Trash2, Siren } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { useDashboard } from '../hooks';
 import { useDepartments } from '../hooks/useDepartments';
-import { ChartData, DoctorQueue } from '../types';
+import { useStaff } from '../hooks/useStaff';
+import { useRoles } from '../hooks/useRoles';
+import { patientsApi } from '../api/patients';
+import { ChartData, DoctorQueue, EmergencyAdmission, Patient } from '../types';
 import { Department, DepartmentCategory } from '../types/departments';
 
 interface DashboardProps {
@@ -25,6 +28,7 @@ interface DashboardProps {
   opdData?: ChartData[];
   admissionData?: ChartData[];
   doctorQueue?: DoctorQueue[];
+  emergencyAdmissions?: EmergencyAdmission[];
   departments?: Array<{
     id: number;
     name: string;
@@ -47,7 +51,7 @@ const statConfig = [
 ];
 
 export function Dashboard() {
-  const { stats, opdData, admissionData, doctorQueue, loading } = useDashboard();
+  const { stats, opdData, admissionData, doctorQueue, emergencyAdmissions, loading } = useDashboard();
   const { departments, loading: departmentsLoading, updateDepartment, deleteDepartment, fetchDepartments } = useDepartments();
 
   if (loading || departmentsLoading) {
@@ -64,6 +68,7 @@ export function Dashboard() {
       opdData={opdData} 
       admissionData={admissionData} 
       doctorQueue={doctorQueue} 
+      emergencyAdmissions={emergencyAdmissions}
       departments={departments}
       onUpdateDepartment={updateDepartment}
       onDeleteDepartment={deleteDepartment}
@@ -91,14 +96,78 @@ export function DashboardView({
   stats, 
   opdData, 
   admissionData, 
-  doctorQueue, 
+  doctorQueue,
+  emergencyAdmissions,
   departments,
   onUpdateDepartment,
   onDeleteDepartment,
   onRefreshDepartments
 }: DashboardViewProps) {
+  const { staff } = useStaff();
+  const { roles } = useRoles();
+  const [patients, setPatients] = useState<Patient[]>([]);
+
+  // Fetch patients for lookup
+  useEffect(() => {
+    const fetchPatients = async () => {
+      try {
+        const patientsData = await patientsApi.getAll();
+        setPatients(patientsData);
+      } catch (err) {
+        console.error('Failed to fetch patients for dashboard:', err);
+      }
+    };
+    fetchPatients();
+  }, []);
+
+  // Filter staff to get doctors
+  const doctors = useMemo(() => {
+    if (!staff || !roles) return [];
+    return staff
+      .filter((member) => {
+        if (!member.RoleId) return false;
+        const role = roles.find(r => r.id === member.RoleId);
+        if (!role || !role.name) return false;
+        const roleNameLower = role.name.toLowerCase();
+        return roleNameLower.includes('doctor') || roleNameLower.includes('surgeon');
+      })
+      .map((member) => ({
+        id: member.UserId || 0,
+        name: member.UserName || 'Unknown',
+        role: roles.find(r => r.id === member.RoleId)?.name || 'Unknown',
+      }));
+  }, [staff, roles]);
+
+  // Helper function to get patient name
+  const getPatientName = (admission: EmergencyAdmission): string => {
+    if (admission.patientName) {
+      return `${admission.patientName}${admission.patientNo ? ` (${admission.patientNo})` : ''}`;
+    }
+    const patient = patients.find(p => {
+      const pid = (p as any).patientId || (p as any).PatientId || '';
+      return pid === admission.patientId;
+    });
+    if (patient) {
+      const patientName = (patient as any).patientName || (patient as any).PatientName || '';
+      const lastName = (patient as any).lastName || (patient as any).LastName || '';
+      const fullName = `${patientName} ${lastName}`.trim();
+      const patientNo = (patient as any).patientNo || (patient as any).PatientNo || '';
+      return `${fullName || 'Unknown'}${patientNo ? ` (${patientNo})` : ''}`;
+    }
+    return 'Unknown';
+  };
+
+  // Helper function to get doctor name
+  const getDoctorName = (admission: EmergencyAdmission): string => {
+    if (admission.doctorName) {
+      return admission.doctorName;
+    }
+    const doctor = doctors.find(d => d.id === admission.doctorId);
+    return doctor ? doctor.name : 'Unknown';
+  };
+
   // Debug logging for admission data
-  React.useEffect(() => {
+  useEffect(() => {
     if (admissionData) {
       console.log('Dashboard - admissionData received:', admissionData);
       console.log('Dashboard - admissionData length:', admissionData.length);
@@ -160,16 +229,17 @@ export function DashboardView({
     }
   };
   return (
-    <div className="flex-1 bg-blue-100 flex flex-col overflow-hidden min-h-0">
-      <div className="px-4 pt-4 pb-0 flex-shrink-0">
-        <div className="flex items-center justify-between mb-4 flex-shrink-0">
-          <div>
-            <h1 className="text-gray-900 mb-0 text-xl">Dashboard Overview</h1>
-            <p className="text-gray-500 text-sm">Real-time hospital operations monitoring</p>
+    <div className="flex-1 bg-gray-50 flex flex-col overflow-hidden min-h-0 dashboard-scrollable" style={{ maxHeight: '100vh', minHeight: 0 }}>
+      <div className="overflow-y-auto overflow-x-hidden flex-1 flex flex-col min-h-0">
+        <div className="px-6 pt-6 pb-0 flex-shrink-0">
+          <div className="flex items-center justify-between mb-4 flex-shrink-0">
+            <div>
+              <h1 className="text-gray-900 mb-2 text-2xl">Dashboard Overview</h1>
+              <p className="text-gray-500 text-base">Real-time hospital operations monitoring</p>
+            </div>
           </div>
         </div>
-      </div>
-      <div className="overflow-y-auto overflow-x-hidden px-4 pb-4 dashboard-scrollable" style={{ maxHeight: 'calc(100vh - 100px)', minHeight: 0 }}>
+        <div className="px-6 pt-4 pb-4 flex-1">
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
@@ -177,16 +247,20 @@ export function DashboardView({
           const Icon = config.icon;
           const value = stats?.[config.key]?.toString() || '0';
           return (
-            <Card key={config.title}>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div className={`${config.color} p-3 rounded-lg`}>
-                    <Icon className="size-6 text-white" />
+            <Card key={config.title} className="bg-white border border-gray-200 shadow-sm rounded-lg">
+              <CardContent className="p-8">
+                <div className="flex items-center justify-between mb-6">
+                  <div className={`${config.color} p-4 rounded-lg shadow-sm flex items-center justify-center`}>
+                    <Icon className="size-7 text-white" strokeWidth={2} />
                   </div>
-                  <span className="text-sm text-blue-600">{config.change}</span>
+                  <span className={`text-sm font-medium ${
+                    config.change === 'Live' ? 'text-green-600' : 
+                    config.change.includes('+') ? 'text-gray-500' : 
+                    'text-gray-500'
+                  }`}>{config.change}</span>
                 </div>
-                <h3 className="text-blue-900 mb-1">{value}</h3>
-                <p className="text-sm text-blue-600">{config.title}</p>
+                <h3 className="text-4xl font-bold text-gray-900 mb-2">{value}</h3>
+                <p className="text-base text-gray-500">{config.title}</p>
               </CardContent>
             </Card>
           );
@@ -195,7 +269,7 @@ export function DashboardView({
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        <Card>
+        <Card className="bg-white border border-gray-200 shadow-sm rounded-lg">
           <CardHeader>
             <CardTitle>OPD Patient Flow - Weekly</CardTitle>
           </CardHeader>
@@ -212,7 +286,7 @@ export function DashboardView({
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="bg-white border border-gray-200 shadow-sm rounded-lg">
           <CardHeader>
             <CardTitle>IPD Room Distribution</CardTitle>
           </CardHeader>
@@ -251,7 +325,7 @@ export function DashboardView({
       </div>
 
       {/* Doctor Queue Status */}
-      <Card className="mb-8">
+      <Card className="bg-white border border-gray-200 shadow-sm rounded-lg mb-8">
         <CardHeader>
           <CardTitle>Doctor Queue Status - Live</CardTitle>
         </CardHeader>
@@ -307,8 +381,80 @@ export function DashboardView({
         </CardContent>
       </Card>
 
+      {/* Emergency Admissions */}
+      <Card className="bg-white border border-gray-200 shadow-sm rounded-lg mb-8">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Siren className="size-5" />
+            Emergency Admissions
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-gray-200">
+                  <th className="text-left py-3 px-4 text-gray-700">ID</th>
+                  <th className="text-left py-3 px-4 text-gray-700">Patient</th>
+                  <th className="text-left py-3 px-4 text-gray-700">Doctor</th>
+                  <th className="text-left py-3 px-4 text-gray-700">Admission Date</th>
+                  <th className="text-left py-3 px-4 text-gray-700">Status</th>
+                  <th className="text-left py-3 px-4 text-gray-700">Condition</th>
+                  <th className="text-left py-3 px-4 text-gray-700">Bed Slot</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(!emergencyAdmissions || emergencyAdmissions.length === 0) ? (
+                  <tr>
+                    <td colSpan={7} className="text-center py-8 text-gray-500">
+                      No emergency admissions found
+                    </td>
+                  </tr>
+                ) : (
+                  emergencyAdmissions.slice(0, 10).map((admission) => (
+                    <tr key={admission.emergencyAdmissionId} className="border-b border-gray-100 hover:bg-gray-50">
+                      <td className="py-3 px-4 text-gray-900 font-mono">{admission.emergencyAdmissionId}</td>
+                      <td className="py-3 px-4 text-gray-900">{getPatientName(admission)}</td>
+                      <td className="py-3 px-4 text-gray-900">{getDoctorName(admission)}</td>
+                      <td className="py-3 px-4 text-gray-600">{admission.emergencyAdmissionDate}</td>
+                      <td className="py-3 px-4">
+                        <span className={`px-2 py-1 rounded text-xs ${
+                          admission.emergencyStatus === 'Admitted' ? 'bg-blue-100 text-blue-700' :
+                          admission.emergencyStatus === 'IPD' ? 'bg-green-100 text-green-700' :
+                          admission.emergencyStatus === 'OT' ? 'bg-purple-100 text-purple-700' :
+                          admission.emergencyStatus === 'ICU' ? 'bg-orange-100 text-orange-700' :
+                          admission.emergencyStatus === 'Discharged' ? 'bg-gray-100 text-gray-700' :
+                          'bg-gray-100 text-gray-700'
+                        }`}>
+                          {admission.emergencyStatus}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4">
+                        <span className={`px-2 py-1 rounded text-xs ${
+                          admission.patientCondition === 'Critical' 
+                            ? 'bg-red-100 text-red-700' 
+                            : 'bg-green-100 text-green-700'
+                        }`}>
+                          {admission.patientCondition}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-gray-600">{admission.emergencyBedSlotNo || '-'}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+          {emergencyAdmissions && emergencyAdmissions.length > 10 && (
+            <div className="mt-4 text-center text-sm text-gray-600">
+              Showing 10 of {emergencyAdmissions.length} emergency admissions
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Departments Overview */}
-      <Card className="mt-8 mb-4">
+      <Card className="bg-white border border-gray-200 shadow-sm rounded-lg mt-8 mb-4">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Building2 className="size-5" />
@@ -318,7 +464,7 @@ export function DashboardView({
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {(departments || []).slice(0, 6).map((dept) => (
-              <Card key={dept.id} className="hover:shadow-md transition-shadow">
+              <Card key={dept.id} className="bg-white border border-gray-200 shadow-sm rounded-lg hover:shadow-md transition-shadow">
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex-1">
@@ -463,6 +609,7 @@ export function DashboardView({
           </div>
         </DialogContent>
       </Dialog>
+        </div>
       </div>
     </div>
   );

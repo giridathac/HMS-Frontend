@@ -14,7 +14,7 @@ import {
 } from './ui/dialog';
 import { usePatients } from '../hooks';
 import { patientsApi } from '../api';
-import { UserPlus, Plus, Eye, Pencil } from 'lucide-react';
+import { UserPlus, Plus, Eye, Pencil, Search } from 'lucide-react';
 import { Patient } from '../types';
 
 export function PatientRegistration() {
@@ -30,6 +30,7 @@ export function PatientRegistration() {
   const [loadingEditPatient, setLoadingEditPatient] = useState(false);
   const [editFormData, setEditFormData] = useState<any>(null);
   const [updatingPatient, setUpdatingPatient] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState({
     patientNo: '',
     patientName: '',
@@ -127,6 +128,20 @@ export function PatientRegistration() {
       console.error('Error fetching patients in PatientRegistration:', err);
     });
   }, [fetchPatients]);
+
+  // Filter patients based on search term
+  const filteredPatients = patients.filter(patient => {
+    const searchLower = searchTerm.toLowerCase();
+    const patientName = `${patient.patientName || ''} ${patient.lastName || ''}`.toLowerCase();
+    const patientNo = (patient.patientNo || '').toLowerCase();
+    const phoneNo = (patient.phoneNo || patient.phone || '').toLowerCase();
+    const patientId = (patient.patientId || patient.PatientId || '').toLowerCase();
+    
+    return patientName.includes(searchLower) ||
+           patientNo.includes(searchLower) ||
+           phoneNo.includes(searchLower) ||
+           patientId.includes(searchLower);
+  });
 
   const handleViewPatient = async (patientId: string) => {
     try {
@@ -335,19 +350,20 @@ export function PatientRegistration() {
 
   return (
     <>
-      <div className="px-4 pt-4 pb-4 bg-blue-100 h-screen flex flex-col overflow-hidden">
-        <div className="flex items-center justify-between mb-4 flex-shrink-0">
-          <div>
-            <h1 className="text-gray-900 mb-0 text-xl">Patient Registration</h1>
-            <p className="text-gray-500 text-sm">Register and manage patient information</p>
-          </div>
-          <Button 
-            className="gap-2"
-            onClick={() => setIsAddDialogOpen(true)}
-          >
-            <Plus className="size-4" />
-            Add New Patient
-          </Button>
+      <div className="flex-1 bg-blue-100 flex flex-col overflow-hidden min-h-0">
+        <div className="px-4 pt-4 pb-0 flex-shrink-0">
+          <div className="flex items-center justify-between mb-4 flex-shrink-0">
+            <div>
+              <h1 className="text-gray-900 mb-1 text-2xl">Patient Registration</h1>
+              <p className="text-gray-500 text-sm">Register and manage patient information</p>
+            </div>
+            <Button 
+              className="gap-2"
+              onClick={() => setIsAddDialogOpen(true)}
+            >
+              <Plus className="size-4" />
+              Add New Patient
+            </Button>
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogContent className="p-0 gap-0 large-dialog">
               <DialogHeader className="px-6 pt-4 pb-3 flex-shrink-0">
@@ -361,28 +377,16 @@ export function PatientRegistration() {
                     </div>
                   )}
 
-                  {/* Row 1: PatientId (Auto-generated), PatientName */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="patientId">Patient ID</Label>
-                      <Input
-                        id="patientId"
-                        value="Auto-generated on save"
-                        disabled
-                        className="bg-gray-50 text-gray-500"
-                      />
-                      <p className="text-xs text-gray-500 mt-1">Unique Patient ID will be auto-generated</p>
-                    </div>
-                    <div>
-                      <Label htmlFor="patientName">Patient Name *</Label>
-                      <Input
-                        id="patientName"
-                        required
-                        value={formData.patientName}
-                        onChange={(e) => setFormData({ ...formData, patientName: e.target.value })}
-                        placeholder="Enter patient's first name"
-                      />
-                    </div>
+                  {/* Row 1: PatientName */}
+                  <div>
+                    <Label htmlFor="patientName">Patient Name *</Label>
+                    <Input
+                      id="patientName"
+                      required
+                      value={formData.patientName}
+                      onChange={(e) => setFormData({ ...formData, patientName: e.target.value })}
+                      placeholder="Enter patient's first name"
+                    />
                   </div>
 
                   {/* Row 1.5: PatientNo */}
@@ -575,94 +579,118 @@ export function PatientRegistration() {
                       />
                     </div>
                   </div>
+
+                  <div className="flex justify-end gap-2 pt-4 border-t">
+                    <Button 
+                      type="button"
+                      variant="outline" 
+                      onClick={() => {
+                        setIsAddDialogOpen(false);
+                        setFormData({
+                          patientNo: '',
+                          patientName: '',
+                          patientType: '',
+                          lastName: '',
+                          adhaarID: '',
+                          panCard: '',
+                          phoneNo: '',
+                          gender: '',
+                          age: '',
+                          address: '',
+                          chiefComplaint: '',
+                          description: '',
+                          status: 'Active',
+                          registeredBy: 'Admin User',
+                          registeredDate: new Date().toISOString().split('T')[0],
+                        });
+                        setAdhaarError('');
+                      }} 
+                      className="py-1"
+                    >
+                      Cancel
+                    </Button>
+                    <Button 
+                      type="submit"
+                      disabled={loading} 
+                      className="py-1"
+                    >
+                      {loading ? 'Registering...' : 'Register Patient'}
+                    </Button>
+                  </div>
                 </form>
-              </div>
-              <div className="flex justify-end gap-2 px-6 py-2 border-t bg-gray-50 flex-shrink-0">
-                <Button variant="outline" onClick={() => {
-                  setIsAddDialogOpen(false);
-                  setFormData({
-                    patientNo: '',
-                    patientName: '',
-                    patientType: '',
-                    lastName: '',
-                    adhaarID: '',
-                    panCard: '',
-                    phoneNo: '',
-                    gender: '',
-                    age: '',
-                    address: '',
-                    chiefComplaint: '',
-                    description: '',
-                    status: 'Active',
-                    registeredBy: 'Admin User',
-                    registeredDate: new Date().toISOString().split('T')[0],
-                  });
-                  setAdhaarError('');
-                }} className="py-1">Cancel</Button>
-                <Button 
-                  type="submit"
-                  disabled={loading} 
-                  className="py-1"
-                >
-                  {loading ? 'Registering...' : 'Register Patient'}
-                </Button>
               </div>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
 
-        <Card className="flex-1 flex flex-col overflow-hidden min-h-0 mb-4">
-          <CardContent className="p-0 flex-1 overflow-hidden flex flex-col min-h-0">
-            <div className="overflow-x-auto overflow-y-scroll border border-gray-200 rounded flex-1 min-h-0 doctors-scrollable h-full pb-2">
-              <table className="w-full">
-                <thead className="sticky top-0 bg-white z-10 shadow-sm">
-                  <tr className="border-b border-gray-200">
-                    <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">Patient ID</th>
-                    <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">Patient No</th>
-                    <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">Patient Name</th>
-                    <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">Type</th>
-                    <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">Age</th>
-                    <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">Gender</th>
-                    <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">Phone No</th>
-                    <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">Aadhaar ID</th>
-                    <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">Chief Complaint</th>
-                    <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">Status</th>
-                    <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">Registered Date</th>
-                    <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {patients.length === 0 ? (
-                    <tr>
-                      <td colSpan={12} className="text-center py-8 text-gray-500">
-                        No patients found. Click "Add New Patient" to register a new patient.
-                      </td>
+        <div className="overflow-y-auto overflow-x-hidden px-4 pt-4 pb-4 patient-registration-scrollable" style={{ maxHeight: 'calc(100vh - 100px)', minHeight: 0 }}>
+          {/* Search */}
+          <Card className="mb-6">
+            <CardContent className="p-6">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
+                <Input
+                  placeholder="Search by patient name, patient number, phone number, or patient ID..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Patients Table */}
+          <Card className="mb-4">
+            <CardContent className="p-6">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-gray-200">
+                      <th className="text-left py-3 px-4 text-gray-700">Patient No</th>
+                      <th className="text-left py-3 px-4 text-gray-700">Patient Name</th>
+                      <th className="text-left py-3 px-4 text-gray-700">Type</th>
+                      <th className="text-left py-3 px-4 text-gray-700">Age</th>
+                      <th className="text-left py-3 px-4 text-gray-700">Gender</th>
+                      <th className="text-left py-3 px-4 text-gray-700">Phone No</th>
+                      <th className="text-left py-3 px-4 text-gray-700">Aadhaar ID</th>
+                      <th className="text-left py-3 px-4 text-gray-700 break-words min-w-[120px]">Chief Complaint</th>
+                      <th className="text-left py-3 px-4 text-gray-700">Status</th>
+                      <th className="text-left py-3 px-4 text-gray-700">Registered Date</th>
+                      <th className="text-left py-3 px-4 text-gray-700">Actions</th>
                     </tr>
-                  ) : (
-                    patients.map((patient, index) => {
+                  </thead>
+                  <tbody>
+                    {filteredPatients.length === 0 ? (
+                      <tr>
+                        <td colSpan={11} className="text-center py-8 text-gray-500 text-sm">
+                          {searchTerm ? 'No patients found matching your search.' : 'No patients found. Click "Add New Patient" to register a new patient.'}
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredPatients.map((patient, index) => {
                       // Use patientId as primary key, fallback to id, then index
                       const uniqueKey = patient.patientId || patient.PatientId || patient.id || `patient-${index}`;
                       return (
                       <tr key={uniqueKey} className="border-b border-gray-100 hover:bg-gray-50">
-                        <td className="py-1 px-4 text-gray-900 font-mono font-medium whitespace-nowrap">{patient.patientId || '-'}</td>
-                        <td className="py-1 px-4 text-gray-600 font-mono whitespace-nowrap">{patient.patientNo || '-'}</td>
-                        <td className="py-1 px-4 text-gray-900 font-medium">
+                        <td className="py-3 px-4 text-gray-900 font-mono break-words">{patient.patientNo || '-'}</td>
+                        <td className="py-3 px-4 text-gray-900 break-words">
                           {patient.patientName} {patient.lastName || ''}
                         </td>
-                        <td className="py-1 px-4">
-                          <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                        <td className="py-3 px-4">
+                          <span className="px-1.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
                             {patient.patientType || 'N/A'}
                           </span>
                         </td>
-                        <td className="py-1 px-4 text-gray-600">{patient.age}</td>
-                        <td className="py-1 px-4 text-gray-600">{patient.gender}</td>
-                        <td className="py-1 px-4 text-gray-600">{patient.phoneNo || patient.phone || '-'}</td>
-                        <td className="py-1 px-4 text-gray-600 font-mono">{patient.adhaarID || '-'}</td>
-                        <td className="py-1 px-4 text-gray-600 max-w-xs truncate" title={patient.chiefComplaint || patient.condition}>
+                        <td className="py-3 px-4 text-gray-900 break-words">{patient.age}</td>
+                        <td className="py-3 px-4 text-gray-900 break-words">{patient.gender}</td>
+                        <td className="py-3 px-4 text-gray-900 break-words">{patient.phoneNo || patient.phone || '-'}</td>
+                        <td className="py-3 px-4 text-gray-900 font-mono break-words">{patient.adhaarID || '-'}</td>
+                        <td className="py-3 px-4 text-gray-900 break-words min-w-[120px]" title={patient.chiefComplaint || patient.condition}>
                           {patient.chiefComplaint || patient.condition || '-'}
                         </td>
-                        <td className="py-1 px-4">
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        <td className="py-3 px-4">
+                          <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${
                             patient.status === 'Active' ? 'bg-green-100 text-green-700' :
                             patient.status === 'Inactive' ? 'bg-gray-100 text-gray-700' :
                             'bg-red-100 text-red-700'
@@ -670,15 +698,15 @@ export function PatientRegistration() {
                             {patient.status || 'Active'}
                           </span>
                         </td>
-                        <td className="py-1 px-4 text-gray-600">
+                        <td className="py-3 px-4 text-gray-900 break-words">
                           {patient.registeredDate ? new Date(patient.registeredDate).toLocaleDateString() : '-'}
                         </td>
-                        <td className="py-1 px-4">
-                          <div className="flex items-center gap-2">
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-1">
                             <Button 
-                              variant="outline" 
+                              variant="ghost" 
                               size="sm" 
-                              className="h-8 w-8 p-0 border-blue-200 hover:bg-blue-50 hover:border-blue-300"
+                              className="h-7 w-7 p-0"
                               onClick={() => {
                                 // Use PatientId (string) for the API call
                                 // The patient object from getAll is already mapped to camelCase
@@ -693,12 +721,12 @@ export function PatientRegistration() {
                               }}
                               title="View Patient Details"
                             >
-                              <Eye className="size-4 text-blue-600" />
+                              <Eye className="size-3" />
                             </Button>
                             <Button 
-                              variant="outline" 
+                              variant="ghost" 
                               size="sm" 
-                              className="h-8 w-8 p-0 border-green-200 hover:bg-green-50 hover:border-green-300"
+                              className="h-7 w-7 p-0"
                               onClick={() => {
                                 // Use PatientId (string) for the API call
                                 const patientId = patient.patientId || patient.PatientId;
@@ -712,7 +740,7 @@ export function PatientRegistration() {
                               }}
                               title="Edit Patient Details"
                             >
-                              <Pencil className="size-4 text-green-600" />
+                              <Pencil className="size-3" />
                             </Button>
                           </div>
                         </td>
@@ -725,6 +753,7 @@ export function PatientRegistration() {
             </div>
           </CardContent>
         </Card>
+        </div>
       </div>
 
       {/* Patient Details Dialog */}

@@ -58,10 +58,10 @@ export function EmergencyBedManagement() {
     }
   };
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (emergencyBedId: number) => {
     if (confirm('Are you sure you want to delete this Emergency bed? This action cannot be undone.')) {
       try {
-        await deleteEmergencyBed(id);
+        await deleteEmergencyBed(emergencyBedId);
       } catch (err) {
         console.error('Failed to delete Emergency bed:', err);
       }
@@ -355,6 +355,7 @@ export function EmergencyBedManagement() {
                               size="sm"
                               onClick={() => handleDelete(emergencyBed.id)}
                               className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                              title={`Delete Emergency Bed ID: ${emergencyBed.emergencyBedId}`}
                             >
                               <Trash2 className="size-4" />
                             </Button>
@@ -669,6 +670,7 @@ function EmergencyBedSlotsManagement({ emergencyBedId, emergencyBed, onClose }: 
                       <tr className="border-b border-gray-200">
                         <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Emergency Bed Slot ID</th>
                         <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Emergency Bed ID</th>
+                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Room Name/No</th>
                         <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">EBed Slot No</th>
                         <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">ESlot Start Time</th>
                         <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">ESlot End Time</th>
@@ -679,7 +681,7 @@ function EmergencyBedSlotsManagement({ emergencyBedId, emergencyBed, onClose }: 
                     <tbody>
                       {emergencyBedSlots.length === 0 ? (
                         <tr>
-                          <td colSpan={7} className="text-center py-8 text-gray-500">
+                          <td colSpan={8} className="text-center py-8 text-gray-500">
                             No emergency bed slots found. Add a new slot to get started.
                           </td>
                         </tr>
@@ -688,6 +690,7 @@ function EmergencyBedSlotsManagement({ emergencyBedId, emergencyBed, onClose }: 
                           <tr key={slot.id} className="border-b border-gray-100 hover:bg-gray-50">
                             <td className="py-3 px-4 text-sm text-gray-900 font-mono font-medium whitespace-nowrap">{slot.emergencyBedSlotId}</td>
                             <td className="py-3 px-4 text-sm text-gray-900 font-mono font-medium whitespace-nowrap">{slot.emergencyBedId}</td>
+                            <td className="py-3 px-4 text-sm text-gray-700">{emergencyBed?.emergencyRoomNameNo || '-'}</td>
                             <td className="py-3 px-4 text-sm text-gray-900 font-medium">{slot.eBedSlotNo}</td>
                             <td className="py-3 px-4 text-sm text-gray-700">{slot.eSlotStartTime}</td>
                             <td className="py-3 px-4 text-sm text-gray-700">{slot.eSlotEndTime}</td>

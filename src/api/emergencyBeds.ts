@@ -60,6 +60,7 @@ export const emergencyBedsApi = {
         data: Array<{
           EmergencyBedId: number;
           EmergencyBedNo: string;
+          EmergencyRoomNameNo: string | null;
           EmergencyRoomDescription: string | null;
           ChargesPerDay: number | null;
           Status: string;
@@ -82,7 +83,7 @@ export const emergencyBedsApi = {
         id: item.EmergencyBedId || 0,
         emergencyBedId: String(item.EmergencyBedId || ''),
         emergencyBedNo: item.EmergencyBedNo || '',
-        emergencyRoomNameNo: undefined, // Not in API response
+        emergencyRoomNameNo: item.EmergencyRoomNameNo || undefined,
         emergencyRoomDescription: item.EmergencyRoomDescription || undefined,
         chargesPerDay: item.ChargesPerDay !== null && item.ChargesPerDay !== undefined ? Number(item.ChargesPerDay) : 0,
         createdBy: item.CreatedBy !== null && item.CreatedBy !== undefined ? String(item.CreatedBy) : '',
@@ -393,17 +394,19 @@ export const emergencyBedsApi = {
     }
   },
 
-  async delete(id: number): Promise<void> {
+  async delete(emergencyBedId: number): Promise<void> {
     try {
-      // Validate ID before making API call
-      if (!id || id <= 0) {
-        throw new Error(`Invalid emergency bed ID: ${id}. Cannot delete emergency bed.`);
+      // Validate EmergencyBedId before making API call
+      // The id parameter is the EmergencyBedId (Number) from the backend
+      if (!emergencyBedId || emergencyBedId <= 0) {
+        throw new Error(`Invalid EmergencyBedId: ${emergencyBedId}. Cannot delete emergency bed.`);
       }
 
-      console.log(`Deleting emergency bed with ID: ${id}`);
+      console.log(`Deleting emergency bed with EmergencyBedId: ${emergencyBedId}`);
 
-      // Call the actual API endpoint
-      const response = await apiRequest<any>(`/emergency-beds/${id}`, {
+      // Call the actual API endpoint - DELETE /api/emergency-beds/:id
+      // The :id parameter is the EmergencyBedId (Number)
+      const response = await apiRequest<any>(`/emergency-beds/${emergencyBedId}`, {
         method: 'DELETE',
       });
 
@@ -418,7 +421,7 @@ export const emergencyBedsApi = {
       // Delete operation is successful if we reach here
       return;
     } catch (error: any) {
-      console.error(`Error deleting emergency bed with id ${id}:`, error);
+      console.error(`Error deleting emergency bed with EmergencyBedId ${emergencyBedId}:`, error);
       console.error('Error details:', {
         message: error.message,
         status: error.status,
