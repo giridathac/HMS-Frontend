@@ -745,14 +745,14 @@ function AppointmentList({
           <table className="w-full">
             <thead>
               <tr className="border-b border-gray-200">
-                <th className="text-left py-3 px-4 text-gray-700 font-bold">Patient</th>
-                <th className="text-left py-3 px-4 text-gray-700 font-bold">Phone</th>
-                <th className="text-left py-3 px-4 text-gray-700 font-bold">Doctor</th>
-                <th className="text-left py-3 px-4 text-gray-700 font-bold">Status</th>
-                <th className="text-left py-3 px-4 text-gray-700 font-bold">Charges(₹)</th>
-                <th className="text-left py-3 px-4 text-gray-700 font-bold">Diagnosis</th>
-                <th className="text-left py-3 px-4 text-gray-700 font-bold">To Be Admitted</th>
-                <th className="text-left py-3 px-4 text-gray-700 font-bold">Actions</th>
+                <th className="text-left py-2 px-2 text-gray-700 font-bold text-sm">Patient ID</th>
+                <th className="text-left py-2 px-2 text-gray-700 font-bold text-sm">Patient</th>
+                <th className="text-left py-2 px-2 text-gray-700 font-bold text-sm">Phone</th>
+                <th className="text-left py-2 px-2 text-gray-700 font-bold text-sm">Doctor</th>
+                <th className="text-left py-2 px-2 text-gray-700 font-bold text-sm">Status</th>
+                <th className="text-left py-2 px-2 text-gray-700 font-bold text-sm">Charges(₹)</th>
+                <th className="text-left py-2 px-2 text-gray-700 font-bold text-sm">To Be Admitted</th>
+                <th className="text-left py-2 px-2 text-gray-700 font-bold text-sm">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -771,43 +771,46 @@ function AppointmentList({
                 const patientPhone = patient 
                   ? (patient as any).PhoneNo || (patient as any).phoneNo || (patient as any).phone || '-'
                   : '-';
+                const patientId = patient 
+                  ? (patient as any).PatientNo || (patient as any).patientNo || appointment.patientId.substring(0, 8)
+                  : appointment.patientId.substring(0, 8);
                 
                 return (
                   <tr key={appointment.id} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="py-1 px-4 text-gray-600 whitespace-nowrap">{patientName}</td>
-                    <td className="py-1 px-4 text-gray-600 whitespace-nowrap">{patientPhone}</td>
-                    <td className="py-1 px-4 text-gray-600 whitespace-nowrap">{doctorName}</td>
-                    <td className="py-1 px-4">{getStatusBadge(appointment.appointmentStatus)}</td>
-                    <td className="py-1 px-4 text-gray-900 font-semibold">
+                    <td className="py-1 px-2 text-gray-600 whitespace-nowrap text-sm font-mono">{patientId}</td>
+                    <td className="py-1 px-2 text-gray-600 whitespace-nowrap text-sm">{patientName}</td>
+                    <td className="py-1 px-2 text-gray-600 whitespace-nowrap text-sm">{patientPhone}</td>
+                    <td className="py-1 px-2 text-gray-600 whitespace-nowrap text-sm">{doctorName}</td>
+                    <td className="py-1 px-2">{getStatusBadge(appointment.appointmentStatus)}</td>
+                    <td className="py-1 px-2 text-gray-900 font-semibold text-sm">
                       ₹{appointment.consultationCharge.toFixed(2)}
                     </td>
-                    <td className="py-1 px-4 text-gray-600 max-w-xs truncate" title={appointment.diagnosis}>{appointment.diagnosis || '-'}</td>
-                    <td className="py-1 px-4">
+                    <td className="py-1 px-2">
                       {appointment.toBeAdmitted ? (
-                        <Badge variant="outline" className="bg-red-100 text-red-700 border-red-300">
+                        <Badge variant="outline" className="bg-red-100 text-red-700 border-red-300 text-xs">
                           <Hospital className="size-3 mr-1" />Yes
                         </Badge>
                       ) : (
-                        <span className="text-gray-500">No</span>
+                        <span className="text-gray-500 text-sm">No</span>
                       )}
                     </td>
-                    <td className="py-1 px-4">
-                      <div className="flex items-center gap-2">
+                    <td className="py-1 px-2">
+                      <div className="flex items-center gap-1">
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => onView(appointment)}
-                          className="h-8 w-8 p-0"
+                          className="h-7 w-7 p-0"
                         >
-                          <Eye className="size-4" />
+                          <Eye className="size-3" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => onEdit(appointment)}
-                          className="h-8 w-8 p-0"
+                          className="h-7 w-7 p-0"
                         >
-                          <Edit className="size-4" />
+                          <Edit className="size-3" />
                         </Button>
                       </div>
                     </td>

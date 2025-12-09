@@ -213,3 +213,35 @@ export interface EmergencyBedSlot {
   status: 'Active' | 'Inactive';
 }
 
+export interface PatientOTAllocation {
+  id: number;
+  patientOTAllocationId: number;
+  patientId: string; // Required (UUID)
+  roomAdmissionId?: number; // Kept for backward compatibility but not in new API response
+  patientAppointmentId?: string; // Number in API, but kept as string for backward compatibility
+  emergencyBedId?: number; // Kept for backward compatibility but not in new API response
+  emergencyBedSlotId?: number;
+  otId: number;
+  otSlotId?: number; // Kept for backward compatibility but not in new API request/response
+  surgeryId?: number;
+  leadSurgeonId: number;
+  assistantDoctorId?: number;
+  anaesthetistId?: number;
+  nurseId?: number;
+  otAllocationDate: string;
+  duration?: string; // Number in API, but kept as string for backward compatibility
+  otStartTime?: string; // Now nullable
+  otEndTime?: string; // Now nullable
+  otActualStartTime?: string;
+  otActualEndTime?: string;
+  operationDescription?: string;
+  operationStatus: 'Scheduled' | 'InProgress' | 'Completed' | 'Cancelled' | 'Postponed';
+  preOperationNotes?: string;
+  postOperationNotes?: string;
+  otDocuments?: string;
+  billId?: number;
+  otAllocationCreatedBy?: number;
+  otAllocationCreatedAt?: string;
+  status: 'Active' | 'InActive';
+}
+
