@@ -46,9 +46,10 @@ const ICUBedsManagement = lazy(() => import('./components/ICUBedsManagement').th
 const EmergencyBedManagement = lazy(() => import('./components/EmergencyBedManagement').then(m => ({ default: m.EmergencyBedManagement })));
 const SurgeryManagement = lazy(() => import('./components/SurgeryManagement').then(m => ({ default: m.SurgeryManagement })));
 const ManageIPDAdmission = lazy(() => import('./components/ManageIPDAdmission').then(m => ({ default: m.ManageIPDAdmission })));
+const ManageICUCase = lazy(() => import('./components/ManageICUCase').then(m => ({ default: m.ManageICUCase })));
 const PatientOTAllocationManagement = lazy(() => import('./components/PatientOTAllocationManagement').then(m => ({ default: m.PatientOTAllocationManagement })));
 
-type View = 'dashboard' | 'frontdesk' | 'consultation' | 'admissions' | 'ot' | 'icu' | 'laboratory' | 'emergency' | 'reports' | 'doctors' | 'staff' | 'roles' | 'departments' | 'patientregistration' | 'roombeds' | 'labtests' | 'bills' | 'patientappointments' | 'otrooms' | 'icubeds' | 'emergencybeds' | 'surgerymanagement' | 'manageipdadmission' | 'patientotallocation';
+type View = 'dashboard' | 'frontdesk' | 'consultation' | 'admissions' | 'ot' | 'icu' | 'laboratory' | 'emergency' | 'reports' | 'doctors' | 'staff' | 'roles' | 'departments' | 'patientregistration' | 'roombeds' | 'labtests' | 'bills' | 'patientappointments' | 'otrooms' | 'icubeds' | 'emergencybeds' | 'surgerymanagement' | 'manageipdadmission' | 'manageicucase' | 'patientotallocation';
 
 // Loading fallback component
 function LoadingFallback() {
@@ -72,7 +73,7 @@ export default function App() {
     const hash = window.location.hash.slice(1) || 'dashboard';
     // Extract view from hash (handle query parameters like #ot?otId=...)
     const viewName = hash.split('?')[0];
-    const validViews: View[] = ['dashboard', 'frontdesk', 'consultation', 'admissions', 'ot', 'icu', 'laboratory', 'emergency', 'reports', 'doctors', 'staff', 'roles', 'departments', 'patientregistration', 'roombeds', 'labtests', 'bills', 'patientappointments', 'otrooms', 'icubeds', 'emergencybeds', 'surgerymanagement', 'manageipdadmission', 'patientotallocation'];
+    const validViews: View[] = ['dashboard', 'frontdesk', 'consultation', 'admissions', 'ot', 'icu', 'laboratory', 'emergency', 'reports', 'doctors', 'staff', 'roles', 'departments', 'patientregistration', 'roombeds', 'labtests', 'bills', 'patientappointments', 'otrooms', 'icubeds', 'emergencybeds', 'surgerymanagement', 'manageipdadmission', 'manageicucase', 'patientotallocation'];
     return validViews.includes(viewName as View) ? (viewName as View) : 'dashboard';
   };
 
@@ -225,7 +226,7 @@ export default function App() {
         <ResizablePanel defaultSize={isStandalone ? 100 : 84} minSize={70}>
 
           <main className={`h-full bg-blue-50 transition-all duration-300 flex flex-col ${
-            currentView === 'dashboard' || currentView === 'frontdesk' || currentView === 'icu' || currentView === 'otrooms' || currentView === 'icubeds' || currentView === 'emergencybeds' || currentView === 'patientregistration' || currentView === 'surgerymanagement' || currentView === 'manageipdadmission'
+            currentView === 'dashboard' || currentView === 'frontdesk' || currentView === 'icu' || currentView === 'otrooms' || currentView === 'icubeds' || currentView === 'emergencybeds' || currentView === 'patientregistration' || currentView === 'surgerymanagement' || currentView === 'manageipdadmission' || currentView === 'manageicucase'
               ? 'overflow-hidden' 
               : 'overflow-auto overflow-x-hidden'
           }`}>
@@ -254,6 +255,7 @@ export default function App() {
               {currentView === 'emergency' && <Emergency />}
               {currentView === 'reports' && <Reports />}
               {currentView === 'manageipdadmission' && <ManageIPDAdmission />}
+              {currentView === 'manageicucase' && <ManageICUCase />}
             </Suspense>
           </main>
         </ResizablePanel>

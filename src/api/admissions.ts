@@ -1918,4 +1918,321 @@ export const admissionsApi = {
       throw error;
     }
   },
+
+  async getAllPatientICUAdmissions(): Promise<any[]> {
+    try {
+      console.log('Fetching ICU patient admissions from API endpoint: /patient-icu-admissions/');
+      const response = await apiRequest<any>('/patient-icu-admissions/');
+      console.log('ICU patient admissions API response (RAW):', JSON.stringify(response, null, 2));
+      
+      // Handle different response structures: { data: [...] } or direct array
+      const icuAdmissionsData = response?.data || response || [];
+      console.log('ICU patient admissions data extracted:', icuAdmissionsData);
+      
+      if (Array.isArray(icuAdmissionsData) && icuAdmissionsData.length > 0) {
+        console.log(`Processing ${icuAdmissionsData.length} ICU patient admissions from API`);
+        return icuAdmissionsData;
+      } else if (icuAdmissionsData && !Array.isArray(icuAdmissionsData)) {
+        console.warn('ICU patient admissions data is not an array:', typeof icuAdmissionsData);
+        return [];
+      } else {
+        console.warn('No ICU patient admissions data found in API response');
+        return [];
+      }
+    } catch (error) {
+      console.error('Error fetching ICU patient admissions:', error);
+      throw error;
+    }
+  },
+
+  async getICUOccupancy(): Promise<{ totalPatients: number; occupiedBeds: number; totalBeds?: number }> {
+    try {
+      console.log('********************************Fetching ICU occupancy from API endpoint: /patient-icu-admissions/occupancy');
+      const response = await apiRequest<any>('/patient-icu-admissions/occupancy');
+      console.log('ICU occupancy API response (RAW):', JSON.stringify(response, null, 2));
+      
+      // Handle different response structures: { data: {...} } or direct object
+      const occupancyData = response?.data || response || {};
+      console.log('ICU occupancy data extracted:', occupancyData);
+      
+      // Helper function to extract numeric value with multiple field name variations
+      const extractValue = (data: any, fieldVariations: string[], defaultValue: number = 0): number => {
+        for (const field of fieldVariations) {
+          const value = data?.[field];
+          if (value !== undefined && value !== null) {
+            const numValue = Number(value);
+            if (!isNaN(numValue)) {
+              return numValue;
+            }
+          }
+        }
+        return defaultValue;
+      };
+      
+      // Extract occupancy field - this might represent total patients or occupied beds
+      const occupancyValue = extractValue(occupancyData, [
+        'occupancy', 'Occupancy', 'occupancyRate', 'OccupancyRate',
+        'occupancy_rate', 'Occupancy_Rate', 'bedOccupancy', 'BedOccupancy',
+        'bed_occupancy', 'Bed_Occupancy'
+      ], -1); // Use -1 as sentinel value to check if occupancy field exists
+      
+      const hasOccupancyField = occupancyValue !== -1;
+      
+      // Extract occupied beds - this is the number of beds currently occupied (e.g., 9)
+      const occupiedBeds = extractValue(occupancyData, [
+        'occupiedBeds', 'OccupiedBeds', 'occupied_beds', 'Occupied_Beds',
+        'occupied', 'Occupied', 'occupiedCount', 'OccupiedCount',
+        'occupied_bed_count', 'Occupied_Bed_Count', 'occupiedBedCount', 'OccupiedBedCount',
+        'totalOccupied', 'TotalOccupied', 'total_occupied', 'Total_Occupied',
+        'occupiedPatients', 'OccupiedPatients', 'occupied_patients', 'Occupied_Patients'
+      ], hasOccupancyField ? occupancyValue : 0); // Use occupancy field if available
+      
+      // Extract total beds - this is the total capacity (e.g., 15)
+      const totalBeds = extractValue(occupancyData, [
+        'totalBeds', 'TotalBeds', 'total_beds', 'Total_Beds',
+        'totalCapacity', 'TotalCapacity', 'total_capacity', 'Total_Capacity',
+        'capacity', 'Capacity', 'totalBedCount', 'TotalBedCount',
+        'bedCapacity', 'BedCapacity', 'bed_capacity', 'Bed_Capacity',
+        'maxBeds', 'MaxBeds', 'max_beds', 'Max_Beds'
+      ], 15); // Default to 15 if not provided
+      
+      // Extract total patients - this might be the same as occupiedBeds or a separate count
+      // Priority: occupancy field > totalPatients > occupiedBeds
+      const totalPatients = extractValue(occupancyData, [
+        'occupancy', 'Occupancy', // Map occupancy field to total patients
+        'totalPatients', 'TotalPatients', 'total_patients', 'Total_Patients',
+        'totalPatientCount', 'TotalPatientCount', 'total_patient_count', 'Total_Patient_Count',
+        'patients', 'Patients', 'patientCount', 'PatientCount',
+        'currentPatients', 'CurrentPatients', 'current_patients', 'Current_Patients'
+      ], hasOccupancyField ? occupancyValue : occupiedBeds); // Use occupancy field if available, otherwise occupiedBeds
+      
+      // Ensure occupiedBeds doesn't exceed totalBeds
+      const finalOccupiedBeds = Math.min(occupiedBeds, totalBeds);
+      
+      // Use occupancy field for totalPatients if it was found, otherwise use extracted totalPatients or occupiedBeds
+      const finalTotalPatients = hasOccupancyField ? occupancyValue : (totalPatients || finalOccupiedBeds);
+      
+      console.log('Mapped ICU occupancy:', { 
+        occupancy: hasOccupancyField ? occupancyValue : null, // Raw occupancy field from API
+        totalPatients: finalTotalPatients, 
+        occupiedBeds: finalOccupiedBeds, 
+        totalBeds,
+        rawOccupiedBeds: occupiedBeds 
+      });
+      
+      return {
+        totalPatients: finalTotalPatients, // Map occupancy field to totalPatients
+        occupiedBeds: finalOccupiedBeds,
+        totalBeds,
+      };
+    } catch (error) {
+      console.error('Error fetching ICU occupancy:', error);
+      throw error;
+    }
+  },
+
+  async getICUCriticalCount(): Promise<number> {
+    try {
+      console.log('Fetching ICU critical patients count from API endpoint: /patient-icu-admissions/count/critical');
+      const response = await apiRequest<any>('/patient-icu-admissions/count/critical');
+      console.log('ICU critical count API response (RAW):', JSON.stringify(response, null, 2));
+      
+      // Handle different response structures: { data: {...} } or direct object/number
+      const countData = response?.data || response;
+      console.log('ICU critical count data extracted:', countData);
+      
+      // Helper function to extract numeric value with multiple field name variations
+      const extractValue = (data: any, fieldVariations: string[], defaultValue: number = 0): number => {
+        // If data is already a number, return it
+        if (typeof data === 'number') {
+          return data;
+        }
+        
+        // If data is a string that can be converted to a number
+        if (typeof data === 'string') {
+          const numValue = Number(data);
+          if (!isNaN(numValue)) {
+            return numValue;
+          }
+        }
+        
+        // Try to extract from object fields
+        if (data && typeof data === 'object') {
+          for (const field of fieldVariations) {
+            const value = data?.[field];
+            if (value !== undefined && value !== null) {
+              const numValue = Number(value);
+              if (!isNaN(numValue)) {
+                return numValue;
+              }
+            }
+          }
+        }
+        
+        return defaultValue;
+      };
+      
+      const criticalCount = extractValue(countData, [
+        'criticalCount', 'CriticalCount', 'critical_count', 'Critical_Count',
+        'criticalPatients', 'CriticalPatients', 'critical_patients', 'Critical_Patients',
+        'criticalPatientCount', 'CriticalPatientCount', 'critical_patient_count', 'Critical_Patient_Count',
+        'count', 'Count', 'totalCritical', 'TotalCritical', 'total_critical', 'Total_Critical'
+      ], 0);
+      
+      console.log('Mapped ICU critical count:', criticalCount);
+      
+      return criticalCount;
+    } catch (error) {
+      console.error('Error fetching ICU critical count:', error);
+      throw error;
+    }
+  },
+
+  async getICUOnVentilatorCount(): Promise<number> {
+    try {
+      console.log('Fetching ICU on-ventilator patients count from API endpoint: /patient-icu-admissions/count/on-ventilator');
+      const response = await apiRequest<any>('/patient-icu-admissions/count/on-ventilator');
+      console.log('ICU on-ventilator count API response (RAW):', JSON.stringify(response, null, 2));
+      
+      // Handle different response structures: { data: {...} } or direct object/number
+      const countData = response?.data || response;
+      console.log('ICU on-ventilator count data extracted:', countData);
+      
+      // Helper function to extract numeric value with multiple field name variations
+      const extractValue = (data: any, fieldVariations: string[], defaultValue: number = 0): number => {
+        // If data is already a number, return it
+        if (typeof data === 'number') {
+          return data;
+        }
+        
+        // If data is a string that can be converted to a number
+        if (typeof data === 'string') {
+          const numValue = Number(data);
+          if (!isNaN(numValue)) {
+            return numValue;
+          }
+        }
+        
+        // Try to extract from object fields
+        if (data && typeof data === 'object') {
+          for (const field of fieldVariations) {
+            const value = data?.[field];
+            if (value !== undefined && value !== null) {
+              const numValue = Number(value);
+              if (!isNaN(numValue)) {
+                return numValue;
+              }
+            }
+          }
+        }
+        
+        return defaultValue;
+      };
+      
+      const onVentilatorCount = extractValue(countData, [
+        'onVentilatorCount', 'OnVentilatorCount', 'on_ventilator_count', 'On_Ventilator_Count',
+        'ventilatorCount', 'VentilatorCount', 'ventilator_count', 'Ventilator_Count',
+        'onVentilator', 'OnVentilator', 'on_ventilator', 'On_Ventilator',
+        'ventilatorPatients', 'VentilatorPatients', 'ventilator_patients', 'Ventilator_Patients',
+        'count', 'Count', 'totalOnVentilator', 'TotalOnVentilator', 'total_on_ventilator', 'Total_On_Ventilator',
+        'onVentilatorPatientCount', 'OnVentilatorPatientCount', 'on_ventilator_patient_count', 'On_Ventilator_Patient_Count',
+        'ventilatorSupportCount', 'VentilatorSupportCount', 'ventilator_support_count', 'Ventilator_Support_Count',
+        'patientsOnVentilator', 'PatientsOnVentilator', 'patients_on_ventilator', 'Patients_On_Ventilator'
+      ], 0);
+      
+      console.log('Mapped ICU on-ventilator count:', onVentilatorCount);
+      
+      return onVentilatorCount;
+    } catch (error) {
+      console.error('Error fetching ICU on-ventilator count:', error);
+      throw error;
+    }
+  },
+
+  async getICUAvailableBedsCount(): Promise<number> {
+    try {
+      console.log('*****************************************Fetching ICU available beds count from API endpoint: /patient-icu-admissions/available-beds');
+      const response = await apiRequest<any>('/patient-icu-admissions/available-beds');
+      console.log('ICU available beds API response (RAW):', JSON.stringify(response, null, 2));
+      
+      // Handle different response structures: { data: {...} } or direct object/number
+      const countData = response?.data || response;
+      console.log('ICU available beds data extracted:', countData);
+      
+      // Helper function to extract numeric value with multiple field name variations
+      const extractValue = (data: any, fieldVariations: string[], defaultValue: number = 0): number => {
+        // If data is already a number, return it
+        if (typeof data === 'number') {
+          return data;
+        }
+        
+        // If data is a string that can be converted to a number
+        if (typeof data === 'string') {
+          const numValue = Number(data);
+          if (!isNaN(numValue)) {
+            return numValue;
+          }
+        }
+        
+        // Try to extract from object fields
+        if (data && typeof data === 'object') {
+          for (const field of fieldVariations) {
+            const value = data?.[field];
+            if (value !== undefined && value !== null) {
+              const numValue = Number(value);
+              if (!isNaN(numValue)) {
+                return numValue;
+              }
+            }
+          }
+        }
+        
+        return defaultValue;
+      };
+      
+      const availableBedsCount = extractValue(countData, [
+        'availableICUBeds', 'AvailableICUBeds', 'available_icu_beds', 'Available_ICU_Beds', // Map availableICUBeds field
+        'availableBeds', 'AvailableBeds', 'available_beds', 'Available_Beds',
+        'availableBedCount', 'AvailableBedCount', 'available_bed_count', 'Available_Bed_Count',
+        'available', 'Available', 'availableCount', 'AvailableCount',
+        'count', 'Count', 'totalAvailable', 'TotalAvailable', 'total_available', 'Total_Available',
+        'freeBeds', 'FreeBeds', 'free_beds', 'Free_Beds',
+        'vacantBeds', 'VacantBeds', 'vacant_beds', 'Vacant_Beds',
+        'icuAvailableBeds', 'ICUAvailableBeds', 'icu_available_beds', 'ICU_Available_Beds'
+      ], 0);
+      
+      console.log('Mapped ICU available beds count:', availableBedsCount);
+      
+      return availableBedsCount;
+    } catch (error) {
+      console.error('Error fetching ICU available beds:', error);
+      throw error;
+    }
+  },
+
+  async getICUBedLayout(): Promise<any[]> {
+    try {
+      console.log('Fetching ICU bed layout from API endpoint: /patient-icu-admissions/icu-management');
+      const response = await apiRequest<any>('/patient-icu-admissions/icu-management');
+      console.log('ICU bed layout API response (RAW):', JSON.stringify(response, null, 2));
+      
+      // Handle different response structures: { data: [...] } or direct array
+      const bedLayoutData = response?.data || response || [];
+      console.log('ICU bed layout data extracted:', bedLayoutData);
+      
+      if (Array.isArray(bedLayoutData) && bedLayoutData.length > 0) {
+        console.log(`Processing ${bedLayoutData.length} ICU beds from API`);
+        return bedLayoutData;
+      } else if (bedLayoutData && !Array.isArray(bedLayoutData)) {
+        console.warn('ICU bed layout data is not an array:', typeof bedLayoutData);
+        return [];
+      } else {
+        console.warn('No ICU bed layout data found in API response');
+        return [];
+      }
+    } catch (error) {
+      console.error('Error fetching ICU bed layout:', error);
+      throw error;
+    }
+  },
 };
