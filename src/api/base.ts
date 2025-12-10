@@ -75,8 +75,17 @@ export async function apiRequest<T>(
   };
 
   try {
+    console.log('========================================');
+    console.log('apiRequest: Making network request');
+    console.log('Full URL:', url);
+    console.log('Method:', config.method || 'GET');
+    console.log('Headers:', config.headers);
+    console.log('This should appear in Network tab of DevTools');
+    console.log('========================================');
+    
     const response = await fetch(url, config);
     console.log(`apiRequest - Response status for ${url}:`, response.status);
+    console.log('Response URL:', response.url);
     return handleResponse<T>(response);
   } catch (error) {
     if (error instanceof ApiError) {

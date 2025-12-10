@@ -3,16 +3,19 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Label } from './ui/label';
 import { Badge } from './ui/badge';
+import { Input } from './ui/input';
+import { Textarea } from './ui/textarea';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { FlaskConical, Stethoscope, Heart, ArrowLeft, Activity, FileText } from 'lucide-react';
+import { FlaskConical, Stethoscope, Heart, ArrowLeft, Activity, FileText, Plus, Eye, Edit } from 'lucide-react';
 import { admissionsApi } from '../api/admissions';
 import { PatientLabTest, PatientDoctorVisit, PatientNurseVisit } from '../api/admissions';
 import { apiRequest } from '../api/base';
 
 interface ICUAdmission {
-  id?: number;
-  patientICUAdmissionId?: number;
-  patientId?: string;
+  id?: number | string;
+  patientICUAdmissionId?: number | string; // UUID string
+  patientId?: string; // UUID string
   patientName?: string;
   age?: number;
   gender?: string;
@@ -35,6 +38,11 @@ interface ICUAdmission {
 }
 
 export function ManageICUCase() {
+  console.log('========================================');
+  console.log('ManageICUCase component rendered/mounted');
+  console.log('Current window.location.hash:', window.location.hash);
+  console.log('========================================');
+  
   const [icuAdmission, setIcuAdmission] = useState<ICUAdmission | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -47,12 +55,43 @@ export function ManageICUCase() {
   const [patientNurseVisits, setPatientNurseVisits] = useState<PatientNurseVisit[]>([]);
   const [nurseVisitsLoading, setNurseVisitsLoading] = useState(false);
   const [nurseVisitsError, setNurseVisitsError] = useState<string | null>(null);
+  
+  // Add/Edit ICU Doctor Visit Dialog State
+  const [isAddDoctorVisitDialogOpen, setIsAddDoctorVisitDialogOpen] = useState(false);
+  const [editingDoctorVisitId, setEditingDoctorVisitId] = useState<string | number | null>(null);
+  const [doctorVisitFormData, setDoctorVisitFormData] = useState({
+    icuDoctorVisitId: '',
+    icuAdmissionId: '',
+    patientId: '',
+    doctorId: '',
+    doctorVisitedDateTime: '',
+    visitsDetails: '',
+    patientCondition: '',
+    status: ''
+  });
+  const [doctorVisitSubmitting, setDoctorVisitSubmitting] = useState(false);
+  const [doctorVisitSubmitError, setDoctorVisitSubmitError] = useState<string | null>(null);
+  
+  // Add ICU Nurse Visit Dialog State
+  const [isAddNurseVisitDialogOpen, setIsAddNurseVisitDialogOpen] = useState(false);
+  const [nurseVisitFormData, setNurseVisitFormData] = useState({
+    icuAdmissionId: '',
+    patientId: '',
+    nurseId: '',
+    nurseVisitedDateTime: '',
+    nurseVisitsDetails: '',
+    patientCondition: ''
+  });
+  const [nurseVisitSubmitting, setNurseVisitSubmitting] = useState(false);
+  const [nurseVisitSubmitError, setNurseVisitSubmitError] = useState<string | null>(null);
 
   useEffect(() => {
     // Get patientICUAdmissionId from URL hash parameters (should be a UUID string)
     console.log('========================================');
     console.log('ManageICUCase: useEffect triggered');
+    console.log('Component mounted/updated');
     console.log('Current window.location.hash:', window.location.hash);
+    console.log('Current window.location.href:', window.location.href);
     
     const hash = window.location.hash.slice(1);
     console.log('Hash after slice(1):', hash);
@@ -70,10 +109,36 @@ export function ManageICUCase() {
       fetchICUAdmissionDetails(patientICUAdmissionId);
     } else {
       console.error('Patient ICU Admission ID is missing from URL');
+      console.error('Hash:', hash);
+      console.error('Params:', Object.fromEntries(params.entries()));
       setError('Patient ICU Admission ID is missing from URL');
       setLoading(false);
     }
   }, []);
+  
+  // Also listen for hash changes in case the component is already mounted
+  useEffect(() => {
+    const handleHashChange = () => {
+      console.log('========================================');
+      console.log('ManageICUCase: Hash change detected');
+      console.log('New window.location.hash:', window.location.hash);
+      
+      const hash = window.location.hash.slice(1);
+      const params = new URLSearchParams(hash.split('?')[1] || '');
+      const patientICUAdmissionId = params.get('patientICUAdmissionId') || params.get('id');
+      
+      console.log('Extracted patientICUAdmissionId from hash change:', patientICUAdmissionId);
+      
+      if (patientICUAdmissionId && patientICUAdmissionId !== icuAdmission?.patientICUAdmissionId) {
+        console.log('Hash change: Calling fetchICUAdmissionDetails with ID:', patientICUAdmissionId);
+        fetchICUAdmissionDetails(patientICUAdmissionId);
+      }
+      console.log('========================================');
+    };
+    
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, [icuAdmission?.patientICUAdmissionId]);
 
   const fetchICUAdmissionDetails = async (patientICUAdmissionId: string) => {
     try {
@@ -89,11 +154,16 @@ export function ManageICUCase() {
       
       // Try to fetch from the specific endpoint first
       try {
+        console.log('========================================');
         console.log('Making API request to:', `/patient-icu-admissions/icu-management/${patientICUAdmissionId}`);
         const apiUrl = `/patient-icu-admissions/icu-management/${patientICUAdmissionId}`;
         console.log('Full API URL:', apiUrl);
+        console.log('About to call apiRequest...');
+        console.log('This should trigger a network request in the browser DevTools');
+        console.log('========================================');
         
         const response = await apiRequest<any>(apiUrl);
+        console.log('API request completed');
         console.log('ICU admission details API response received');
         console.log('Response type:', typeof response);
         console.log('Response (RAW):', JSON.stringify(response, null, 2));
@@ -238,22 +308,23 @@ export function ManageICUCase() {
       setIcuAdmission(mappedAdmission);
       
       // Fetch patient lab tests, doctor visits, and nurse visits after admission is loaded
-      // Use patientICUAdmissionId or roomAdmissionId if available
-      // Note: These APIs might expect a number, so we'll try to convert if needed
-      const roomAdmissionId = mappedAdmission.patientICUAdmissionId || patientICUAdmissionId;
-      if (roomAdmissionId) {
-        // Try to convert to number if it's a valid number, otherwise use as string
-        const numericId = typeof roomAdmissionId === 'string' && !isNaN(Number(roomAdmissionId)) 
-          ? Number(roomAdmissionId) 
-          : roomAdmissionId;
-        // If it's still a string (UUID), we might need to handle it differently
-        // For now, try as number if possible
+      // Use patientICUAdmissionId (UUID string) for API calls
+      const patientICUAdmissionIdForAPI = mappedAdmission.patientICUAdmissionId || patientICUAdmissionId;
+      if (patientICUAdmissionIdForAPI) {
+        // Use the UUID string directly for doctor visits and nurse visits APIs
+        console.log('Fetching doctor visits with patientICUAdmissionId (UUID):', patientICUAdmissionIdForAPI);
+        fetchPatientDoctorVisits(String(patientICUAdmissionIdForAPI));
+        console.log('Fetching nurse visits with patientICUAdmissionId (UUID):', patientICUAdmissionIdForAPI);
+        fetchPatientNurseVisits(String(patientICUAdmissionIdForAPI));
+        
+        // For lab tests, try to convert to number if it's a valid number, otherwise use as string
+        const numericId = typeof patientICUAdmissionIdForAPI === 'string' && !isNaN(Number(patientICUAdmissionIdForAPI)) 
+          ? Number(patientICUAdmissionIdForAPI) 
+          : patientICUAdmissionIdForAPI;
         if (typeof numericId === 'number') {
           fetchPatientLabTests(numericId);
-          fetchPatientDoctorVisits(numericId);
-          fetchPatientNurseVisits(numericId);
         } else {
-          console.warn('Room Admission ID is not numeric, skipping lab tests/visits fetch:', numericId);
+          console.warn('PatientICUAdmissionId is not numeric, skipping lab tests fetch:', numericId);
         }
       }
     } catch (err) {
@@ -264,12 +335,12 @@ export function ManageICUCase() {
     }
   };
 
-  const fetchPatientLabTests = async (roomAdmissionId: number) => {
+  const fetchPatientLabTests = async (patientICUAdmissionId: number) => {
     try {
       setLabTestsLoading(true);
       setLabTestsError(null);
-      console.log('Fetching patient lab tests for roomAdmissionId:', roomAdmissionId);
-      const labTests = await admissionsApi.getPatientLabTests(roomAdmissionId);
+      console.log('Fetching patient lab tests for patientICUAdmissionId:', patientICUAdmissionId);
+      const labTests = await admissionsApi.getPatientLabTests(patientICUAdmissionId);
       console.log('Fetched patient lab tests:', labTests);
       setPatientLabTests(labTests);
     } catch (err) {
@@ -281,34 +352,159 @@ export function ManageICUCase() {
     }
   };
 
-  const fetchPatientDoctorVisits = async (roomAdmissionId: number) => {
+  const fetchPatientDoctorVisits = async (patientICUAdmissionId: string) => {
     try {
       setDoctorVisitsLoading(true);
       setDoctorVisitsError(null);
-      console.log('Fetching patient doctor visits for roomAdmissionId:', roomAdmissionId);
-      const doctorVisits = await admissionsApi.getPatientDoctorVisits(roomAdmissionId);
-      console.log('Fetched patient doctor visits:', doctorVisits);
-      setPatientDoctorVisits(doctorVisits);
+      console.log('========================================');
+      console.log('Fetching ICU doctor visits for patientICUAdmissionId (UUID):', patientICUAdmissionId);
+      console.log('API Endpoint:', `/icu-doctor-visits/${patientICUAdmissionId}`);
+      console.log('========================================');
+      
+      // Call the new ICU doctor visits API endpoint
+      const response = await apiRequest<any>(`/icu-doctor-visits/icu-admission/${patientICUAdmissionId}`);
+      
+      console.log('ICU doctor visits API response (RAW):', JSON.stringify(response, null, 2));
+      
+      // Handle different response structures
+      let doctorVisitsData: any[] = [];
+      
+      if (Array.isArray(response)) {
+        doctorVisitsData = response;
+      } else if (response?.data) {
+        if (Array.isArray(response.data)) {
+          doctorVisitsData = response.data;
+        } else if (response.data.doctorVisits && Array.isArray(response.data.doctorVisits)) {
+          doctorVisitsData = response.data.doctorVisits;
+        } else if (response.data.icuDoctorVisits && Array.isArray(response.data.icuDoctorVisits)) {
+          doctorVisitsData = response.data.icuDoctorVisits;
+        }
+      } else if (response?.doctorVisits && Array.isArray(response.doctorVisits)) {
+        doctorVisitsData = response.doctorVisits;
+      } else if (response?.icuDoctorVisits && Array.isArray(response.icuDoctorVisits)) {
+        doctorVisitsData = response.icuDoctorVisits;
+      }
+      
+      if (!Array.isArray(doctorVisitsData) || doctorVisitsData.length === 0) {
+        console.warn('ICU doctor visits response is not an array or is empty:', response);
+        setPatientDoctorVisits([]);
+        return;
+      }
+      
+      // Map the response to PatientDoctorVisit format
+      const mappedDoctorVisits: PatientDoctorVisit[] = doctorVisitsData.map((visit: any) => {
+        const extractField = (data: any, fieldVariations: string[], defaultValue: any = '') => {
+          for (const field of fieldVariations) {
+            const value = data?.[field];
+            if (value !== undefined && value !== null && value !== '') {
+              return value;
+            }
+          }
+          return defaultValue;
+        };
+        
+        return {
+          icuDoctorVisitsId: extractField(visit, ['icuDoctorVisitsId', 'ICUDoctorVisitsId', 'iCUDoctorVisitsId', 'ICUDOCTORVISITSID', 'icuDoctorVisitId', 'ICUDoctorVisitId', 'iCUDoctorVisitId', 'patientDoctorVisitId', 'PatientDoctorVisitId', 'id', 'Id'], 0),
+          iCUDoctorVisitId: extractField(visit, ['icuDoctorVisitsId', 'ICUDoctorVisitsId', 'iCUDoctorVisitsId', 'ICUDOCTORVISITSID', 'icuDoctorVisitId', 'ICUDoctorVisitId', 'iCUDoctorVisitId', 'patientDoctorVisitId', 'PatientDoctorVisitId', 'id', 'Id'], 0), // Legacy support
+          patientDoctorVisitId: extractField(visit, ['patientDoctorVisitId', 'PatientDoctorVisitId', 'id', 'Id'], 0),
+          doctorName: extractField(visit, ['doctorName', 'DoctorName', 'doctor_name', 'Doctor_Name', 'doctor', 'Doctor'], ''),
+          visitDate: extractField(visit, ['visitDate', 'VisitDate', 'visit_date', 'Visit_Date', 'doctorVisitedDateTime', 'DoctorVisitedDateTime'], ''),
+          visitTime: extractField(visit, ['visitTime', 'VisitTime', 'visit_time', 'Visit_Time'], ''),
+          visitType: extractField(visit, ['visitType', 'VisitType', 'visit_type', 'Visit_Type'], ''),
+          diagnosis: extractField(visit, ['diagnosis', 'Diagnosis'], ''),
+          notes: extractField(visit, ['notes', 'Notes'], ''),
+          visitsDetails: extractField(visit, ['visitsDetails', 'VisitsDetails', 'visitDetails', 'VisitDetails'], ''),
+          patientCondition: extractField(visit, ['patientCondition', 'PatientCondition', 'condition', 'Condition'], ''),
+          status: extractField(visit, ['status', 'Status'], 'Active'), // Map Status to Status
+          prescribedMedications: extractField(visit, ['prescribedMedications', 'PrescribedMedications', 'medications', 'Medications'], ''),
+        };
+      });
+      
+      console.log('Fetched and mapped ICU doctor visits:', mappedDoctorVisits);
+      setPatientDoctorVisits(mappedDoctorVisits);
     } catch (err) {
-      console.error('Error fetching patient doctor visits:', err);
-      setDoctorVisitsError(err instanceof Error ? err.message : 'Failed to load patient doctor visits');
+      console.error('Error fetching ICU doctor visits:', err);
+      setDoctorVisitsError(err instanceof Error ? err.message : 'Failed to load ICU doctor visits');
       setPatientDoctorVisits([]);
     } finally {
       setDoctorVisitsLoading(false);
     }
   };
 
-  const fetchPatientNurseVisits = async (roomAdmissionId: number) => {
+  const fetchPatientNurseVisits = async (patientICUAdmissionId: string) => {
     try {
       setNurseVisitsLoading(true);
       setNurseVisitsError(null);
-      console.log('Fetching patient nurse visits for roomAdmissionId:', roomAdmissionId);
-      const nurseVisits = await admissionsApi.getPatientNurseVisits(roomAdmissionId);
-      console.log('Fetched patient nurse visits:', nurseVisits);
-      setPatientNurseVisits(nurseVisits);
+      console.log('========================================');
+      console.log('Fetching ICU nurse visits for patientICUAdmissionId (UUID):', patientICUAdmissionId);
+      console.log('API Endpoint:', `/icu-nurse-visits/icu-admission/${patientICUAdmissionId}`);
+      console.log('========================================');
+      
+      // Call the new ICU nurse visits API endpoint
+      const response = await apiRequest<any>(`/icu-nurse-visits/icu-admission/${patientICUAdmissionId}`);
+      console.log('ICU nurse visits API response (RAW):', JSON.stringify(response, null, 2));
+      
+      // Handle different response structures
+      let nurseVisitsData: any[] = [];
+      
+      if (Array.isArray(response)) {
+        nurseVisitsData = response;
+      } else if (response?.data) {
+        if (Array.isArray(response.data)) {
+          nurseVisitsData = response.data;
+        } else if (response.data.nurseVisits && Array.isArray(response.data.nurseVisits)) {
+          nurseVisitsData = response.data.nurseVisits;
+        } else if (response.data.icuNurseVisits && Array.isArray(response.data.icuNurseVisits)) {
+          nurseVisitsData = response.data.icuNurseVisits;
+        }
+      } else if (response?.nurseVisits && Array.isArray(response.nurseVisits)) {
+        nurseVisitsData = response.nurseVisits;
+      } else if (response?.icuNurseVisits && Array.isArray(response.icuNurseVisits)) {
+        nurseVisitsData = response.icuNurseVisits;
+      }
+      
+      if (!Array.isArray(nurseVisitsData) || nurseVisitsData.length === 0) {
+        console.warn('ICU nurse visits response is not an array or is empty:', response);
+        setPatientNurseVisits([]);
+        return;
+      }
+      
+      // Map the response to PatientNurseVisit format
+      const mappedNurseVisits: PatientNurseVisit[] = nurseVisitsData.map((visit: any) => {
+        const extractField = (data: any, fieldVariations: string[], defaultValue: any = '') => {
+          for (const field of fieldVariations) {
+            const value = data?.[field];
+            if (value !== undefined && value !== null && value !== '') {
+              return value;
+            }
+          }
+          return defaultValue;
+        };
+        
+        return {
+          patientNurseVisitId: extractField(visit, ['patientNurseVisitId', 'PatientNurseVisitId', 'id', 'Id'], 0),
+          icuNurseVisitsId: extractField(visit, [
+            'icuNurseVisitsId', 'ICUNurseVisitsId', 'icu_nurse_visits_id', 'ICU_Nurse_Visits_Id',
+            'icuNurseVisitId', 'ICUNurseVisitId', 'icu_nurse_visit_id', 'ICU_Nurse_Visit_Id',
+            'id', 'Id', 'ID'
+          ], null),
+          nurseName: extractField(visit, ['nurseName', 'NurseName', 'nurse_name', 'Nurse_Name', 'nurse', 'Nurse'], ''),
+          visitDate: extractField(visit, ['visitDate', 'VisitDate', 'visit_date', 'Visit_Date', 'nurseVisitedDateTime', 'NurseVisitedDateTime'], ''),
+          visitTime: extractField(visit, ['visitTime', 'VisitTime', 'visit_time', 'Visit_Time'], ''),
+          visitType: extractField(visit, ['visitType', 'VisitType', 'visit_type', 'Visit_Type'], ''),
+          vitalSigns: extractField(visit, ['vitalSigns', 'VitalSigns', 'vital_signs', 'Vital_Signs'], ''),
+          notes: extractField(visit, ['notes', 'Notes'], ''),
+          nurseVisitsDetails: extractField(visit, ['nurseVisitsDetails', 'NurseVisitsDetails', 'visitDetails', 'VisitDetails'], ''),
+          medicationsAdministered: extractField(visit, ['medicationsAdministered', 'MedicationsAdministered', 'medications', 'Medications'], ''),
+          patientStatus: extractField(visit, ['patientStatus', 'PatientStatus', 'patientCondition', 'PatientCondition', 'condition', 'Condition'], ''),
+        };
+      });
+      
+      console.log('Fetched and mapped ICU nurse visits:', mappedNurseVisits);
+      setPatientNurseVisits(mappedNurseVisits);
     } catch (err) {
-      console.error('Error fetching patient nurse visits:', err);
-      setNurseVisitsError(err instanceof Error ? err.message : 'Failed to load patient nurse visits');
+      console.error('Error fetching ICU nurse visits:', err);
+      setNurseVisitsError(err instanceof Error ? err.message : 'Failed to load ICU nurse visits');
       setPatientNurseVisits([]);
     } finally {
       setNurseVisitsLoading(false);
@@ -317,6 +513,260 @@ export function ManageICUCase() {
 
   const handleBack = () => {
     window.location.hash = 'icu';
+  };
+
+  // Handle opening Add ICU Nurse Visit dialog
+  const handleOpenAddNurseVisitDialog = () => {
+    if (icuAdmission) {
+      setNurseVisitFormData({
+        icuAdmissionId: String(icuAdmission.patientICUAdmissionId || icuAdmission.id || ''),
+        patientId: String(icuAdmission.patientId || ''),
+        nurseId: '',
+        nurseVisitedDateTime: new Date().toISOString().slice(0, 16), // Current date/time in local format
+        nurseVisitsDetails: '',
+        patientCondition: icuAdmission.condition || ''
+      });
+      setNurseVisitSubmitError(null);
+      setIsAddNurseVisitDialogOpen(true);
+    }
+  };
+
+  // Handle saving ICU Nurse Visit
+  const handleSaveNurseVisit = async () => {
+    try {
+      setNurseVisitSubmitting(true);
+      setNurseVisitSubmitError(null);
+
+      console.log('Saving ICU Nurse Visit with data:', nurseVisitFormData);
+
+      // Prepare the request payload
+      // Ensure all UUID fields are sent as strings
+      const payload = {
+        ICUAdmissionId: String(nurseVisitFormData.icuAdmissionId), // UUID string
+        PatientId: String(nurseVisitFormData.patientId), // UUID string
+        NurseId: String(nurseVisitFormData.nurseId),
+        NurseVisitedDateTime: nurseVisitFormData.nurseVisitedDateTime,
+        NurseVisitsDetails: nurseVisitFormData.nurseVisitsDetails,
+        PatientCondition: nurseVisitFormData.patientCondition
+      };
+
+      console.log('API Payload:', payload);
+      console.log('API Endpoint: /icu-nurse-visits');
+
+      // Call the API to create the ICU nurse visit
+      const response = await apiRequest<any>('/icu-nurse-visits', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      console.log('ICU nurse visit created successfully:', response);
+
+      // Close dialog and refresh nurse visits list
+      setIsAddNurseVisitDialogOpen(false);
+      
+      // Refresh the nurse visits list
+      if (icuAdmission?.patientICUAdmissionId) {
+        await fetchPatientNurseVisits(String(icuAdmission.patientICUAdmissionId));
+      }
+
+      // Reset form
+      setNurseVisitFormData({
+        icuAdmissionId: '',
+        patientId: '',
+        nurseId: '',
+        nurseVisitedDateTime: '',
+        nurseVisitsDetails: '',
+        patientCondition: ''
+      });
+    } catch (err) {
+      console.error('Error saving ICU Nurse Visit:', err);
+      setNurseVisitSubmitError(
+        err instanceof Error ? err.message : 'Failed to save ICU Nurse Visit'
+      );
+    } finally {
+      setNurseVisitSubmitting(false);
+    }
+  };
+
+  // Handle opening Add ICU Doctor Visit dialog
+  const handleOpenAddDoctorVisitDialog = () => {
+    if (icuAdmission) {
+      setEditingDoctorVisitId(null);
+      setDoctorVisitFormData({
+        icuAdmissionId: String(icuAdmission.patientICUAdmissionId || icuAdmission.id || ''),
+        patientId: String(icuAdmission.patientId || ''),
+        doctorId: '', // Will need to be set from attendingDoctor or fetched
+        doctorVisitedDateTime: new Date().toISOString().slice(0, 16), // Current date/time in local format
+        visitsDetails: '',
+        patientCondition: icuAdmission.condition || '',
+        status: 'Active'
+      });
+      setDoctorVisitSubmitError(null);
+      setIsAddDoctorVisitDialogOpen(true);
+    }
+  };
+
+  // Handle opening Edit ICU Doctor Visit dialog
+  const handleOpenEditDoctorVisitDialog = (visit: PatientDoctorVisit) => {
+    console.log('========================================');
+    console.log('Opening edit dialog for doctor visit');
+    console.log('Visit object:', visit);
+    console.log('Visit ID (patientDoctorVisitId):', visit.patientDoctorVisitId);
+    console.log('Visit ID (id):', visit.id);
+    console.log('ICU Admission:', icuAdmission);
+    console.log('========================================');
+    
+    // Extract ICU Doctor Visit ID (primary key for ICU Doctor Visits)
+    // Prioritize icuDoctorVisitsId (plural) as the primary key
+    const icuDoctorVisitsId = visit.icuDoctorVisitsId || (visit as any).icuDoctorVisitsId || 
+                              (visit as any).ICUDoctorVisitsId || (visit as any).iCUDoctorVisitsId || 
+                              (visit as any).icuDoctorVisitId || (visit as any).ICUDoctorVisitId || 
+                              (visit as any).iCUDoctorVisitId || visit.patientDoctorVisitId || visit.id;
+    const visitId = visit.patientDoctorVisitId || visit.id;
+    console.log('Extracted icuDoctorVisitsId (primary key):', icuDoctorVisitsId);
+    console.log('Extracted visitId (fallback):', visitId);
+    
+    if (!icuDoctorVisitsId && !visitId) {
+      console.error('No visit ID found! Visit object:', visit);
+      alert('Error: Cannot edit visit - Visit ID not found');
+      return;
+    }
+    
+    if (!icuAdmission) {
+      console.error('ICU Admission not loaded!');
+      alert('Error: ICU Admission details not loaded. Please wait and try again.');
+      return;
+    }
+    
+    const finalVisitId = icuDoctorVisitsId || visitId;
+    console.log('Setting editingDoctorVisitId to:', finalVisitId);
+    setEditingDoctorVisitId(finalVisitId);
+    
+    // Format datetime for datetime-local input (YYYY-MM-DDTHH:mm)
+    let formattedDateTime = '';
+    if (visit.visitDate) {
+      try {
+        const date = new Date(visit.visitDate);
+        if (!isNaN(date.getTime())) {
+          // Format to YYYY-MM-DDTHH:mm
+          const year = date.getFullYear();
+          const month = String(date.getMonth() + 1).padStart(2, '0');
+          const day = String(date.getDate()).padStart(2, '0');
+          const hours = String(date.getHours()).padStart(2, '0');
+          const minutes = String(date.getMinutes()).padStart(2, '0');
+          formattedDateTime = `${year}-${month}-${day}T${hours}:${minutes}`;
+          console.log('Formatted datetime:', formattedDateTime);
+        }
+      } catch (e) {
+        console.warn('Error formatting date:', e);
+      }
+    }
+    
+    const formData = {
+      icuDoctorVisitId: String(icuDoctorVisitsId || visitId || ''),
+      icuAdmissionId: String(icuAdmission.patientICUAdmissionId || icuAdmission.id || ''),
+      patientId: String(icuAdmission.patientId || ''),
+      doctorId: String(visit.doctorId || visit.doctorName || ''),
+      doctorVisitedDateTime: formattedDateTime || new Date().toISOString().slice(0, 16),
+      visitsDetails: (visit as any).visitsDetails || visit.notes || visit.visitsRemarks || '',
+      patientCondition: visit.patientCondition || '',
+      status: visit.status || 'Active' // Map Status to Status
+    };
+    
+    console.log('Setting form data:', formData);
+    setDoctorVisitFormData(formData);
+    setDoctorVisitSubmitError(null);
+    
+    console.log('Opening dialog...');
+    setIsAddDoctorVisitDialogOpen(true);
+    console.log('Dialog should now be open. isAddDoctorVisitDialogOpen state will be updated.');
+  };
+
+  // Handle saving ICU Doctor Visit (both create and update)
+  const handleSaveDoctorVisit = async () => {
+    try {
+      setDoctorVisitSubmitting(true);
+      setDoctorVisitSubmitError(null);
+
+      console.log('Saving ICU Doctor Visit with data:', doctorVisitFormData);
+      console.log('Is editing:', editingDoctorVisitId !== null, 'Visit ID:', editingDoctorVisitId);
+
+      // Prepare the request payload
+      // Ensure all UUID fields are sent as strings
+      const payload: any = {
+        ICUAdmissionId: String(doctorVisitFormData.icuAdmissionId), // UUID string
+        PatientId: String(doctorVisitFormData.patientId), // UUID string
+        DoctorId: String(doctorVisitFormData.doctorId),
+        DoctorVisitedDateTime: doctorVisitFormData.doctorVisitedDateTime,
+        VisitsDetails: doctorVisitFormData.visitsDetails,
+        PatientCondition: doctorVisitFormData.patientCondition, // Keep PatientCondition separate
+        Status: doctorVisitFormData.status // Map Status to Status in API payload
+      };
+
+      // Include ICUDoctorVisitId when editing
+      if (editingDoctorVisitId && doctorVisitFormData.icuDoctorVisitId) {
+        payload.ICUDoctorVisitId = String(doctorVisitFormData.icuDoctorVisitId);
+        console.log('Including ICUDoctorVisitId in payload:', payload.ICUDoctorVisitId);
+      }
+
+      console.log('API Payload:', payload);
+
+      let response;
+      if (editingDoctorVisitId) {
+        // Update existing visit
+        console.log('API Endpoint: PUT /icu-doctor-visits/' + editingDoctorVisitId);
+        response = await apiRequest<any>(`/icu-doctor-visits/${editingDoctorVisitId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        });
+        console.log('Doctor visit updated successfully:', response);
+      } else {
+        // Create new visit
+        console.log('API Endpoint: POST /icu-doctor-visits');
+        response = await apiRequest<any>('/icu-doctor-visits', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        });
+        console.log('Doctor visit created successfully:', response);
+      }
+
+      // Close dialog and refresh doctor visits list
+      setIsAddDoctorVisitDialogOpen(false);
+      setEditingDoctorVisitId(null);
+      
+      // Refresh the doctor visits list
+      if (icuAdmission?.patientICUAdmissionId) {
+        await fetchPatientDoctorVisits(String(icuAdmission.patientICUAdmissionId));
+      }
+
+      // Reset form
+      setDoctorVisitFormData({
+        icuDoctorVisitId: '',
+        icuAdmissionId: '',
+        patientId: '',
+        doctorId: '',
+        doctorVisitedDateTime: '',
+        visitsDetails: '',
+        patientCondition: '',
+        status: ''
+      });
+    } catch (err) {
+      console.error('Error saving ICU Doctor Visit:', err);
+      setDoctorVisitSubmitError(
+        err instanceof Error ? err.message : 'Failed to save ICU Doctor Visit'
+      );
+    } finally {
+      setDoctorVisitSubmitting(false);
+    }
   };
 
   if (loading) {
@@ -396,7 +846,7 @@ export function ManageICUCase() {
                 <p className="text-gray-900 font-medium mt-1">{icuAdmission.gender || 'N/A'}</p>
               </div>
               <div>
-                <Label className="text-sm text-gray-500">Admission Date</Label>
+                <Label className="text-sm text-gray-500">Admission Date and Time</Label>
                 <p className="text-gray-900 font-medium mt-1">{icuAdmission.admissionDate || 'N/A'}</p>
               </div>
               <div>
@@ -434,30 +884,7 @@ export function ManageICUCase() {
                 <Label className="text-sm text-gray-500">Diagnosis</Label>
                 <p className="text-gray-900 font-medium mt-1">{icuAdmission.diagnosis || 'N/A'}</p>
               </div>
-              {icuAdmission.vitals && (
-                <>
-                  <div>
-                    <Label className="text-sm text-gray-500">Heart Rate</Label>
-                    <p className="text-gray-900 font-medium mt-1">{icuAdmission.vitals.heartRate || 0} bpm</p>
-                  </div>
-                  <div>
-                    <Label className="text-sm text-gray-500">Blood Pressure</Label>
-                    <p className="text-gray-900 font-medium mt-1">{icuAdmission.vitals.bloodPressure || 'N/A'}</p>
-                  </div>
-                  <div>
-                    <Label className="text-sm text-gray-500">Temperature</Label>
-                    <p className="text-gray-900 font-medium mt-1">{icuAdmission.vitals.temperature || 0}°C</p>
-                  </div>
-                  <div>
-                    <Label className="text-sm text-gray-500">O₂ Saturation</Label>
-                    <p className="text-gray-900 font-medium mt-1">{icuAdmission.vitals.oxygenSaturation || 0}%</p>
-                  </div>
-                  <div>
-                    <Label className="text-sm text-gray-500">Respiratory Rate</Label>
-                    <p className="text-gray-900 font-medium mt-1">{icuAdmission.vitals.respiratoryRate || 0} /min</p>
-                  </div>
-                </>
-              )}
+              
               {icuAdmission.treatment && (
                 <div className="col-span-2">
                   <Label className="text-sm text-gray-500">Treatment</Label>
@@ -620,7 +1047,16 @@ export function ManageICUCase() {
           <TabsContent value="doctor-visits" className="mt-6">
             <Card>
               <CardHeader>
-                <CardTitle>Doctor Visits</CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle>Doctor Visits</CardTitle>
+                  <Button
+                    onClick={handleOpenAddDoctorVisitDialog}
+                    className="gap-2"
+                  >
+                    <Plus className="size-4" />
+                    Add ICU Doctor Visit
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
                 {doctorVisitsLoading ? (
@@ -630,49 +1066,52 @@ export function ManageICUCase() {
                 ) : patientDoctorVisits.length === 0 ? (
                   <div className="text-center py-8 text-gray-500">No doctor visits found</div>
                 ) : (
-                  <div className="space-y-4">
-                    {patientDoctorVisits.map((visit) => (
-                      <Card key={visit.patientDoctorVisitId || visit.id}>
-                        <CardContent className="p-4">
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            <div>
-                              <Label className="text-sm text-gray-500">Doctor</Label>
-                              <p className="text-gray-900 font-medium mt-1">{visit.doctorName || 'N/A'}</p>
-                            </div>
-                            <div>
-                              <Label className="text-sm text-gray-500">Visit Date</Label>
-                              <p className="text-gray-900 font-medium mt-1">{visit.visitDate || 'N/A'}</p>
-                            </div>
-                            <div>
-                              <Label className="text-sm text-gray-500">Visit Time</Label>
-                              <p className="text-gray-900 font-medium mt-1">{visit.visitTime || 'N/A'}</p>
-                            </div>
-                            <div>
-                              <Label className="text-sm text-gray-500">Visit Type</Label>
-                              <p className="text-gray-900 font-medium mt-1">{visit.visitType || 'N/A'}</p>
-                            </div>
-                            {visit.diagnosis && (
-                              <div className="col-span-2">
-                                <Label className="text-sm text-gray-500">Diagnosis</Label>
-                                <p className="text-gray-900 font-medium mt-1">{visit.diagnosis}</p>
-                              </div>
-                            )}
-                            {visit.notes && (
-                              <div className="col-span-2">
-                                <Label className="text-sm text-gray-500">Notes</Label>
-                                <p className="text-gray-900 font-medium mt-1">{visit.notes}</p>
-                              </div>
-                            )}
-                            {visit.prescribedMedications && (
-                              <div className="col-span-2">
-                                <Label className="text-sm text-gray-500">Prescribed Medications</Label>
-                                <p className="text-gray-900 font-medium mt-1">{visit.prescribedMedications}</p>
-                              </div>
-                            )}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-gray-200">
+                          <th className="text-left py-3 px-4 text-gray-700">Doctor Visit ID</th>
+                          <th className="text-left py-3 px-4 text-gray-700">Doctor</th>
+                          <th className="text-left py-3 px-4 text-gray-700">Visit Date</th>
+                          <th className="text-left py-3 px-4 text-gray-700">Visit Details</th>
+                          <th className="text-left py-3 px-4 text-gray-700">Patient Condition</th>
+                          <th className="text-left py-3 px-4 text-gray-700">Status</th>
+                          <th className="text-left py-3 px-4 text-gray-700">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {patientDoctorVisits.map((visit) => (
+                          <tr key={visit.icuDoctorVisitsId || (visit as any).iCUDoctorVisitId || visit.patientDoctorVisitId || visit.id} className="border-b border-gray-100 hover:bg-gray-50">
+                            <td className="py-3 px-4">{visit.icuDoctorVisitsId || (visit as any).iCUDoctorVisitId || visit.patientDoctorVisitId || visit.id || 'N/A'}</td>
+                            <td className="py-3 px-4">{visit.doctorName || 'N/A'}</td>
+                            <td className="py-3 px-4">{visit.visitDate || 'N/A'}</td>
+                            <td className="py-3 px-4">{(visit as any).visitsDetails || visit.notes || visit.visitsRemarks || 'N/A'}</td>
+                            <td className="py-3 px-4">{visit.patientCondition || 'N/A'}</td>
+                            <td className="py-3 px-4">
+                              <Badge variant={visit.status === 'Active' ? 'default' : visit.status === 'Completed' ? 'secondary' : 'destructive'}>
+                                {visit.status || 'N/A'}
+                              </Badge>
+                            </td>
+                            <td className="py-3 px-4">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  console.log('Edit button clicked for visit:', visit);
+                                  handleOpenEditDoctorVisitDialog(visit);
+                                }}
+                                className="gap-2"
+                              >
+                                <Edit className="size-4" />
+                                Edit
+                              </Button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 )}
               </CardContent>
@@ -682,7 +1121,16 @@ export function ManageICUCase() {
           <TabsContent value="nurse-visits" className="mt-6">
             <Card>
               <CardHeader>
-                <CardTitle>ICU Nurse Visits</CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle>ICU Nurse Visits</CardTitle>
+                  <Button
+                    onClick={handleOpenAddNurseVisitDialog}
+                    className="gap-2"
+                  >
+                    <Plus className="size-4" />
+                    Add New ICU Nurse Visit
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
                 {nurseVisitsLoading ? (
@@ -692,61 +1140,292 @@ export function ManageICUCase() {
                 ) : patientNurseVisits.length === 0 ? (
                   <div className="text-center py-8 text-gray-500">No nurse visits found</div>
                 ) : (
-                  <div className="space-y-4">
-                    {patientNurseVisits.map((visit) => (
-                      <Card key={visit.patientNurseVisitId || visit.id}>
-                        <CardContent className="p-4">
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            <div>
-                              <Label className="text-sm text-gray-500">Nurse</Label>
-                              <p className="text-gray-900 font-medium mt-1">{visit.nurseName || 'N/A'}</p>
-                            </div>
-                            <div>
-                              <Label className="text-sm text-gray-500">Visit Date</Label>
-                              <p className="text-gray-900 font-medium mt-1">{visit.visitDate || 'N/A'}</p>
-                            </div>
-                            <div>
-                              <Label className="text-sm text-gray-500">Visit Time</Label>
-                              <p className="text-gray-900 font-medium mt-1">{visit.visitTime || 'N/A'}</p>
-                            </div>
-                            <div>
-                              <Label className="text-sm text-gray-500">Visit Type</Label>
-                              <p className="text-gray-900 font-medium mt-1">{visit.visitType || 'N/A'}</p>
-                            </div>
-                            {visit.vitalSigns && (
-                              <div className="col-span-2">
-                                <Label className="text-sm text-gray-500">Vital Signs</Label>
-                                <p className="text-gray-900 font-medium mt-1">{visit.vitalSigns}</p>
-                              </div>
-                            )}
-                            {visit.notes && (
-                              <div className="col-span-2">
-                                <Label className="text-sm text-gray-500">Notes</Label>
-                                <p className="text-gray-900 font-medium mt-1">{visit.notes}</p>
-                              </div>
-                            )}
-                            {visit.medicationsAdministered && (
-                              <div className="col-span-2">
-                                <Label className="text-sm text-gray-500">Medications Administered</Label>
-                                <p className="text-gray-900 font-medium mt-1">{visit.medicationsAdministered}</p>
-                              </div>
-                            )}
-                            {visit.patientStatus && (
-                              <div className="col-span-2">
-                                <Label className="text-sm text-gray-500">Patient Status</Label>
-                                <p className="text-gray-900 font-medium mt-1">{visit.patientStatus}</p>
-                              </div>
-                            )}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-gray-200">
+                          <th className="text-left py-3 px-4 text-gray-700">ICU Nurse Visit ID</th>
+                          <th className="text-left py-3 px-4 text-gray-700">Nurse</th>
+                          <th className="text-left py-3 px-4 text-gray-700">Visit Date</th>
+                          <th className="text-left py-3 px-4 text-gray-700">Visit Details</th>
+                          <th className="text-left py-3 px-4 text-gray-700">Patient Status</th>
+                          <th className="text-left py-3 px-4 text-gray-700">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {patientNurseVisits.map((visit) => (
+                          <tr key={visit.patientNurseVisitId || visit.id} className="border-b border-gray-100 hover:bg-gray-50">
+                            <td className="py-3 px-4">{visit.icuNurseVisitsId || visit.patientNurseVisitId || visit.id || 'N/A'}</td>
+                            <td className="py-3 px-4">{visit.nurseName || 'N/A'}</td>
+                            <td className="py-3 px-4">{visit.visitDate || 'N/A'}</td>
+                            <td className="py-3 px-4">{visit.nurseVisitsDetails || 'N/A'}</td>
+                            <td className="py-3 px-4">{visit.patientStatus || 'N/A'}</td>
+                            <td className="py-3 px-4">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  console.log('========================================');
+                                  console.log('View and Add Vitals button clicked');
+                                  console.log('Visit data:', visit);
+                                  console.log('icuAdmission:', icuAdmission);
+                                  
+                                  const icuNurseVisitId = visit.icuNurseVisitsId || visit.patientNurseVisitId || visit.id;
+                                  console.log('Extracted icuNurseVisitId:', icuNurseVisitId);
+                                  
+                                  if (icuNurseVisitId) {
+                                    // Get patientICUAdmissionId from current ICU admission for back navigation
+                                    const patientICUAdmissionId = icuAdmission?.patientICUAdmissionId || icuAdmission?.id;
+                                    console.log('patientICUAdmissionId for back navigation:', patientICUAdmissionId);
+                                    
+                                    const url = `icunursevisitvitals?icuNurseVisitId=${String(icuNurseVisitId)}${patientICUAdmissionId ? `&patientICUAdmissionId=${String(patientICUAdmissionId)}` : ''}`;
+                                    console.log('Setting window.location.hash to:', url);
+                                    console.log('Current hash before change:', window.location.hash);
+                                    
+                                    // Set hash (browser automatically adds # prefix)
+                                    window.location.hash = url;
+                                    
+                                    console.log('Hash after change:', window.location.hash);
+                                    console.log('This should trigger a hashchange event');
+                                    console.log('========================================');
+                                  } else {
+                                    console.error('ICU Nurse Visit ID not found for navigation');
+                                    console.error('Visit object:', visit);
+                                    console.error('Available visit fields:', Object.keys(visit));
+                                  }
+                                }}
+                                className="gap-2"
+                              >
+                                <Eye className="size-4" />
+                                View and Add Vitals
+                              </Button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 )}
               </CardContent>
             </Card>
           </TabsContent>
         </Tabs>
+
+        {/* Add/Edit ICU Doctor Visit Dialog */}
+        <Dialog open={isAddDoctorVisitDialogOpen} onOpenChange={setIsAddDoctorVisitDialogOpen}>
+          <DialogContent className="p-0 gap-0 large-dialog max-h-[90vh]">
+            <DialogHeader className="px-6 pt-4 pb-3 flex-shrink-0">
+              <DialogTitle>{editingDoctorVisitId ? 'Edit ICU Doctor Visit' : 'Add ICU Doctor Visit'}</DialogTitle>
+            </DialogHeader>
+            <div className="flex-1 overflow-y-auto px-6 pb-1 patient-list-scrollable min-h-0">
+              <div className="space-y-4 py-4">
+                {doctorVisitSubmitError && (
+                  <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
+                    {doctorVisitSubmitError}
+                  </div>
+                )}
+
+              <div className="grid grid-cols-2 gap-4">
+                {editingDoctorVisitId && (
+                  <div>
+                    <Label htmlFor="icuDoctorVisitId">ICU Doctor Visit ID</Label>
+                    <Input
+                      id="icuDoctorVisitId"
+                      value={doctorVisitFormData.icuDoctorVisitId}
+                      disabled
+                      className="bg-gray-100"
+                    />
+                  </div>
+                )}
+                <div>
+                  <Label htmlFor="icuAdmissionId">ICU Admission ID</Label>
+                  <Input
+                    id="icuAdmissionId"
+                    value={doctorVisitFormData.icuAdmissionId}
+                    disabled
+                    className="bg-gray-100"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="patientId">Patient ID</Label>
+                  <Input
+                    id="patientId"
+                    value={doctorVisitFormData.patientId}
+                    disabled
+                    className="bg-gray-100"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="doctorId">Doctor ID *</Label>
+                  <Input
+                    id="doctorId"
+                    value={doctorVisitFormData.doctorId}
+                    onChange={(e) => setDoctorVisitFormData({ ...doctorVisitFormData, doctorId: e.target.value })}
+                    placeholder="Enter Doctor ID"
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="doctorVisitedDateTime">Doctor Visited Date & Time *</Label>
+                  <Input
+                    id="doctorVisitedDateTime"
+                    type="datetime-local"
+                    value={doctorVisitFormData.doctorVisitedDateTime}
+                    onChange={(e) => setDoctorVisitFormData({ ...doctorVisitFormData, doctorVisitedDateTime: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="col-span-2">
+                  <Label htmlFor="visitsDetails">Visit Details *</Label>
+                  <Textarea
+                    id="visitsDetails"
+                    value={doctorVisitFormData.visitsDetails}
+                    onChange={(e) => setDoctorVisitFormData({ ...doctorVisitFormData, visitsDetails: e.target.value })}
+                    placeholder="Enter visit details..."
+                    rows={4}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="patientCondition">Patient Condition *</Label>
+                  <Input
+                    id="patientCondition"
+                    value={doctorVisitFormData.patientCondition}
+                    onChange={(e) => setDoctorVisitFormData({ ...doctorVisitFormData, patientCondition: e.target.value })}
+                    placeholder="Enter patient condition"
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="status">Status *</Label>
+                  <select
+                    id="status"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                    value={doctorVisitFormData.status}
+                    onChange={(e) => setDoctorVisitFormData({ ...doctorVisitFormData, status: e.target.value })}
+                    required
+                  >
+                    <option value="Active">Active</option>
+                    <option value="Completed">Completed</option>
+                    <option value="Cancelled">Cancelled</option>
+                  </select>
+                </div>
+              </div>
+              </div>
+            </div>
+            <DialogFooter className="px-6 pb-4 flex-shrink-0">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsAddDoctorVisitDialogOpen(false);
+                  setEditingDoctorVisitId(null);
+                }}
+                disabled={doctorVisitSubmitting}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSaveDoctorVisit}
+                disabled={doctorVisitSubmitting}
+              >
+                {doctorVisitSubmitting ? 'Saving...' : 'Save'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Add ICU Nurse Visit Dialog */}
+        <Dialog open={isAddNurseVisitDialogOpen} onOpenChange={setIsAddNurseVisitDialogOpen}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Add ICU Nurse Visit</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              {nurseVisitSubmitError && (
+                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
+                  {nurseVisitSubmitError}
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="nurseIcuAdmissionId">ICU Admission ID</Label>
+                  <Input
+                    id="nurseIcuAdmissionId"
+                    value={nurseVisitFormData.icuAdmissionId}
+                    disabled
+                    className="bg-gray-100"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="nursePatientId">Patient ID</Label>
+                  <Input
+                    id="nursePatientId"
+                    value={nurseVisitFormData.patientId}
+                    disabled
+                    className="bg-gray-100"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="nurseId">Nurse ID *</Label>
+                  <Input
+                    id="nurseId"
+                    value={nurseVisitFormData.nurseId}
+                    onChange={(e) => setNurseVisitFormData({ ...nurseVisitFormData, nurseId: e.target.value })}
+                    placeholder="Enter Nurse ID"
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="nurseVisitedDateTime">Nurse Visited Date & Time *</Label>
+                  <Input
+                    id="nurseVisitedDateTime"
+                    type="datetime-local"
+                    value={nurseVisitFormData.nurseVisitedDateTime}
+                    onChange={(e) => setNurseVisitFormData({ ...nurseVisitFormData, nurseVisitedDateTime: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="col-span-2">
+                  <Label htmlFor="nurseVisitsDetails">Nurse Visits Details *</Label>
+                  <Textarea
+                    id="nurseVisitsDetails"
+                    value={nurseVisitFormData.nurseVisitsDetails}
+                    onChange={(e) => setNurseVisitFormData({ ...nurseVisitFormData, nurseVisitsDetails: e.target.value })}
+                    placeholder="Enter nurse visit details..."
+                    rows={4}
+                    required
+                  />
+                </div>
+                <div className="col-span-2">
+                  <Label htmlFor="nursePatientCondition">Patient Condition *</Label>
+                  <Input
+                    id="nursePatientCondition"
+                    value={nurseVisitFormData.patientCondition}
+                    onChange={(e) => setNurseVisitFormData({ ...nurseVisitFormData, patientCondition: e.target.value })}
+                    placeholder="Enter patient condition"
+                    required
+                  />
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setIsAddNurseVisitDialogOpen(false)}
+                disabled={nurseVisitSubmitting}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSaveNurseVisit}
+                disabled={nurseVisitSubmitting}
+              >
+                {nurseVisitSubmitting ? 'Saving...' : 'Save'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

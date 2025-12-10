@@ -47,10 +47,11 @@ const EmergencyBedManagement = lazy(() => import('./components/EmergencyBedManag
 const SurgeryManagement = lazy(() => import('./components/SurgeryManagement').then(m => ({ default: m.SurgeryManagement })));
 const ManageIPDAdmission = lazy(() => import('./components/ManageIPDAdmission').then(m => ({ default: m.ManageIPDAdmission })));
 const ManageICUCase = lazy(() => import('./components/ManageICUCase').then(m => ({ default: m.ManageICUCase })));
+const ICUNurseVisitVitals = lazy(() => import('./components/ICUNurseVisitVitals').then(m => ({ default: m.ICUNurseVisitVitals })));
 const PatientOTAllocationManagement = lazy(() => import('./components/PatientOTAllocationManagement').then(m => ({ default: m.PatientOTAllocationManagement })));
 const EmergencyAdmissionManagement = lazy(() => import('./components/EmergencyAdmissionManagement').then(m => ({ default: m.EmergencyAdmissionManagement })));
 
-type View = 'dashboard' | 'frontdesk' | 'consultation' | 'admissions' | 'ot' | 'icu' | 'laboratory' | 'emergency' | 'reports' | 'doctors' | 'staff' | 'roles' | 'departments' | 'patientregistration' | 'roombeds' | 'labtests' | 'bills' | 'patientappointments' | 'otrooms' | 'icubeds' | 'emergencybeds' | 'surgerymanagement' | 'manageipdadmission' | 'manageicucase' | 'patientotallocation' | 'emergencyadmission';
+type View = 'dashboard' | 'frontdesk' | 'consultation' | 'admissions' | 'ot' | 'icu' | 'laboratory' | 'emergency' | 'reports' | 'doctors' | 'staff' | 'roles' | 'departments' | 'patientregistration' | 'roombeds' | 'labtests' | 'bills' | 'patientappointments' | 'otrooms' | 'icubeds' | 'emergencybeds' | 'surgerymanagement' | 'manageipdadmission' | 'manageicucase' | 'icunursevisitvitals' | 'patientotallocation' | 'emergencyadmission';
 
 // Loading fallback component
 function LoadingFallback() {
@@ -74,8 +75,10 @@ export default function App() {
     const hash = window.location.hash.slice(1) || 'dashboard';
     // Extract view from hash (handle query parameters like #ot?otId=...)
     const viewName = hash.split('?')[0];
-    const validViews: View[] = ['dashboard', 'frontdesk', 'consultation', 'admissions', 'ot', 'icu', 'laboratory', 'emergency', 'reports', 'doctors', 'staff', 'roles', 'departments', 'patientregistration', 'roombeds', 'labtests', 'bills', 'patientappointments', 'otrooms', 'icubeds', 'emergencybeds', 'surgerymanagement', 'manageipdadmission', 'manageicucase', 'patientotallocation', 'emergencyadmission'];
-    return validViews.includes(viewName as View) ? (viewName as View) : 'dashboard';
+    const validViews: View[] = ['dashboard', 'frontdesk', 'consultation', 'admissions', 'ot', 'icu', 'laboratory', 'emergency', 'reports', 'doctors', 'staff', 'roles', 'departments', 'patientregistration', 'roombeds', 'labtests', 'bills', 'patientappointments', 'otrooms', 'icubeds', 'emergencybeds', 'surgerymanagement', 'manageipdadmission', 'manageicucase', 'icunursevisitvitals', 'patientotallocation', 'emergencyadmission'];
+    const extractedView = validViews.includes(viewName as View) ? (viewName as View) : 'dashboard';
+    console.log('getViewFromHash: hash=', hash, 'viewName=', viewName, 'extractedView=', extractedView);
+    return extractedView;
   };
 
   const [currentView, setCurrentView] = useState<View>(getViewFromHash());
@@ -86,16 +89,37 @@ export default function App() {
   useEffect(() => {
     const currentHash = window.location.hash.slice(1);
     const hasQueryParams = currentHash.includes('?');
-    if (!hasQueryParams) {
+    const viewFromHash = currentHash.split('?')[0];
+    
+    console.log('App: Sync effect triggered');
+    console.log('currentView:', currentView);
+    console.log('viewFromHash:', viewFromHash);
+    console.log('hasQueryParams:', hasQueryParams);
+    
+    // Only update hash if view doesn't match AND there are no query params
+    // If there are query params, let the hashchange handler manage the view update
+    if (!hasQueryParams && viewFromHash !== currentView) {
+      console.log('App: Updating hash to match currentView (no query params)');
       window.location.hash = currentView;
+    } else if (hasQueryParams && viewFromHash !== currentView) {
+      // If hash has query params but view doesn't match, update view part only
+      const queryParams = currentHash.split('?')[1] || '';
+      console.log('App: Updating hash view part while preserving query params');
+      window.location.hash = `${currentView}${queryParams ? '?' + queryParams : ''}`;
+    } else {
+      console.log('App: Hash and view are in sync, no update needed');
     }
   }, [currentView]);
 
   // Listen for hash changes (e.g., when opening in new tab)
   useEffect(() => {
     const handleHashChange = () => {
+      console.log('App: Hash change detected');
+      console.log('Current hash:', window.location.hash);
       const view = getViewFromHash();
+      console.log('Extracted view from hash:', view);
       setCurrentView(view);
+      console.log('Updated currentView to:', view);
     };
 
     window.addEventListener('hashchange', handleHashChange);
@@ -236,7 +260,7 @@ export default function App() {
         <ResizablePanel defaultSize={isStandalone ? 100 : 84} minSize={70}>
 
           <main className={`h-full bg-white transition-all duration-300 flex flex-col ${
-            currentView === 'dashboard' || currentView === 'frontdesk' || currentView === 'icu' || currentView === 'otrooms' || currentView === 'icubeds' || currentView === 'emergencybeds' || currentView === 'patientregistration' || currentView === 'surgerymanagement' || currentView === 'manageipdadmission' || currentView === 'manageicucase' || currentView === 'emergencyadmission'
+            currentView === 'dashboard' || currentView === 'frontdesk' || currentView === 'icu' || currentView === 'otrooms' || currentView === 'icubeds' || currentView === 'emergencybeds' || currentView === 'patientregistration' || currentView === 'surgerymanagement' || currentView === 'manageipdadmission' || currentView === 'manageicucase' || currentView === 'icunursevisitvitals' || currentView === 'emergencyadmission'
               ? 'overflow-hidden' 
               : 'overflow-auto overflow-x-hidden'
           }`}>
@@ -266,6 +290,7 @@ export default function App() {
               {currentView === 'reports' && <Reports />}
               {currentView === 'manageipdadmission' && <ManageIPDAdmission />}
               {currentView === 'manageicucase' && <ManageICUCase />}
+              {currentView === 'icunursevisitvitals' && <ICUNurseVisitVitals />}
               {currentView === 'emergencyadmission' && <EmergencyAdmissionManagement />}
             </Suspense>
           </main>

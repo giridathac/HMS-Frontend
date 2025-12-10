@@ -89,6 +89,8 @@ export interface PatientLabTest {
 
 export interface PatientDoctorVisit {
   id?: number;
+  icuDoctorVisitsId?: number; // Primary key for ICU Doctor Visits
+  iCUDoctorVisitId?: number; // Legacy field name support
   patientDoctorVisitId?: number;
   roomAdmissionId?: number;
   doctorId?: number;
@@ -109,6 +111,7 @@ export interface PatientDoctorVisit {
 export interface PatientNurseVisit {
   id?: number;
   patientNurseVisitId?: number;
+  icuNurseVisitsId?: number | string; // Primary key for ICU Nurse Visits
   roomAdmissionId?: number;
   nurseId?: number;
   nurseName?: string;
@@ -123,6 +126,21 @@ export interface PatientNurseVisit {
   patientStatus?: string;
   supervisionDetails?: string;
   remarks?: string;
+}
+
+export interface ICUNurseVisitVitals {
+  id?: number | string;
+  icuNurseVisitVitalsId?: number | string;
+  icuNurseVisitId?: number | string;
+  heartRate?: number;
+  bloodPressure?: string;
+  temperature?: number;
+  oxygenSaturation?: number;
+  respiratoryRate?: number;
+  bloodSugar?: number;
+  recordedDateTime?: string;
+  recordedBy?: string;
+  notes?: string;
 }
 
 // Stub data for Admissions Management
@@ -211,7 +229,15 @@ const stubRoomCapacity: RoomCapacityOverview = {
   'Special Room': { total: 15, occupied: 8, available: 7 },
 };
 
+// Module-level array to store ICU admissions extracted from bed layout
+let icuAdmissionsArray: any[] = [];
+
 export const admissionsApi = {
+  // Get ICU admissions array (populated from getICUBedLayout)
+  getICUAdmissions(): any[] {
+    return icuAdmissionsArray;
+  },
+
   async getAll(): Promise<Admission[]> {
     let apiData: Admission[] = [];
     
@@ -715,7 +741,7 @@ export const admissionsApi = {
       console.log('Creating admission with data:', JSON.stringify(backendData, null, 2));
 
       // Call the actual API endpoint
-      const response = await apiRequest<any>('/admissions', {
+      const response = await apiRequest<any>('/room-admissions', {
         method: 'POST',
         body: JSON.stringify(backendData),
       });
@@ -1511,14 +1537,14 @@ export const admissionsApi = {
     }
   },
 
-  async getPatientDoctorVisits(roomAdmissionId: number): Promise<PatientDoctorVisit[]> {
+  async getPatientDoctorVisits(roomAdmissionId: number | string): Promise<PatientDoctorVisit[]> {
     try {
       // Validate ID before making API call
-      if (!roomAdmissionId || roomAdmissionId <= 0) {
+      if (!roomAdmissionId || (typeof roomAdmissionId === 'number' && roomAdmissionId <= 0)) {
         throw new Error(`Invalid room admission ID: ${roomAdmissionId}. Cannot fetch patient doctor visits.`);
       }
       
-      console.log(`Fetching patient doctor visits for roomAdmissionId: ${roomAdmissionId}`);
+      console.log(`Fetching patient doctor visits for roomAdmissionId: ${roomAdmissionId} (type: ${typeof roomAdmissionId})`);
       const response = await apiRequest<any>(`/patient-admit-doctor-visits/room-admission/${roomAdmissionId}`);
       console.log('Patient doctor visits API response (RAW):', JSON.stringify(response, null, 2));
       
@@ -2212,16 +2238,67 @@ export const admissionsApi = {
 
   async getICUBedLayout(): Promise<any[]> {
     try {
-      console.log('Fetching ICU bed layout from API endpoint: /patient-icu-admissions/icu-management');
-      const response = await apiRequest<any>('/patient-icu-admissions/icu-management');
+      console.log('Fetching ICU bed layout from API endpoint: /patient-icu-admissions/icu-beds-details');
+      const response = await apiRequest<any>('/patient-icu-admissions/icu-beds-details');
       console.log('ICU bed layout API response (RAW):', JSON.stringify(response, null, 2));
       
       // Handle different response structures: { data: [...] } or direct array
       const bedLayoutData = response?.data || response || [];
       console.log('ICU bed layout data extracted:', bedLayoutData);
       
+      // Extract ICU admission data from bed layout response and load into admissions array
+      icuAdmissionsArray = []; // Reset the admissions array
+      
       if (Array.isArray(bedLayoutData) && bedLayoutData.length > 0) {
         console.log(`Processing ${bedLayoutData.length} ICU beds from API`);
+        
+        // Extract ICU admission data from each bed
+        bedLayoutData.forEach((bed: any) => {
+          // Check for patientICUAdmission in various field name formats
+          const admission = bed.patientICUAdmission || bed.PatientICUAdmission || 
+                           bed.patient_icu_admission || bed.Patient_ICU_Admission ||
+                           bed.icuAdmission || bed.ICUAdmission ||
+                           bed.admission || bed.Admission ||
+                           bed.patientData?.patientICUAdmission || bed.patientData?.PatientICUAdmission ||
+                           bed.Patient?.patientICUAdmission || bed.Patient?.PatientICUAdmission;
+          
+          if (admission) {
+            console.log('Extracted ICU admission from bed:', bed.bedNumber || bed.icuBedNo || bed.bedId, 'Admission:', admission);
+            // Check if admission already exists to avoid duplicates
+            const existingAdmission = icuAdmissionsArray.find(adm => 
+              (adm.patientICUAdmissionId || adm.id || adm.PatientICUAdmissionId) === 
+              (admission.patientICUAdmissionId || admission.id || admission.PatientICUAdmissionId)
+            );
+            if (!existingAdmission) {
+              icuAdmissionsArray.push(admission);
+            }
+          }
+          
+          // Also check if patient data contains admission info
+          const patientData = bed.patient || bed.Patient || bed.patientData || bed.PatientData;
+          if (patientData) {
+            const patientICUAdmissionId = patientData.patientICUAdmissionId || 
+                                         patientData.PatientICUAdmissionId || 
+                                         patientData.id;
+            
+            if (patientICUAdmissionId) {
+              // If we haven't already added this admission, add the patient data as admission
+              const existingAdmission = icuAdmissionsArray.find(adm => 
+                (adm.patientICUAdmissionId || adm.id || adm.PatientICUAdmissionId) === patientICUAdmissionId
+              );
+              if (!existingAdmission) {
+                console.log('Extracted ICU admission from patient data for bed:', bed.bedNumber || bed.icuBedNo || bed.bedId);
+                icuAdmissionsArray.push({
+                  ...patientData,
+                  patientICUAdmissionId: patientICUAdmissionId
+                });
+              }
+            }
+          }
+        });
+        
+        console.log(`Extracted ${icuAdmissionsArray.length} ICU admissions from bed layout data and loaded into admissions array`);
+        
         return bedLayoutData;
       } else if (bedLayoutData && !Array.isArray(bedLayoutData)) {
         console.warn('ICU bed layout data is not an array:', typeof bedLayoutData);
@@ -2232,6 +2309,205 @@ export const admissionsApi = {
       }
     } catch (error) {
       console.error('Error fetching ICU bed layout:', error);
+      throw error;
+    }
+  },
+
+  async getPatientRegistrations(): Promise<any[]> {
+    try {
+      console.log('Fetching patients from API endpoint: /patients/');
+      const response = await apiRequest<any>('/patients/');
+      console.log('Patients API response (RAW):', JSON.stringify(response, null, 2));
+
+      const data = response?.data || response || [];
+      if (Array.isArray(data)) {
+        return data;
+      }
+      if (Array.isArray(data?.patients)) {
+        return data.patients;
+      }
+      console.warn('Patients response is not an array; returning empty array');
+      return [];
+    } catch (error) {
+      console.error('Error fetching patients:', error);
+      return [];
+    }
+  },
+
+  async getICUList(): Promise<any[]> {
+    try {
+      console.log('Fetching ICU list from API endpoint: /icus');
+      const response = await apiRequest<any>('/icus');
+      console.log('ICU list API response (RAW):', JSON.stringify(response, null, 2));
+
+      const data = response?.data || response || [];
+      if (Array.isArray(data)) {
+        return data;
+      }
+      if (Array.isArray(data?.icus)) {
+        return data.icus;
+      }
+      console.warn('ICU list response is not an array; returning empty array');
+      return [];
+    } catch (error) {
+      console.error('Error fetching ICU list:', error);
+      return [];
+    }
+  },
+
+  async createPatientICUAdmission(payload: any): Promise<any> {
+    try {
+      console.log('Creating patient ICU admission via endpoint: /patient-icu-admissions');
+      console.log('Payload:', payload);
+      const response = await apiRequest<any>('/patient-icu-admissions', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      console.log('Create ICU admission response (RAW):', JSON.stringify(response, null, 2));
+      return response;
+    } catch (error) {
+      console.error('Error creating patient ICU admission:', error);
+      throw error;
+    }
+  },
+
+  async getICUBedDetailsById(icuBedId: string | number): Promise<any> {
+    try {
+      if (!icuBedId) {
+        throw new Error(`Invalid ICU Bed ID: ${icuBedId}. Cannot fetch bed details.`);
+      }
+      
+      console.log(`Fetching ICU bed details for icuBedId: ${icuBedId} (type: ${typeof icuBedId})`);
+      const response = await apiRequest<any>(`/patient-icu-admissions/icu-beds-details/${icuBedId}`);
+      console.log('ICU bed details API response (RAW):', JSON.stringify(response, null, 2));
+      
+      // Handle different response structures: { data: {...} } or direct object
+      const bedDetails = response?.data || response || null;
+      console.log('ICU bed details extracted:', bedDetails);
+      
+      return bedDetails;
+    } catch (error) {
+      console.error(`Error fetching ICU bed details for icuBedId ${icuBedId}:`, error);
+      throw error;
+    }
+  },
+
+  async getICUNurseVisitVitalsByICUNurseVisitsId(icuNurseVisitId: string | number): Promise<ICUNurseVisitVitals[]> {
+    try {
+      // Validate ID before making API call
+      if (!icuNurseVisitId) {
+        throw new Error(`Invalid ICU Nurse Visit ID: ${icuNurseVisitId}. Cannot fetch vitals.`);
+      }
+      
+      console.log(`Fetching ICU nurse visit vitals for icuNurseVisitId: ${icuNurseVisitId} (type: ${typeof icuNurseVisitId})`);
+      const response = await apiRequest<any>(`/icu-nurse-visits/${icuNurseVisitId}/vitals`);
+      console.log('ICU nurse visit vitals API response (RAW):', JSON.stringify(response, null, 2));
+      
+      // Handle different response structures
+      let vitalsData: any[] = [];
+      
+      if (Array.isArray(response)) {
+        vitalsData = response;
+      } else if (response?.data) {
+        if (Array.isArray(response.data)) {
+          vitalsData = response.data;
+        } else if (response.data.vitals && Array.isArray(response.data.vitals)) {
+          vitalsData = response.data.vitals;
+        } else if (response.data.icuNurseVisitVitals && Array.isArray(response.data.icuNurseVisitVitals)) {
+          vitalsData = response.data.icuNurseVisitVitals;
+        } else if (response.data.Vitals && Array.isArray(response.data.Vitals)) {
+          vitalsData = response.data.Vitals;
+        }
+      } else if (response?.vitals && Array.isArray(response.vitals)) {
+        vitalsData = response.vitals;
+      } else if (response?.icuNurseVisitVitals && Array.isArray(response.icuNurseVisitVitals)) {
+        vitalsData = response.icuNurseVisitVitals;
+      } else if (response?.Vitals && Array.isArray(response.Vitals)) {
+        vitalsData = response.Vitals;
+      }
+      
+      if (!Array.isArray(vitalsData) || vitalsData.length === 0) {
+        console.warn('ICU nurse visit vitals response is not an array or is empty:', response);
+        return [];
+      }
+      
+      // Helper function to extract value with multiple field name variations
+      const extractField = (data: any, fieldVariations: string[], defaultValue: any = '') => {
+        if (!Array.isArray(fieldVariations)) {
+          console.error('extractField: fieldVariations must be an array', fieldVariations);
+          return defaultValue;
+        }
+        for (const field of fieldVariations) {
+          const value = data?.[field];
+          if (value !== undefined && value !== null && value !== '') {
+            return value;
+          }
+        }
+        return defaultValue;
+      };
+      
+      // Normalize the response to match ICUNurseVisitVitals interface
+      const normalizedVitals: ICUNurseVisitVitals[] = vitalsData.map((vital: any) => {
+        const icuNurseVisitVitalsId = extractField(vital, [
+          'icuNurseVisitVitalsId', 'ICUNurseVisitVitalsId', 'icu_nurse_visit_vitals_id', 'ICU_Nurse_Visit_Vitals_Id',
+          'id', 'Id', 'ID', 'vitalsId', 'VitalsId'
+        ], null);
+        
+        return {
+          id: icuNurseVisitVitalsId || extractField(vital, ['id', 'Id', 'ID'], null),
+          icuNurseVisitVitalsId: icuNurseVisitVitalsId,
+          icuNurseVisitId: extractField(vital, [
+            'icuNurseVisitId', 'ICUNurseVisitId', 'icu_nurse_visit_id', 'ICU_Nurse_Visit_Id',
+            'nurseVisitId', 'NurseVisitId', 'nurse_visit_id', 'Nurse_Visit_Id'
+          ], icuNurseVisitId),
+          heartRate: Number(extractField(vital, [
+            'heartRate', 'HeartRate', 'heart_rate', 'Heart_Rate',
+            'hr', 'HR', 'pulse', 'Pulse'
+          ], 0)) || undefined,
+          bloodPressure: extractField(vital, [
+            'bloodPressure', 'BloodPressure', 'blood_pressure', 'Blood_Pressure',
+            'bp', 'BP', 'bloodPressureReading', 'BloodPressureReading'
+          ], ''),
+          temperature: Number(extractField(vital, [
+            'temperature', 'Temperature', 'temp', 'Temp',
+            'bodyTemperature', 'BodyTemperature', 'body_temperature', 'Body_Temperature'
+          ], 0)) || undefined,
+          oxygenSaturation: Number(extractField(vital, [
+            'oxygenSaturation', 'OxygenSaturation', 'oxygen_saturation', 'Oxygen_Saturation',
+            'o2Sat', 'O2Sat', 'spo2', 'SpO2', 'oxygenLevel', 'OxygenLevel'
+          ], 0)) || undefined,
+          respiratoryRate: Number(extractField(vital, [
+            'respiratoryRate', 'RespiratoryRate', 'respiratory_rate', 'Respiratory_Rate',
+            'rr', 'RR', 'breathingRate', 'BreathingRate', 'breathing_rate', 'Breathing_Rate'
+          ], 0)) || undefined,
+          bloodSugar: Number(extractField(vital, [
+            'bloodSugar', 'BloodSugar', 'blood_sugar', 'Blood_Sugar',
+            'glucose', 'Glucose', 'bloodGlucose', 'BloodGlucose', 'bs', 'BS'
+          ], 0)) || undefined,
+          recordedDateTime: extractField(vital, [
+            'recordedDateTime', 'RecordedDateTime', 'recorded_date_time', 'Recorded_Date_Time',
+            'recordedDate', 'RecordedDate', 'recorded_date', 'Recorded_Date',
+            'createdAt', 'CreatedAt', 'created_at', 'Created_At',
+            'timestamp', 'Timestamp', 'dateTime', 'DateTime'
+          ], ''),
+          recordedBy: extractField(vital, [
+            'recordedBy', 'RecordedBy', 'recorded_by', 'Recorded_By',
+            'createdBy', 'CreatedBy', 'created_by', 'Created_By',
+            'nurseName', 'NurseName', 'nurse_name', 'Nurse_Name',
+            'recordedByNurse', 'RecordedByNurse', 'recorded_by_nurse', 'Recorded_By_Nurse'
+          ], ''),
+          notes: extractField(vital, [
+            'notes', 'Notes', 'note', 'Note',
+            'remarks', 'Remarks', 'comments', 'Comments',
+            'observations', 'Observations', 'observation', 'Observation'
+          ], ''),
+        };
+      });
+      
+      console.log('Normalized ICU nurse visit vitals:', normalizedVitals);
+      return normalizedVitals;
+    } catch (error: any) {
+      console.error(`Error fetching ICU nurse visit vitals for icuNurseVisitId ${icuNurseVisitId}:`, error);
       throw error;
     }
   },

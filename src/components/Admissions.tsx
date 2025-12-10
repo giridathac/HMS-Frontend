@@ -9,6 +9,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { BedDouble, Plus, Search, User, Calendar, Scissors, X, FileText, FlaskConical, Stethoscope, Heart } from 'lucide-react';
 import { useAdmissions } from '../hooks/useAdmissions';
 import { Admission, RoomCapacityOverview, DashboardMetrics } from '../api/admissions';
+import { admissionsApi } from '../api/admissions';
+import { roomBedsApi } from '../api/roomBeds';
+import { doctorsApi } from '../api/doctors';
 
 // Fallback room capacity data (used when API data is not available)
 const fallbackRoomCapacity: RoomCapacityOverview = {
@@ -24,6 +27,24 @@ export function Admissions() {
   const [schedulingOT, setSchedulingOT] = useState<number | null>(null); // Track which admission is being scheduled
   const [isManageDialogOpen, setIsManageDialogOpen] = useState(false);
   const [managedAdmission, setManagedAdmission] = useState<Admission | null>(null);
+  
+  // State for Add New Admission form
+  const [patientSearchTerm, setPatientSearchTerm] = useState('');
+  const [roomBedSearchTerm, setRoomBedSearchTerm] = useState('');
+  const [doctorSearchTerm, setDoctorSearchTerm] = useState('');
+  const [patientOptions, setPatientOptions] = useState<any[]>([]);
+  const [roomBedOptions, setRoomBedOptions] = useState<any[]>([]);
+  const [doctorOptions, setDoctorOptions] = useState<any[]>([]);
+  const [addAdmissionForm, setAddAdmissionForm] = useState({
+    patientId: '',
+    roomBedId: '',
+    roomType: '',
+    admittedBy: '',
+    admittedByDoctorId: '',
+    diagnosis: '',
+  });
+  const [savingAdmission, setSavingAdmission] = useState(false);
+  const [admissionError, setAdmissionError] = useState<string | null>(null);
 
   const handleManageCase = (admission: Admission) => {
     const roomAdmissionId = admission.roomAdmissionId || admission.admissionId;
@@ -32,11 +53,151 @@ export function Admissions() {
     }
   };
 
+  // Handler to save new admission
+  const handleSaveAdmission = async () => {
+    try {
+      setSavingAdmission(true);
+      setAdmissionError(null);
+
+      // Validate required fields
+      if (!addAdmissionForm.patientId) {
+        throw new Error('Please select a patient');
+      }
+      if (!addAdmissionForm.roomBedId) {
+        throw new Error('Please select a room/bed');
+      }
+      if (!addAdmissionForm.admittedByDoctorId) {
+        throw new Error('Please select a doctor');
+      }
+
+      // Get selected patient details
+      const selectedPatient = patientOptions.find((p: any) => {
+        const pid = (p as any).patientId || (p as any).PatientId || '';
+        return pid === addAdmissionForm.patientId;
+      });
+
+      if (!selectedPatient) {
+        throw new Error('Selected patient not found');
+      }
+
+      // Get selected room/bed details
+      const selectedBed = roomBedOptions.find((b: any) => {
+        const bid = (b as any).roomBedId || (b as any).RoomBedsId || (b as any).id || '';
+        return String(bid) === addAdmissionForm.roomBedId;
+      });
+
+      if (!selectedBed) {
+        throw new Error('Selected room/bed not found');
+      }
+
+      // Extract patient details
+      const patientId = (selectedPatient as any).patientId || (selectedPatient as any).PatientId || '';
+      const patientName = (selectedPatient as any).patientName || (selectedPatient as any).PatientName || '';
+      const lastName = (selectedPatient as any).lastName || (selectedPatient as any).LastName || '';
+      const fullName = `${patientName} ${lastName}`.trim() || patientName;
+      const age = Number((selectedPatient as any).age || (selectedPatient as any).Age || 0);
+      const gender = (selectedPatient as any).gender || (selectedPatient as any).Gender || 'Unknown';
+
+      // Extract room/bed details
+      const bedNumber = (selectedBed as any).bedNo || (selectedBed as any).BedNo || '';
+      const roomType = (selectedBed as any).roomType || (selectedBed as any).RoomType || addAdmissionForm.roomType || 'Regular Ward';
+
+      // Get doctor name
+      const doctorName = addAdmissionForm.admittedBy || '';
+
+      // Prepare admission data
+      const admissionData = {
+        patientId: patientId,
+        patientName: fullName,
+        age: age,
+        gender: gender,
+        admissionDate: new Date().toISOString().split('T')[0], // Today's date
+        roomType: roomType as 'Regular Ward' | 'Special Shared Room' | 'Special Room',
+        bedNumber: bedNumber,
+        admittedBy: doctorName,
+        diagnosis: addAdmissionForm.diagnosis || '',
+        status: 'Active' as const,
+      };
+
+      console.log('Creating admission with data:', admissionData);
+
+      // Call the API to create admission
+      await admissionsApi.create(admissionData);
+
+      console.log('Admission created successfully');
+
+      // Refresh admissions list
+      await fetchAdmissions();
+      
+      // Refresh room capacity and metrics
+      await fetchRoomCapacityOverview();
+      await fetchDashboardMetrics();
+
+      // Close dialog and reset form
+      setIsDialogOpen(false);
+      setPatientSearchTerm('');
+      setRoomBedSearchTerm('');
+      setDoctorSearchTerm('');
+      setAddAdmissionForm({
+        patientId: '',
+        roomBedId: '',
+        roomType: '',
+        admittedBy: '',
+        admittedByDoctorId: '',
+        diagnosis: '',
+      });
+      setAdmissionError(null);
+    } catch (error: any) {
+      console.error('Error saving admission:', error);
+      setAdmissionError(error?.message || 'Failed to save admission. Please try again.');
+    } finally {
+      setSavingAdmission(false);
+    }
+  };
+
   // Fetch room capacity overview and dashboard metrics on component mount
   useEffect(() => {
     fetchRoomCapacityOverview();
     fetchDashboardMetrics();
   }, [fetchRoomCapacityOverview, fetchDashboardMetrics]);
+
+  // Load patient, room bed, and doctor options when dialog opens
+  useEffect(() => {
+    if (isDialogOpen) {
+      const loadOptions = async () => {
+        try {
+          // Load patients
+          const patientsList = await admissionsApi.getPatientRegistrations();
+          setPatientOptions(patientsList || []);
+          
+          // Load room beds
+          const roomBedsList = await roomBedsApi.getAll();
+          setRoomBedOptions(roomBedsList || []);
+          
+          // Load doctors
+          const doctorsList = await doctorsApi.getAll();
+          setDoctorOptions(doctorsList || []);
+        } catch (error) {
+          console.error('Error loading options for new admission:', error);
+        }
+      };
+      loadOptions();
+      // Reset form when dialog opens
+      setPatientSearchTerm('');
+      setRoomBedSearchTerm('');
+      setDoctorSearchTerm('');
+      setAdmissionError(null);
+      setSavingAdmission(false);
+      setAddAdmissionForm({
+        patientId: '',
+        roomBedId: '',
+        roomType: '',
+        admittedBy: '',
+        admittedByDoctorId: '',
+        diagnosis: '',
+      });
+    }
+  }, [isDialogOpen]);
 
   const filteredAdmissions = admissions.filter(admission =>
     admission.patientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -134,53 +295,368 @@ export function Admissions() {
           <DialogTrigger asChild>
             <Button className="gap-2">
               <Plus className="size-4" />
-              New Admission
+              New IPD Admission
             </Button>
           </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
+          <DialogContent className="p-0 gap-0 large-dialog max-h-[90vh]">
+            <DialogHeader className="px-6 pt-4 pb-3 flex-shrink-0">
               <DialogTitle>Register New Admission</DialogTitle>
             </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
+            <div className="flex-1 overflow-y-auto px-6 pb-1 patient-list-scrollable min-h-0">
+              <div className="space-y-4 py-4">
+                {/* Patient Selection - Same pattern as Front Desk */}
                 <div>
-                  <Label htmlFor="patientName">Patient Name</Label>
-                  <Input id="patientName" placeholder="Enter patient name" />
+                  <Label htmlFor="patient-search">Patient *</Label>
+                  <div className="relative mb-2">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
+                    <Input
+                      id="patient-search"
+                      placeholder="Search by Patient ID, Name, or Mobile Number..."
+                      value={patientSearchTerm}
+                      onChange={(e) => setPatientSearchTerm(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                  {patientSearchTerm && (
+                    <div className="border border-gray-200 rounded-md max-h-60 overflow-y-auto">
+                      <table className="w-full">
+                        <thead className="sticky top-0 bg-gray-50 border-b border-gray-200">
+                          <tr>
+                            <th className="text-left py-2 px-3 text-xs text-gray-700 font-bold">Patient ID</th>
+                            <th className="text-left py-2 px-3 text-xs text-gray-700 font-bold">Name</th>
+                            <th className="text-left py-2 px-3 text-xs text-gray-700 font-bold">Mobile</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {patientOptions
+                            .filter((patient: any) => {
+                              if (!patientSearchTerm) return false;
+                              const searchLower = patientSearchTerm.toLowerCase();
+                              const patientId = (patient as any).patientId || (patient as any).PatientId || '';
+                              const patientNo = (patient as any).patientNo || (patient as any).PatientNo || '';
+                              const patientName = (patient as any).patientName || (patient as any).PatientName || '';
+                              const lastName = (patient as any).lastName || (patient as any).LastName || '';
+                              const fullName = `${patientName} ${lastName}`.trim();
+                              const phoneNo = (patient as any).phoneNo || (patient as any).PhoneNo || (patient as any).phone || '';
+                              return (
+                                patientId.toLowerCase().includes(searchLower) ||
+                                patientNo.toLowerCase().includes(searchLower) ||
+                                fullName.toLowerCase().includes(searchLower) ||
+                                phoneNo.includes(patientSearchTerm)
+                              );
+                            })
+                            .map((patient: any) => {
+                              const patientId = (patient as any).patientId || (patient as any).PatientId || '';
+                              const patientNo = (patient as any).patientNo || (patient as any).PatientNo || '';
+                              const patientName = (patient as any).patientName || (patient as any).PatientName || '';
+                              const lastName = (patient as any).lastName || (patient as any).LastName || '';
+                              const fullName = `${patientName} ${lastName}`.trim();
+                              const phoneNo = (patient as any).phoneNo || (patient as any).PhoneNo || (patient as any).phone || '';
+                              const isSelected = addAdmissionForm.patientId === patientId;
+                              return (
+                                <tr
+                                  key={patientId}
+                                  onClick={() => {
+                                    setAddAdmissionForm({ ...addAdmissionForm, patientId });
+                                    setPatientSearchTerm(`${patientNo ? `${patientNo} - ` : ''}${fullName || 'Unknown'}`);
+                                  }}
+                                  className={`border-b border-gray-100 cursor-pointer hover:bg-blue-50 ${isSelected ? 'bg-blue-100' : ''}`}
+                                >
+                                  <td className="py-2 px-3 text-sm text-gray-900 font-mono">{patientNo || patientId.substring(0, 8)}</td>
+                                  <td className="py-2 px-3 text-sm text-gray-600">{fullName || 'Unknown'}</td>
+                                  <td className="py-2 px-3 text-sm text-gray-600">{phoneNo || '-'}</td>
+                                </tr>
+                              );
+                            })}
+                        </tbody>
+                      </table>
+                      {patientOptions.filter((patient: any) => {
+                        if (!patientSearchTerm) return false;
+                        const searchLower = patientSearchTerm.toLowerCase();
+                        const patientId = (patient as any).patientId || (patient as any).PatientId || '';
+                        const patientNo = (patient as any).patientNo || (patient as any).PatientNo || '';
+                        const patientName = (patient as any).patientName || (patient as any).PatientName || '';
+                        const lastName = (patient as any).lastName || (patient as any).LastName || '';
+                        const fullName = `${patientName} ${lastName}`.trim();
+                        const phoneNo = (patient as any).phoneNo || (patient as any).PhoneNo || (patient as any).phone || '';
+                        return (
+                          patientId.toLowerCase().includes(searchLower) ||
+                          patientNo.toLowerCase().includes(searchLower) ||
+                          fullName.toLowerCase().includes(searchLower) ||
+                          phoneNo.includes(patientSearchTerm)
+                        );
+                      }).length === 0 && (
+                        <div className="text-center py-8 text-sm text-gray-700">
+                          No patients found. Try a different search term.
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {addAdmissionForm.patientId && (
+                    <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-sm text-gray-700">
+                      Selected: {(() => {
+                        const selectedPatient = patientOptions.find((p: any) => {
+                          const pid = (p as any).patientId || (p as any).PatientId || '';
+                          return pid === addAdmissionForm.patientId;
+                        });
+                        if (selectedPatient) {
+                          const patientNo = (selectedPatient as any).patientNo || (selectedPatient as any).PatientNo || '';
+                          const patientName = (selectedPatient as any).patientName || (selectedPatient as any).PatientName || '';
+                          const lastName = (selectedPatient as any).lastName || (selectedPatient as any).LastName || '';
+                          const fullName = `${patientName} ${lastName}`.trim();
+                          return `${patientNo ? `${patientNo} - ` : ''}${fullName || 'Unknown'}`;
+                        }
+                        return 'Unknown';
+                      })()}
+                    </div>
+                  )}
+                </div>
+
+                {/* Room/Bed Selection - Same pattern as Patient selection */}
+                <div>
+                  <Label htmlFor="room-bed-search">Room/Bed *</Label>
+                  <div className="relative mb-2">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
+                    <Input
+                      id="room-bed-search"
+                      placeholder="Search by Room No, Bed No, Room Type, or Category..."
+                      value={roomBedSearchTerm}
+                      onChange={(e) => setRoomBedSearchTerm(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                  {roomBedSearchTerm && (
+                    <div className="border border-gray-200 rounded-md max-h-60 overflow-y-auto">
+                      <table className="w-full">
+                        <thead className="sticky top-0 bg-gray-50 border-b border-gray-200">
+                          <tr>
+                            <th className="text-left py-2 px-3 text-xs text-gray-700 font-bold">Room No</th>
+                            <th className="text-left py-2 px-3 text-xs text-gray-700 font-bold">Bed No</th>
+                            <th className="text-left py-2 px-3 text-xs text-gray-700 font-bold">Room Type</th>
+                            <th className="text-left py-2 px-3 text-xs text-gray-700 font-bold">Category</th>
+                            <th className="text-left py-2 px-3 text-xs text-gray-700 font-bold">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {roomBedOptions
+                            .filter((bed: any) => {
+                              if (!roomBedSearchTerm) return false;
+                              const searchLower = roomBedSearchTerm.toLowerCase();
+                              const roomNo = (bed as any).roomNo || (bed as any).RoomNo || '';
+                              const bedNo = (bed as any).bedNo || (bed as any).BedNo || '';
+                              const roomType = (bed as any).roomType || (bed as any).RoomType || '';
+                              const roomCategory = (bed as any).roomCategory || (bed as any).RoomCategory || '';
+                              return (
+                                roomNo.toLowerCase().includes(searchLower) ||
+                                bedNo.toLowerCase().includes(searchLower) ||
+                                roomType.toLowerCase().includes(searchLower) ||
+                                roomCategory.toLowerCase().includes(searchLower)
+                              );
+                            })
+                            .map((bed: any) => {
+                              const roomBedId = (bed as any).roomBedId || (bed as any).RoomBedsId || (bed as any).id || '';
+                              const roomNo = (bed as any).roomNo || (bed as any).RoomNo || '';
+                              const bedNo = (bed as any).bedNo || (bed as any).BedNo || '';
+                              const roomType = (bed as any).roomType || (bed as any).RoomType || '';
+                              const roomCategory = (bed as any).roomCategory || (bed as any).RoomCategory || '';
+                              const status = (bed as any).status || (bed as any).Status || '';
+                              const isSelected = addAdmissionForm.roomBedId === String(roomBedId);
+                              return (
+                                <tr
+                                  key={roomBedId}
+                                  onClick={() => {
+                                    setAddAdmissionForm({ 
+                                      ...addAdmissionForm, 
+                                      roomBedId: String(roomBedId),
+                                      roomType: roomType
+                                    });
+                                    setRoomBedSearchTerm(`${roomNo} - ${bedNo} (${roomType})`);
+                                  }}
+                                  className={`border-b border-gray-100 cursor-pointer hover:bg-blue-50 ${isSelected ? 'bg-blue-100' : ''}`}
+                                >
+                                  <td className="py-2 px-3 text-sm text-gray-900 font-mono">{roomNo || '-'}</td>
+                                  <td className="py-2 px-3 text-sm text-gray-600">{bedNo || '-'}</td>
+                                  <td className="py-2 px-3 text-sm text-gray-600">{roomType || '-'}</td>
+                                  <td className="py-2 px-3 text-sm text-gray-600">{roomCategory || '-'}</td>
+                                  <td className="py-2 px-3 text-sm">
+                                    <Badge variant={status === 'Active' ? 'default' : 'outline'}>
+                                      {status || 'N/A'}
+                                    </Badge>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                        </tbody>
+                      </table>
+                      {roomBedOptions.filter((bed: any) => {
+                        if (!roomBedSearchTerm) return false;
+                        const searchLower = roomBedSearchTerm.toLowerCase();
+                        const roomNo = (bed as any).roomNo || (bed as any).RoomNo || '';
+                        const bedNo = (bed as any).bedNo || (bed as any).BedNo || '';
+                        const roomType = (bed as any).roomType || (bed as any).RoomType || '';
+                        const roomCategory = (bed as any).roomCategory || (bed as any).RoomCategory || '';
+                        return (
+                          roomNo.toLowerCase().includes(searchLower) ||
+                          bedNo.toLowerCase().includes(searchLower) ||
+                          roomType.toLowerCase().includes(searchLower) ||
+                          roomCategory.toLowerCase().includes(searchLower)
+                        );
+                      }).length === 0 && (
+                        <div className="text-center py-8 text-sm text-gray-700">
+                          No room beds found. Try a different search term.
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {addAdmissionForm.roomBedId && (
+                    <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-sm text-gray-700">
+                      Selected: {(() => {
+                        const selectedBed = roomBedOptions.find((b: any) => {
+                          const bid = (b as any).roomBedId || (b as any).RoomBedsId || (b as any).id || '';
+                          return String(bid) === addAdmissionForm.roomBedId;
+                        });
+                        if (selectedBed) {
+                          const roomNo = (selectedBed as any).roomNo || (selectedBed as any).RoomNo || '';
+                          const bedNo = (selectedBed as any).bedNo || (selectedBed as any).BedNo || '';
+                          const roomType = (selectedBed as any).roomType || (selectedBed as any).RoomType || '';
+                          return `${roomNo} - ${bedNo} (${roomType})`;
+                        }
+                        return 'Unknown';
+                      })()}
+                    </div>
+                  )}
+                </div>
+
+                {/* Doctor Selection - Same pattern as Patient selection */}
+                <div>
+                  <Label htmlFor="doctor-search">Admitted By (Doctor) *</Label>
+                  <div className="relative mb-2">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
+                    <Input
+                      id="doctor-search"
+                      placeholder="Search by Doctor Name, ID, or Specialty..."
+                      value={doctorSearchTerm}
+                      onChange={(e) => setDoctorSearchTerm(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                  {doctorSearchTerm && (
+                    <div className="border border-gray-200 rounded-md max-h-60 overflow-y-auto">
+                      <table className="w-full">
+                        <thead className="sticky top-0 bg-gray-50 border-b border-gray-200">
+                          <tr>
+                            <th className="text-left py-2 px-3 text-xs text-gray-700 font-bold">Doctor ID</th>
+                            <th className="text-left py-2 px-3 text-xs text-gray-700 font-bold">Name</th>
+                            <th className="text-left py-2 px-3 text-xs text-gray-700 font-bold">Specialty</th>
+                            <th className="text-left py-2 px-3 text-xs text-gray-700 font-bold">Type</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {doctorOptions
+                            .filter((doctor: any) => {
+                              if (!doctorSearchTerm) return false;
+                              const searchLower = doctorSearchTerm.toLowerCase();
+                              const doctorId = String((doctor as any).id || (doctor as any).Id || (doctor as any).UserId || '');
+                              const doctorName = (doctor as any).name || (doctor as any).Name || (doctor as any).UserName || '';
+                              const specialty = (doctor as any).specialty || (doctor as any).Specialty || (doctor as any).DoctorDepartmentName || '';
+                              return (
+                                doctorId.toLowerCase().includes(searchLower) ||
+                                doctorName.toLowerCase().includes(searchLower) ||
+                                specialty.toLowerCase().includes(searchLower)
+                              );
+                            })
+                            .map((doctor: any) => {
+                              const doctorId = String((doctor as any).id || (doctor as any).Id || (doctor as any).UserId || '');
+                              const doctorName = (doctor as any).name || (doctor as any).Name || (doctor as any).UserName || '';
+                              const specialty = (doctor as any).specialty || (doctor as any).Specialty || (doctor as any).DoctorDepartmentName || 'General';
+                              const doctorType = (doctor as any).type || (doctor as any).Type || (doctor as any).DoctorType || '';
+                              const isSelected = addAdmissionForm.admittedByDoctorId === doctorId;
+                              return (
+                                <tr
+                                  key={doctorId}
+                                  onClick={() => {
+                                    setAddAdmissionForm({ 
+                                      ...addAdmissionForm, 
+                                      admittedByDoctorId: doctorId,
+                                      admittedBy: doctorName
+                                    });
+                                    setDoctorSearchTerm(`${doctorName} - ${specialty}`);
+                                  }}
+                                  className={`border-b border-gray-100 cursor-pointer hover:bg-blue-50 ${isSelected ? 'bg-blue-100' : ''}`}
+                                >
+                                  <td className="py-2 px-3 text-sm text-gray-900 font-mono">{doctorId || '-'}</td>
+                                  <td className="py-2 px-3 text-sm text-gray-600">{doctorName || 'Unknown'}</td>
+                                  <td className="py-2 px-3 text-sm text-gray-600">{specialty || '-'}</td>
+                                  <td className="py-2 px-3 text-sm text-gray-600">
+                                    <Badge variant={doctorType === 'inhouse' ? 'default' : 'outline'}>
+                                      {doctorType || 'N/A'}
+                                    </Badge>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                        </tbody>
+                      </table>
+                      {doctorOptions.filter((doctor: any) => {
+                        if (!doctorSearchTerm) return false;
+                        const searchLower = doctorSearchTerm.toLowerCase();
+                        const doctorId = String((doctor as any).id || (doctor as any).Id || (doctor as any).UserId || '');
+                        const doctorName = (doctor as any).name || (doctor as any).Name || (doctor as any).UserName || '';
+                        const specialty = (doctor as any).specialty || (doctor as any).Specialty || (doctor as any).DoctorDepartmentName || '';
+                        return (
+                          doctorId.toLowerCase().includes(searchLower) ||
+                          doctorName.toLowerCase().includes(searchLower) ||
+                          specialty.toLowerCase().includes(searchLower)
+                        );
+                      }).length === 0 && (
+                        <div className="text-center py-8 text-sm text-gray-700">
+                          No doctors found. Try a different search term.
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {addAdmissionForm.admittedByDoctorId && (
+                    <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-sm text-gray-700">
+                      Selected: {(() => {
+                        const selectedDoctor = doctorOptions.find((d: any) => {
+                          const did = String((d as any).id || (d as any).Id || (d as any).UserId || '');
+                          return did === addAdmissionForm.admittedByDoctorId;
+                        });
+                        if (selectedDoctor) {
+                          const doctorName = (selectedDoctor as any).name || (selectedDoctor as any).Name || (selectedDoctor as any).UserName || '';
+                          const specialty = (selectedDoctor as any).specialty || (selectedDoctor as any).Specialty || (selectedDoctor as any).DoctorDepartmentName || '';
+                          return `${doctorName}${specialty ? ` - ${specialty}` : ''}`;
+                        }
+                        return 'Unknown';
+                      })()}
+                    </div>
+                  )}
                 </div>
                 <div>
-                  <Label htmlFor="age">Age</Label>
-                  <Input id="age" type="number" placeholder="Age" />
-                </div>
-              </div>
-              <div>
-                <Label htmlFor="admittedBy">Admitted By (Doctor)</Label>
-                <Input id="admittedBy" placeholder="Doctor name" />
-              </div>
-              <div>
-                <Label htmlFor="diagnosis">Diagnosis</Label>
-                <Input id="diagnosis" placeholder="Enter diagnosis" />
-              </div>
-              <div>
-                <Label>Room Type</Label>
-                <div className="grid grid-cols-3 gap-2">
-                  <button className="p-3 border-2 border-gray-200 rounded-lg hover:border-blue-500 text-center">
-                    <p className="text-sm">Regular Ward</p>
-                    <p className="text-xs text-gray-500">{currentRoomCapacity['Regular Ward'].available} available</p>
-                  </button>
-                  <button className="p-3 border-2 border-gray-200 rounded-lg hover:border-blue-500 text-center">
-                    <p className="text-sm">Special Shared</p>
-                    <p className="text-xs text-gray-500">{currentRoomCapacity['Special Shared Room'].available} available</p>
-                  </button>
-                  <button className="p-3 border-2 border-gray-200 rounded-lg hover:border-blue-500 text-center">
-                    <p className="text-sm">Special Room</p>
-                    <p className="text-xs text-gray-500">{currentRoomCapacity['Special Room'].available} available</p>
-                  </button>
+                  <Label htmlFor="diagnosis">Diagnosis</Label>
+                  <Input 
+                    id="diagnosis" 
+                    placeholder="Enter diagnosis" 
+                    value={addAdmissionForm.diagnosis}
+                    onChange={(e) => setAddAdmissionForm({ ...addAdmissionForm, diagnosis: e.target.value })}
+                  />
                 </div>
               </div>
             </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
-              <Button onClick={() => setIsDialogOpen(false)}>Admit Patient</Button>
+            <div className="px-6 pb-4 flex-shrink-0 flex flex-col gap-2">
+              {admissionError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">
+                  {admissionError}
+                </div>
+              )}
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setIsDialogOpen(false)} disabled={savingAdmission}>
+                  Cancel
+                </Button>
+                <Button onClick={handleSaveAdmission} disabled={savingAdmission}>
+                  {savingAdmission ? 'Saving...' : 'Admit Patient'}
+                </Button>
+              </div>
             </div>
           </DialogContent>
         </Dialog>

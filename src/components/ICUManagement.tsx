@@ -5,15 +5,19 @@ import { Badge } from './ui/badge';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { HeartPulse, Activity, Thermometer, Wind, Droplet, Brain, Plus, Edit, CheckCircle2, XCircle, Wrench, Clock } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { HeartPulse, Activity, Thermometer, Wind, Droplet, Brain, Plus, Edit, CheckCircle2, XCircle, Wrench, Clock, Search } from 'lucide-react';
 import { admissionsApi } from '../api/admissions';
 import { apiRequest } from '../api/base';
 
 interface ICUPatient {
   id: number | string;
   patientICUAdmissionId?: string | number; // UUID for API calls
+  patientId?: string | number | null; // Patient ID
+  doctorId?: string | number | null; // Doctor ID
+  icuBedId?: string | number; // ICU Bed ID (primary key)
   bedNumber: string;
   patientName: string;
   age: number;
@@ -21,6 +25,8 @@ interface ICUPatient {
   admissionDate: string;
   admissionTime: string;
   condition: string;
+  patientCondition?: string | null; // Patient Condition
+  icuPatientStatus?: string | null; // ICU Patient Status
   severity: 'Critical' | 'Serious' | 'Stable';
   attendingDoctor: string;
   vitals: {
@@ -40,7 +46,7 @@ const mockICUPatients: ICUPatient[] = [
 
 export function ICUManagement() {
   const [patients, setPatients] = useState<ICUPatient[]>(mockICUPatients);
-  const [selectedBed, setSelectedBed] = useState<string | null>(null);
+  const [selectedICUBedId, setSelectedICUBedId] = useState<string | number | null>(null);
   const [loading, setLoading] = useState(false);
   const [occupancy, setOccupancy] = useState<{ totalPatients: number; occupiedBeds: number; totalBeds: number }>({
     totalPatients: 0,
@@ -51,6 +57,42 @@ export function ICUManagement() {
   const [onVentilatorCount, setOnVentilatorCount] = useState<number>(0);
   const [availableBedsCount, setAvailableBedsCount] = useState<number>(0);
   const [icuBedLayout, setIcuBedLayout] = useState<any[]>([]);
+  const [selectedBedDetails, setSelectedBedDetails] = useState<any | null>(null);
+  const [loadingBedDetails, setLoadingBedDetails] = useState(false);
+  const [showAddICUAdmission, setShowAddICUAdmission] = useState(false);
+  const [savingICUAdmission, setSavingICUAdmission] = useState(false);
+  const [addICUAdmissionError, setAddICUAdmissionError] = useState<string | null>(null);
+  const [patientOptions, setPatientOptions] = useState<any[]>([]);
+  const [icuBedOptions, setIcuBedOptions] = useState<any[]>([]);
+  const [patientSearchTerm, setPatientSearchTerm] = useState('');
+  const [icuBedSearchTerm, setIcuBedSearchTerm] = useState('');
+  const [addICUAdmissionForm, setAddICUAdmissionForm] = useState<{
+    patientId: string;
+    icuId: string;
+    icuBedId: string;
+    icuBedNo: string;
+    icuPatientStatus: string;
+    icuAllocationFromDate: string;
+    icuAllocationToDate: string;
+    diagnosis: string;
+    treatmentDetails: string;
+    patientCondition: string;
+    onVentilator: string;
+    icuAdmissionStatus: string;
+  }>({
+    patientId: '',
+    icuId: '',
+    icuBedId: '',
+    icuBedNo: '',
+    icuPatientStatus: '',
+    icuAllocationFromDate: '',
+    icuAllocationToDate: '',
+    diagnosis: '',
+    treatmentDetails: '',
+    patientCondition: '',
+    onVentilator: 'No',
+    icuAdmissionStatus: 'Occupied',
+  });
 
   // Load ICU patient admissions from API
   useEffect(() => {
@@ -144,7 +186,7 @@ export function ICUManagement() {
             heartRate: Number(extractField(admission, [
               'heartRate', 'HeartRate', 'heart_rate', 'Heart_Rate',
               'vitals.heartRate', 'vitals.HeartRate'
-            ], 0)) || 0,
+            ], 0)) ,
             bloodPressure: extractField(admission, [
               'bloodPressure', 'BloodPressure', 'blood_pressure', 'Blood_Pressure',
               'bp', 'BP', 'vitals.bloodPressure', 'vitals.BloodPressure'
@@ -379,23 +421,17 @@ export function ICUManagement() {
   useEffect(() => {
     const loadICUBedLayout = async () => {
       try {
-        console.log('Fetching ICU bed layout from API endpoint: /patient-icu-admissions/icu-beds-details');
-        const response = await apiRequest<any>('/patient-icu-admissions/icu-beds-details');
-        console.log('ICU bed layout API response (RAW):', JSON.stringify(response, null, 2));
-        
-        // Handle different response structures: { data: [...] } or direct array
-        const bedLayoutData = response?.data || response || [];
-        console.log('ICU bed layout data extracted:', bedLayoutData);
+        console.log('Loading ICU bed layout from API endpoint: /patient-icu-admissions/icu-beds-details');
+        const bedLayoutData = await admissionsApi.getICUBedLayout();
+        console.log('ICU bed layout data received from API:', bedLayoutData);
         
         if (Array.isArray(bedLayoutData) && bedLayoutData.length > 0) {
-          console.log(`Processing ${bedLayoutData.length} ICU beds from API`);
+          console.log(`Successfully loaded ${bedLayoutData.length} ICU beds from API`);
+          // Store all the data from the API response
           setIcuBedLayout(bedLayoutData);
-          console.log('ICU bed layout loaded:', bedLayoutData);
-        } else if (bedLayoutData && !Array.isArray(bedLayoutData)) {
-          console.warn('ICU bed layout data is not an array:', typeof bedLayoutData);
-          setIcuBedLayout([]);
+          console.log('ICU bed layout state updated with all data:', bedLayoutData);
         } else {
-          console.warn('No ICU bed layout data found in API response');
+          console.warn('No ICU bed layout data found or data is not an array');
           setIcuBedLayout([]);
         }
       } catch (error) {
@@ -407,6 +443,96 @@ export function ICUManagement() {
 
     loadICUBedLayout();
   }, []);
+
+  // Function to load ICU bed details by ID
+  const loadICUBedDetails = async (icuBedId: string | number | null) => {
+    if (!icuBedId) {
+      console.warn('No ICU Bed ID provided, cannot load bed details');
+      setSelectedBedDetails(null);
+      return;
+    }
+
+    try {
+      setLoadingBedDetails(true);
+      console.log('Loading ICU bed details for icuBedId:', icuBedId);
+      const bedDetails = await admissionsApi.getICUBedDetailsById(icuBedId);
+      console.log('ICU bed details loaded:', bedDetails);
+      setSelectedBedDetails(bedDetails);
+    } catch (error) {
+      console.error('Error loading ICU bed details:', error);
+      setSelectedBedDetails(null);
+    } finally {
+      setLoadingBedDetails(false);
+    }
+  };
+
+  const openAddICUAdmission = async () => {
+    try {
+      setShowAddICUAdmission(true);
+      setAddICUAdmissionError(null);
+      setPatientSearchTerm(''); // Reset search term when opening dialog
+      setIcuBedSearchTerm(''); // Reset ICU bed search term when opening dialog
+      // Preload dropdowns
+      const patientsList = await admissionsApi.getPatientRegistrations();
+      setPatientOptions(patientsList || []);
+      // Use existing ICU bed layout as options
+      setIcuBedOptions(icuBedLayout || []);
+    } catch (error: any) {
+      console.error('Error loading data for new ICU admission:', error);
+      setAddICUAdmissionError(error?.message || 'Failed to load data');
+    }
+  };
+
+  const handleSaveICUAdmission = async () => {
+    try {
+      setSavingICUAdmission(true);
+      setAddICUAdmissionError(null);
+
+      // Ensure PatientId is a UUID string
+      const patientId = addICUAdmissionForm.patientId;
+      console.log('Saving ICU admission - patientId from form:', patientId);
+      console.log('Full form state:', addICUAdmissionForm);
+      
+      if (!patientId || patientId === '' || patientId === 'undefined' || patientId === 'null') {
+        console.error('Patient ID is missing, empty, or invalid:', patientId);
+        throw new Error('Patient ID is required. Please select a patient from the list.');
+      }
+      
+      // Validate that it looks like a UUID (string with length > 20)
+      if (typeof patientId !== 'string' || patientId.length < 20) {
+        console.warn('PatientId may not be a valid UUID:', patientId, 'Type:', typeof patientId, 'Length:', patientId?.length);
+      }
+
+      const payload = {
+        PatientId: String(patientId).trim(), // Ensure it's a string UUID and trim whitespace
+        ICUId: addICUAdmissionForm.icuId,
+        ICUBedId: addICUAdmissionForm.icuBedId,
+        ICUBedNo: addICUAdmissionForm.icuBedNo,
+        ICUPatientStatus: addICUAdmissionForm.icuPatientStatus,
+        ICUAllocationFromDate: addICUAdmissionForm.icuAllocationFromDate,
+        ICUAllocationToDate: addICUAdmissionForm.icuAllocationToDate,
+        Diagnosis: addICUAdmissionForm.diagnosis,
+        TreatementDetails: addICUAdmissionForm.treatmentDetails,
+        PatientCondition: addICUAdmissionForm.patientCondition,
+        OnVentilator: addICUAdmissionForm.onVentilator,
+        ICUAdmissionStatus: addICUAdmissionForm.icuAdmissionStatus,
+      };
+
+      console.log('Saving ICU admission with payload:', payload);
+      const response = await apiRequest<any>('/patient-icu-admissions', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      console.log('ICU admission created successfully:', response);
+      setShowAddICUAdmission(false);
+      // Optionally trigger a manual refresh by reloading the page or re-fetching data
+    } catch (error: any) {
+      console.error('Error saving ICU admission:', error);
+      setAddICUAdmissionError(error?.message || 'Failed to save ICU admission');
+    } finally {
+      setSavingICUAdmission(false);
+    }
+  };
 
   // Map ICU bed layout from API or calculate from patients
   const icuBeds = icuBedLayout.length > 0 
@@ -421,6 +547,14 @@ export function ICUManagement() {
           }
           return defaultValue;
         };
+        console.log('Bed data:', bed);
+
+        // Extract ICUBedId (primary key) from bed data
+        const icuBedId = extractField(bed, [
+          'icuBedId', 'ICUBedId', 'icu_bed_id', 'ICU_Bed_Id',
+          'id', 'icuId', 'ICUId', 'ID', 'bedId', 'BedId', 'bedID', 'BedID'
+        ], null);
+       
 
         const bedNumber = extractField(bed, [
           'bedNumber', 'BedNumber', 'bed_number', 'Bed_Number',
@@ -429,11 +563,11 @@ export function ICUManagement() {
         ], '');
 
         const status = extractField(bed, [
-          'status', 'Status', 'bedStatus', 'BedStatus', 'bed_status', 'Bed_Status'
+          'status', 'Status', 'icuAdmissionStatus', 'ICUAdmissionStatus', 'bedStatus', 'BedStatus', 'bed_status', 'Bed_Status'
         ], 'Available');
 
         // Extract icuPatientStatus from bed level first, then patient data level
-        // This field determines the bed status display (Critical, Serious, Stable)
+        // This field determines the bed status display (Critical, Serious, Available)
         let icuPatientStatusRaw = extractField(bed, [
           'icuPatientStatus', 'ICUPatientStatus', 'icu_patient_status', 'ICU_Patient_Status',
           'patientStatus', 'PatientStatus', 'patient_status', 'Patient_Status'
@@ -524,9 +658,36 @@ export function ICUManagement() {
           
           console.log('Extracted patientICUAdmissionId for bed', bedNumber, ':', patientICUAdmissionId, 'Type:', typeof patientICUAdmissionId);
 
+          // Extract PatientId
+          const patientId = extractField(patientData, [
+            'patientId', 'PatientId', 'patient_id', 'Patient_ID',
+            'id', 'Id', 'ID'
+          ], null) || extractField(bed, [
+            'patientId', 'PatientId', 'patient_id', 'Patient_ID'
+          ], null);
+
+          // Extract DoctorId
+          const doctorId = extractField(bed, [
+            'doctorId', 'DoctorId', 'doctor_id', 'Doctor_ID',
+            'attendingDoctorId', 'AttendingDoctorId', 'attending_doctor_id', 'Attending_Doctor_ID'
+          ], null) || extractField(patientData, [
+            'doctorId', 'DoctorId', 'doctor_id', 'Doctor_ID',
+            'attendingDoctorId', 'AttendingDoctorId', 'attending_doctor_id', 'Attending_Doctor_ID'
+          ], null);
+
+          // Extract PatientCondition (separate from condition)
+          const patientCondition = extractField(bed, [
+            'patientCondition', 'PatientCondition', 'patient_condition', 'Patient_Condition'
+          ], null) || extractField(patientData, [
+            'patientCondition', 'PatientCondition', 'patient_condition', 'Patient_Condition'
+          ], null);
+
           patient = {
             id: patientICUAdmissionId || extractField(patientData, ['id', 'Id', 'patientId', 'PatientId'], 0),
             patientICUAdmissionId: patientICUAdmissionId, // Store the UUID separately
+            patientId: patientId,
+            doctorId: doctorId,
+            icuBedId: icuBedId, // Store the ICU Bed ID (primary key)
             bedNumber: bedNumber,
             patientName: extractField(patientData, [
               'patientName', 'PatientName', 'patient_name', 'Patient_Name',
@@ -551,12 +712,14 @@ export function ICUManagement() {
               'condition', 'Condition', 'patientCondition', 'PatientCondition',
               'diagnosis', 'Diagnosis', 'diagnosisDescription', 'DiagnosisDescription'
             ], 'Not Specified'),
+            patientCondition: patientCondition || null,
+            icuPatientStatus: icuPatientStatusRaw || null,
             severity: severity,
             attendingDoctor: extractField(patientData, [
               'attendingDoctor', 'AttendingDoctor', 'attending_doctor', 'Attending_Doctor',
               'doctor', 'Doctor', 'doctorName', 'DoctorName', 'admittedBy', 'AdmittedBy'
             ], 'Not Assigned'),
-            vitals: {
+    vitals: {
               heartRate: Number(extractField(patientData, [
                 'heartRate', 'HeartRate', 'heart_rate', 'Heart_Rate',
                 'vitals.heartRate', 'vitals.HeartRate'
@@ -589,10 +752,38 @@ export function ICUManagement() {
             ventilatorSupport: ventilatorSupport,
           };
         }
+        
+        // Extract ICUAdmissionStatus (Occupied/Discharged)
+        const icuAdmissionStatus = extractField(bed, [
+          'icuAdmissionStatus', 'ICUAdmissionStatus', 'icu_admission_status', 'ICU_Admission_Status',
+          'admissionStatus', 'AdmissionStatus', 'admission_status', 'Admission_Status'
+        ], 'Occupied');
+        
+        // If not found at bed level, check patient data
+        let finalICUAdmissionStatus = icuAdmissionStatus;
+        if (patientData && !finalICUAdmissionStatus) {
+          finalICUAdmissionStatus = extractField(patientData, [
+            'icuAdmissionStatus', 'ICUAdmissionStatus', 'icu_admission_status', 'ICU_Admission_Status',
+            'admissionStatus', 'AdmissionStatus', 'admission_status', 'Admission_Status'
+          ], 'Occupied');
+        }
+        
+        // Determine bed status display based on ICUPatientStatus
+        // Map ICUPatientStatus to: Critical (red) or else Green
+        let bedStatusDisplay: 'Critical' | 'Green' = 'Green';
+        if (icuPatientStatusRaw) {
+          const statusLower = String(icuPatientStatusRaw).toLowerCase().trim();
+          if (statusLower.includes('critical') || statusLower === 'critical' || statusLower === 'cr' || statusLower === 'c') {
+            bedStatusDisplay = 'Critical';
+          }
+        }
 
         return {
           bedNumber,
+          icuBedId: icuBedId, // Store ICU Bed ID in bed object
           status: status === 'Occupied' || patient ? 'Occupied' : 'Available',
+          icuPatientStatus: bedStatusDisplay, // Store ICUPatientStatus for display (Critical or Green)
+          icuAdmissionStatus: finalICUAdmissionStatus, // Store ICUAdmissionStatus (Occupied/Discharged)
           patient,
         };
       })
@@ -612,8 +803,178 @@ export function ICUManagement() {
   const criticalPatients = patients.filter(p => p.severity === 'Critical').length;
   const onVentilator = patients.filter(p => p.ventilatorSupport).length;
 
-  const selectedPatient = icuBeds.find(bed => bed.bedNumber === selectedBed)?.patient;
+  // Helper function to map API bed details to ICUPatient
+  const mapBedDetailsToPatient = (bedDetails: any): ICUPatient | null => {
+    console.log('Bed details:', bedDetails);
+    if (!bedDetails) return null;
 
+    const extractField = (data: any, fieldVariations: string[], defaultValue: any = '') => {
+      for (const field of fieldVariations) {
+        const value = data?.[field];
+        if (value !== undefined && value !== null && value !== '') {
+          return value;
+        }
+      }
+      return defaultValue;
+    };
+
+    const patientData = bedDetails.patient || bedDetails.Patient || bedDetails.patientData || bedDetails.PatientData || bedDetails;
+    const bedData = bedDetails;
+
+    // Extract icuPatientStatus and map to severity
+    let icuPatientStatusRaw = extractField(bedData, [
+      'icuPatientStatus', 'ICUPatientStatus', 'icu_patient_status', 'ICU_Patient_Status',
+      'patientStatus', 'PatientStatus', 'patient_status', 'Patient_Status'
+    ], null);
+
+    //if (!icuPatientStatusRaw) {
+      icuPatientStatusRaw = extractField(patientData, [
+        'icuPatientStatus', 'ICUPatientStatus', 'icu_patient_status', 'ICU_Patient_Status',
+        'patientCondition', 'PatientCondition', 'patient_condition', 'Patient_Condition',
+        'condition', 'Condition', 'patientStatus', 'PatientStatus',
+        'status', 'Status', 'severity', 'Severity', 'patientSeverity', 'PatientSeverity'
+      ], 'Stable');
+    //}
+
+    const statusLower = String(icuPatientStatusRaw || 'Stable').toLowerCase().trim();
+    let severity: 'Critical' | 'Serious' | 'Stable' = 'Stable';
+    
+    if (statusLower.includes('critical') || statusLower.includes('severe') || 
+        statusLower.includes('emergency') || statusLower.includes('unstable') ||
+        statusLower === 'critical' || statusLower === 'cr' || statusLower === 'c') {
+      severity = 'Critical';
+    } else if (statusLower.includes('serious') || statusLower.includes('moderate') ||
+               statusLower.includes('acute') || statusLower === 'serious' || 
+               statusLower === 'sr' || statusLower === 's') {
+      severity = 'Serious';
+    }
+
+    const ventilatorSupportRaw = extractField(patientData, [
+      'ventilatorSupport', 'VentilatorSupport', 'ventilator_support', 'Ventilator_Support',
+      'onVentilator', 'OnVentilator', 'isVentilatorAttached', 'IsVentilatorAttached',
+      'ventilator', 'Ventilator'
+    ], false);
+    const ventilatorSupport = typeof ventilatorSupportRaw === 'boolean' 
+      ? ventilatorSupportRaw 
+      : (String(ventilatorSupportRaw).toLowerCase() === 'true' || String(ventilatorSupportRaw).toLowerCase() === 'yes');
+
+    const patientICUAdmissionId = extractField(bedData, [
+      'patientICUAdmissionId', 'PatientICUAdmissionId', 'patient_icu_admission_id', 'Patient_ICU_Admission_Id',
+      'icuAdmissionId', 'ICUAdmissionId', 'icu_admission_id', 'ICU_Admission_Id'
+    ], null) || extractField(patientData, [
+      'patientICUAdmissionId', 'PatientICUAdmissionId', 'patient_icu_admission_id', 'Patient_ICU_Admission_Id',
+      'id', 'Id', 'admissionId', 'AdmissionId'
+    ], null);
+
+    const icuBedId = extractField(bedData, [
+      'icuBedId', 'ICUBedId', 'icu_bed_id', 'ICU_Bed_Id',
+      'id', 'Id', 'ID', 'bedId', 'BedId', 'bedID', 'BedID'
+    ], null);
+
+    const bedNumber = extractField(bedData, [
+      'bedNumber', 'BedNumber', 'bed_number', 'Bed_Number',
+      'bed', 'Bed', 'icuBedNo', 'ICUBedNo', 'icuBedNumber', 'ICUBedNumber',
+    ], '');
+
+    // Extract PatientId
+    const patientId = extractField(patientData, [
+      'patientId', 'PatientId', 'patient_id', 'Patient_ID',
+      'id', 'Id', 'ID'
+    ], null) || extractField(bedData, [
+      'patientId', 'PatientId', 'patient_id', 'Patient_ID'
+    ], null);
+
+    // Extract DoctorId
+    const doctorId = extractField(bedData, [
+      'doctorId', 'DoctorId', 'doctor_id', 'Doctor_ID',
+      'attendingDoctorId', 'AttendingDoctorId', 'attending_doctor_id', 'Attending_Doctor_ID'
+    ], null) || extractField(patientData, [
+      'doctorId', 'DoctorId', 'doctor_id', 'Doctor_ID',
+      'attendingDoctorId', 'AttendingDoctorId', 'attending_doctor_id', 'Attending_Doctor_ID'
+    ], null);
+
+    // Extract PatientCondition (separate from condition)
+    const patientCondition = extractField(bedData, [
+      'patientCondition', 'PatientCondition', 'patient_condition', 'Patient_Condition'
+    ], null) || extractField(patientData, [
+      'patientCondition', 'PatientCondition', 'patient_condition', 'Patient_Condition'
+    ], null);
+
+    return {
+      id: patientICUAdmissionId || extractField(patientData, ['id', 'Id', 'patientId', 'PatientId'], 0),
+      patientICUAdmissionId: patientICUAdmissionId,
+      patientId: patientId,
+      doctorId: doctorId,
+      icuBedId: icuBedId,
+      bedNumber: bedNumber,
+      patientName: extractField(patientData, [
+        'patientName', 'PatientName', 'patient_name', 'Patient_Name',
+        'name', 'Name', 'fullName', 'FullName'
+      ], 'Unknown Patient'),
+      age: Number(extractField(patientData, [
+        'age', 'Age', 'patientAge', 'PatientAge', 'patient_age', 'Patient_Age'
+      ], 0)) || 0,
+      gender: extractField(patientData, [
+        'gender', 'Gender', 'sex', 'Sex', 'patientGender', 'PatientGender'
+      ], 'Unknown'),
+      admissionDate: extractField(patientData, [
+        'admissionDate', 'AdmissionDate', 'admission_date', 'Admission_Date',
+        'admitDate', 'AdmitDate', 'admit_date', 'Admit_Date'
+      ], new Date().toISOString().split('T')[0]),
+      admissionTime: extractField(patientData, [
+        'admissionTime', 'AdmissionTime', 'admission_time', 'Admission_Time',
+        'admitTime', 'AdmitTime', 'admit_time', 'Admit_Time',
+        'time', 'Time'
+      ], new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })),
+      condition: extractField(patientData, [
+        'condition', 'Condition', 'patientCondition', 'PatientCondition',
+        'diagnosis', 'Diagnosis', 'diagnosisDescription', 'DiagnosisDescription'
+      ], 'Not Specified'),
+      patientCondition: patientCondition || 'Not Specified',
+      icuPatientStatus: icuPatientStatusRaw || 'Stable',
+      severity: severity,
+      attendingDoctor: extractField(patientData, [
+        'attendingDoctor', 'AttendingDoctor', 'attending_doctor', 'Attending_Doctor',
+        'doctor', 'Doctor', 'doctorName', 'DoctorName', 'admittedBy', 'AdmittedBy'
+      ], 'Not Assigned'),
+      vitals: {
+        heartRate: Number(extractField(patientData, [
+          'heartRate', 'HeartRate', 'heart_rate', 'Heart_Rate',
+          'vitals.heartRate', 'vitals.HeartRate'
+        ], 0)) || 0,
+        bloodPressure: extractField(patientData, [
+          'bloodPressure', 'BloodPressure', 'blood_pressure', 'Blood_Pressure',
+          'bp', 'BP', 'vitals.bloodPressure', 'vitals.BloodPressure'
+        ], '0/0'),
+        temperature: Number(extractField(patientData, [
+          'temperature', 'Temperature', 'temp', 'Temp',
+          'vitals.temperature', 'vitals.Temperature'
+        ], 0)) || 0,
+        oxygenSaturation: Number(extractField(patientData, [
+          'oxygenSaturation', 'OxygenSaturation', 'oxygen_saturation', 'Oxygen_Saturation',
+          'o2Sat', 'O2Sat', 'spo2', 'SpO2', 'vitals.oxygenSaturation', 'vitals.OxygenSaturation'
+        ], 0)) || 0,
+        respiratoryRate: Number(extractField(patientData, [
+          'respiratoryRate', 'RespiratoryRate', 'respiratory_rate', 'Respiratory_Rate',
+          'rr', 'RR', 'vitals.respiratoryRate', 'vitals.RespiratoryRate'
+        ], 0)) || 0,
+      },
+      diagnosis: extractField(patientData, [
+        'diagnosis', 'Diagnosis', 'diagnosisDescription', 'DiagnosisDescription',
+        'diagnosis_desc', 'Diagnosis_Desc'
+      ], 'Not Specified'),
+      treatment: extractField(patientData, [
+        'treatment', 'Treatment', 'treatmentPlan', 'TreatmentPlan',
+        'treatment_plan', 'Treatment_Plan', 'medications', 'Medications'
+      ], 'Not Specified'),
+      ventilatorSupport: ventilatorSupport,
+    };
+  };
+
+  // Use API bed details if available, otherwise fall back to bed layout data
+  const selectedPatient = selectedBedDetails 
+    ? mapBedDetailsToPatient(selectedBedDetails)
+    : icuBeds.find(bed => bed.icuBedId === selectedICUBedId)?.patient;
   return (
     <div className="px-4 pt-4 pb-4 bg-blue-100 h-screen flex flex-col overflow-hidden">
       <div className="flex-shrink-0">
@@ -622,9 +983,349 @@ export function ICUManagement() {
             <h1 className="text-gray-900 mb-0 text-xl">ICU Management</h1>
             <p className="text-gray-500 text-sm">Intensive Care Unit monitoring and management</p>
           </div>
+          <Button
+            onClick={openAddICUAdmission}
+            className="flex items-center gap-2"
+          >
+            <Plus className="size-4" />
+            Add New ICU Admission
+          </Button>
         </div>
       </div>
       <div className="overflow-y-auto overflow-x-hidden px-4 pb-4 icu-scrollable" style={{ maxHeight: 'calc(100vh - 60px)', minHeight: 0 }}>
+      <Dialog open={showAddICUAdmission} onOpenChange={setShowAddICUAdmission}>
+        <DialogContent className="p-0 gap-0 large-dialog max-h-[90vh]">
+          <DialogHeader className="px-6 pt-4 pb-3 flex-shrink-0">
+            <DialogTitle>Add New ICU Admission</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto px-6 pb-1 patient-list-scrollable min-h-0">
+            <div className="space-y-4 py-4">
+            {addICUAdmissionError && (
+              <div className="text-red-600 text-sm">{addICUAdmissionError}</div>
+            )}
+            <div className="space-y-4">
+              <div className="w-full">
+                <Label htmlFor="add-patient-search">Patient *</Label>
+                <div className="relative mb-2">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
+                  <Input
+                    id="add-patient-search"
+                    placeholder="Search by Patient ID, Name, or Mobile Number..."
+                    value={patientSearchTerm}
+                    onChange={(e) => setPatientSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                {patientSearchTerm && (
+                  <div className="border border-gray-200 rounded-md max-h-60 overflow-y-auto">
+                    <table className="w-full">
+                      <thead className="sticky top-0 bg-gray-50 border-b border-gray-200">
+                        <tr>
+                          <th className="text-left py-2 px-3 text-xs text-gray-700 font-bold">Patient ID</th>
+                          <th className="text-left py-2 px-3 text-xs text-gray-700 font-bold">Name</th>
+                          <th className="text-left py-2 px-3 text-xs text-gray-700 font-bold">Mobile</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {patientOptions
+                          .filter((patient: any) => {
+                            if (!patientSearchTerm) return false;
+                            const searchLower = patientSearchTerm.toLowerCase();
+                            // Extract patientId similar to FrontDesk pattern
+                            const patientId = (patient as any).patientId || (patient as any).PatientId || '';
+                            const patientNo = patient.patientNo || patient.PatientNo || '';
+                            const patientName = patient.patientName || patient.PatientName || '';
+                            const lastName = patient.lastName || patient.LastName || '';
+                            const fullName = `${patientName} ${lastName}`.trim();
+                            const phoneNo = patient.phoneNo || patient.PhoneNo || patient.phone || '';
+                            return (
+                              String(patientId).toLowerCase().includes(searchLower) ||
+                              String(patientNo).toLowerCase().includes(searchLower) ||
+                              fullName.toLowerCase().includes(searchLower) ||
+                              phoneNo.includes(patientSearchTerm)
+                            );
+                          })
+                          .map((patient: any) => {
+                            // Extract patientId similar to FrontDesk pattern
+                            const patientId = (patient as any).patientId || (patient as any).PatientId || '';
+                            const patientNo = (patient as any).patientNo || (patient as any).PatientNo || '';
+                            const patientName = (patient as any).patientName || (patient as any).PatientName || '';
+                            const lastName = (patient as any).lastName || (patient as any).LastName || '';
+                            const fullName = `${patientName} ${lastName}`.trim();
+                            const phoneNo = (patient as any).phoneNo || (patient as any).PhoneNo || (patient as any).phone || '';
+                            const isSelected = addICUAdmissionForm.patientId === patientId;
+                            
+                            return (
+                              <tr
+                                key={patientId}
+                                onClick={() => {
+                                  setAddICUAdmissionForm({ ...addICUAdmissionForm, patientId });
+                                  setPatientSearchTerm(`${patientNo ? `${patientNo} - ` : ''}${fullName || 'Unknown'}`);
+                                }}
+                                className={`border-b border-gray-100 cursor-pointer hover:bg-blue-50 ${isSelected ? 'bg-blue-100' : ''}`}
+                              >
+                                <td className="py-2 px-3 text-sm text-gray-900 font-mono">{patientNo || patientId.substring(0, 8)}</td>
+                                <td className="py-2 px-3 text-sm text-gray-600">{fullName || 'Unknown'}</td>
+                                <td className="py-2 px-3 text-sm text-gray-600">{phoneNo || '-'}</td>
+                              </tr>
+                            );
+                          })}
+                      </tbody>
+                    </table>
+                    {patientOptions.filter((patient: any) => {
+                      if (!patientSearchTerm) return false;
+                      const searchLower = patientSearchTerm.toLowerCase();
+                      // Prioritize UUID fields (PatientId is primary from API, then patientId, then id if UUID string)
+                      const patientId = patient.PatientId || patient.patientId || 
+                        patient.patient_id || patient.Patient_ID ||
+                        (patient.id && typeof patient.id === 'string' && patient.id.length > 20 ? patient.id : '') || '';
+                      const patientNo = patient.patientNo || patient.PatientNo || '';
+                      const patientName = patient.patientName || patient.PatientName || '';
+                      const lastName = patient.lastName || patient.LastName || '';
+                      const fullName = `${patientName} ${lastName}`.trim();
+                      const phoneNo = patient.phoneNo || patient.PhoneNo || patient.phone || '';
+                      return (
+                        String(patientId).toLowerCase().includes(searchLower) ||
+                        String(patientNo).toLowerCase().includes(searchLower) ||
+                        fullName.toLowerCase().includes(searchLower) ||
+                        phoneNo.includes(patientSearchTerm)
+                      );
+                    }).length === 0 && (
+                      <div className="text-center py-8 text-sm text-gray-700">
+                        No patients found. Try a different search term.
+                      </div>
+                    )}
+                  </div>
+                )}
+                {addICUAdmissionForm.patientId && (
+                  <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-sm text-gray-700">
+                    Selected: {(() => {
+                      // Find patient similar to FrontDesk pattern
+                      const selectedPatient = patientOptions.find((p: any) => {
+                        const pid = (p as any).patientId || (p as any).PatientId || '';
+                        return pid === addICUAdmissionForm.patientId;
+                      });
+                      if (!selectedPatient) return 'Unknown';
+                      const patientNo = (selectedPatient as any).patientNo || (selectedPatient as any).PatientNo || '';
+                      const patientName = (selectedPatient as any).patientName || (selectedPatient as any).PatientName || '';
+                      const lastName = (selectedPatient as any).lastName || (selectedPatient as any).LastName || '';
+                      const fullName = `${patientName} ${lastName}`.trim();
+                      return `${patientNo ? `${patientNo} - ` : ''}${fullName || 'Unknown'}`;
+                    })()}
+                  </div>
+                )}
+              </div>
+              <div className="w-full">
+                <Label htmlFor="add-icubed-search">ICU Bed *</Label>
+                <div className="relative mb-2">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
+                  <Input
+                    id="add-icubed-search"
+                    placeholder="Search by Bed Number, Bed ID, or Status..."
+                    value={icuBedSearchTerm}
+                    onChange={(e) => setIcuBedSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                {icuBedSearchTerm && (
+                  <div className="border border-gray-200 rounded-md max-h-60 overflow-y-auto">
+                    <table className="w-full">
+                      <thead className="sticky top-0 bg-gray-50 border-b border-gray-200">
+                        <tr>
+                          <th className="text-left py-2 px-3 text-xs text-gray-700 font-bold">Bed Number</th>
+                          <th className="text-left py-2 px-3 text-xs text-gray-700 font-bold">Bed ID</th>
+                          <th className="text-left py-2 px-3 text-xs text-gray-700 font-bold">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {icuBedOptions
+                          .filter((bed: any) => {
+                            if (!icuBedSearchTerm) return false;
+                            const searchLower = icuBedSearchTerm.toLowerCase();
+                            const bedNumber = bed.bedNumber || bed.icuBedNo || bed.bedNo || '';
+                            const bedId = bed.icuBedId || bed.id || bed.bedId || '';
+                            const status = bed.status || bed.Status || '';
+                            return (
+                              String(bedNumber).toLowerCase().includes(searchLower) ||
+                              String(bedId).toLowerCase().includes(searchLower) ||
+                              String(status).toLowerCase().includes(searchLower)
+                            );
+                          })
+                          .map((bed: any, idx: number) => {
+                            // Extract ICU bed ID and ICU ID similar to FrontDesk pattern
+                            const bedId = (bed as any).icuBedId || (bed as any).ICUBedId || (bed as any).id || '';
+                            const icuId = (bed as any).icuId || (bed as any).ICUId || (bed as any).ICU_ID || '';
+                            const bedNumber = (bed as any).bedNumber || (bed as any).icuBedNo || (bed as any).ICUBedNo || (bed as any).bedNo || `Bed ${bed.id || idx}`;
+                            const status = (bed as any).status || (bed as any).Status || 'Available';
+                            const isSelected = addICUAdmissionForm.icuBedId === String(bedId);
+                            return (
+                              <tr
+                                key={bedId || idx}
+                                onClick={() => {
+                                  setAddICUAdmissionForm({
+                                    ...addICUAdmissionForm,
+                                    icuBedId: String(bedId),
+                                    icuId: String(icuId),
+                                    icuBedNo: bedNumber,
+                                  });
+                                  setIcuBedSearchTerm(bedNumber);
+                                }}
+                                className={`border-b border-gray-100 cursor-pointer hover:bg-blue-50 ${isSelected ? 'bg-blue-100' : ''}`}
+                              >
+                                <td className="py-2 px-3 text-sm text-gray-900 font-mono">{bedNumber}</td>
+                                <td className="py-2 px-3 text-sm text-gray-600">{String(bedId).substring(0, 8)}</td>
+                                <td className="py-2 px-3 text-sm text-gray-600">
+                                  <Badge variant={status === 'Occupied' ? 'destructive' : 'secondary'}>
+                                    {status}
+                                  </Badge>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                      </tbody>
+                    </table>
+                    {icuBedOptions.filter((bed: any) => {
+                      if (!icuBedSearchTerm) return false;
+                      const searchLower = icuBedSearchTerm.toLowerCase();
+                      const bedNumber = (bed as any).bedNumber || (bed as any).icuBedNo || (bed as any).ICUBedNo || (bed as any).bedNo || '';
+                      const bedId = (bed as any).icuBedId || (bed as any).ICUBedId || (bed as any).id || '';
+                      const status = (bed as any).status || (bed as any).Status || '';
+                      return (
+                        String(bedNumber).toLowerCase().includes(searchLower) ||
+                        String(bedId).toLowerCase().includes(searchLower) ||
+                        String(status).toLowerCase().includes(searchLower)
+                      );
+                    }).length === 0 && (
+                      <div className="text-center py-8 text-sm text-gray-700">
+                        No ICU beds found. Try a different search term.
+                      </div>
+                    )}
+                  </div>
+                )}
+                {addICUAdmissionForm.icuBedId && (
+                  <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-sm text-gray-700">
+                    Selected: {(() => {
+                      const selectedBed = icuBedOptions.find((b: any) => {
+                        const bid = (b as any).icuBedId || (b as any).ICUBedId || (b as any).id || '';
+                        return String(bid) === addICUAdmissionForm.icuBedId;
+                      });
+                      if (!selectedBed) return 'Unknown';
+                      const bedNumber = (selectedBed as any).bedNumber || (selectedBed as any).icuBedNo || (selectedBed as any).ICUBedNo || (selectedBed as any).bedNo || 'Unknown';
+                      return bedNumber;
+                    })()}
+                  </div>
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>ICU Patient Status</Label>
+                  <Select
+                    onValueChange={(val) => {
+                      console.log('ICU Patient Status selected:', val);
+                      setAddICUAdmissionForm(prev => ({ ...prev, icuPatientStatus: val }));
+                    }}
+                    value={addICUAdmissionForm.icuPatientStatus || ''}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select ICU patient status" />
+                    </SelectTrigger>
+                    <SelectContent className="z-[99999] !pointer-events-auto" position="popper">
+                      <SelectItem value="Serious">Serious</SelectItem>
+                      <SelectItem value="Critical">Critical</SelectItem>
+                      <SelectItem value="Stable">Stable</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                <Label>ICU Allocation From Date</Label>
+                <Input
+                  type="date"
+                  value={addICUAdmissionForm.icuAllocationFromDate}
+                  onChange={(e) => setAddICUAdmissionForm(prev => ({ ...prev, icuAllocationFromDate: e.target.value }))}
+                />
+              </div>
+              <div>
+                <Label>ICU Allocation To Date</Label>
+                <Input
+                  type="date"
+                  value={addICUAdmissionForm.icuAllocationToDate}
+                  onChange={(e) => setAddICUAdmissionForm(prev => ({ ...prev, icuAllocationToDate: e.target.value }))}
+                />
+              </div>
+              <div>
+                <Label>Diagnosis</Label>
+                <Textarea
+                  value={addICUAdmissionForm.diagnosis}
+                  onChange={(e) => setAddICUAdmissionForm(prev => ({ ...prev, diagnosis: e.target.value }))}
+                  placeholder="Enter diagnosis"
+                />
+              </div>
+              <div>
+                <Label>Treatment Details</Label>
+                <Textarea
+                  value={addICUAdmissionForm.treatmentDetails}
+                  onChange={(e) => setAddICUAdmissionForm(prev => ({ ...prev, treatmentDetails: e.target.value }))}
+                  placeholder="Enter treatment details"
+                />
+              </div>
+              <div>
+                <Label>Patient Condition</Label>
+                <Input
+                  value={addICUAdmissionForm.patientCondition}
+                  onChange={(e) => setAddICUAdmissionForm(prev => ({ ...prev, patientCondition: e.target.value }))}
+                  placeholder="Enter patient condition"
+                />
+              </div>
+              <div>
+                <Label>On Ventilator</Label>
+                <Select
+                  onValueChange={(val) => {
+                    console.log('On Ventilator selected:', val);
+                    setAddICUAdmissionForm(prev => ({ ...prev, onVentilator: val }));
+                  }}
+                  value={addICUAdmissionForm.onVentilator || ''}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select" />
+                  </SelectTrigger>
+                  <SelectContent className="z-[99999] !pointer-events-auto" position="popper">
+                    <SelectItem value="Yes">Yes</SelectItem>
+                    <SelectItem value="No">No</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>ICU Admission Status</Label>
+                <Select
+                  onValueChange={(val) => {
+                    console.log('ICU Admission Status selected:', val);
+                    setAddICUAdmissionForm(prev => ({ ...prev, icuAdmissionStatus: val }));
+                  }}
+                  value={addICUAdmissionForm.icuAdmissionStatus || ''}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent className="z-[99999] !pointer-events-auto" position="popper">
+                    <SelectItem value="Occupied">Occupied</SelectItem>
+                    <SelectItem value="Discharged">Discharged</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 pt-4 pb-4 px-6 flex-shrink-0 border-t border-gray-200">
+              <Button variant="outline" onClick={() => setShowAddICUAdmission(false)} disabled={savingICUAdmission}>
+                Cancel
+              </Button>
+              <Button onClick={handleSaveICUAdmission} disabled={savingICUAdmission}>
+                {savingICUAdmission ? 'Saving...' : 'Save ICU Admission'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
       <Tabs defaultValue="patients" className="space-y-6">
         <TabsList>
           <TabsTrigger value="patients">ICU Patient Management</TabsTrigger>
@@ -678,79 +1379,57 @@ export function ICUManagement() {
             </Card>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-1 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* ICU Bed Layout */}
             <Card>
               <CardHeader>
-                <CardTitle>ICU Bed Status</CardTitle>
+                <CardTitle>ICU Bed Layout and Status</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-3 gap-3">
                   {icuBeds.map((bed) => (
                     <button
                       key={bed.bedNumber}
-                      onClick={() => {
+                      onClick={async () => {
                         console.log('ICU Bed clicked:', {
+                          icubedId: bed.icuBedId,
+                          icubedNo: bed.bedNumber,
                           bedNumber: bed.bedNumber,
                           status: bed.status,
-                          patient: bed.patient,
-                          patientICUAdmissionId: bed.patient?.patientICUAdmissionId,
-                          patientId: bed.patient?.id
+                          icupatientstatus: bed.icuPatientStatus,
+                          ICUAdmissionStatus: bed.icuAdmissionStatus,
+                          patient: bed.patient?.patientName || bed.patient?.PatientName || bed.patient?.name || '',
                         });
                         
-                        // If bed is occupied and has a patient with ICU admission ID, navigate to ManageICUCase
-                        if (bed.status === 'Occupied' && bed.patient) {
-                          const patientICUAdmissionId = bed.patient.patientICUAdmissionId;
-                          console.log('Attempting to navigate to ManageICUCase');
-                          console.log('patientICUAdmissionId:', patientICUAdmissionId, 'Type:', typeof patientICUAdmissionId);
-                          console.log('bed.patient.id:', bed.patient.id, 'Type:', typeof bed.patient.id);
-                          
-                          // Only use patientICUAdmissionId if it's a valid UUID (string and looks like UUID)
-                          if (patientICUAdmissionId && 
-                              (typeof patientICUAdmissionId === 'string' && patientICUAdmissionId.length > 20)) {
-                            const url = `manageicucase?patientICUAdmissionId=${String(patientICUAdmissionId)}`;
-                            console.log('Navigating to:', url);
-                            window.location.hash = url;
-                          } else {
-                            console.warn('No valid UUID patientICUAdmissionId found for bed:', bed.bedNumber);
-                            console.warn('Available patient data:', {
-                              patientICUAdmissionId: bed.patient.patientICUAdmissionId,
-                              id: bed.patient.id,
-                              patient: bed.patient
-                            });
-                            setSelectedBed(bed.bedNumber);
-                          }
+                        // Set selected bed ID first
+                        setSelectedICUBedId(bed.icuBedId);
+                        
+                        // Call API to load ICU bed and PatientICUAdmission details
+                        if (bed.icuBedId) {
+                          console.log('Calling API to load ICU bed details for icuBedId:', bed.icuBedId);
+                          await loadICUBedDetails(bed.icuBedId);
                         } else {
-                          // For available beds or beds without patient data, just select the bed
-                          console.log('Bed is available or has no patient data, selecting bed:', bed.bedNumber);
-                          setSelectedBed(bed.bedNumber);
+                          console.warn('No ICU Bed ID found for bed:', bed.bedNumber);
+                          setSelectedBedDetails(null);
                         }
                       }}
                       className={`p-4 border-2 rounded-lg text-center transition-all cursor-pointer ${
-                        selectedBed === bed.bedNumber
+                        selectedICUBedId === bed.icuBedId
                           ? 'border-blue-500 bg-blue-50 scale-105'
-                          : bed.status === 'Occupied'
-                          ? bed.patient?.severity === 'Critical'
+                          : (bed as any).icuPatientStatus === 'Critical'
                             ? 'border-red-300 bg-red-50 hover:border-red-400'
-                            : bed.patient?.severity === 'Serious'
-                            ? 'border-orange-300 bg-orange-50 hover:border-orange-400'
-                            : 'border-yellow-300 bg-yellow-50 hover:border-yellow-400'
                           : 'border-green-300 bg-green-50 hover:border-green-400'
                       }`}
                     >
                       <p className="text-gray-900 mb-1">{bed.bedNumber}</p>
                       <div className="flex items-center justify-center gap-1">
                         <span className={`size-2 rounded-full ${
-                          bed.status === 'Occupied'
-                            ? bed.patient?.severity === 'Critical'
+                          (bed as any).icuPatientStatus === 'Critical'
                               ? 'bg-red-500'
-                              : bed.patient?.severity === 'Serious'
-                              ? 'bg-orange-500'
-                              : 'bg-yellow-500'
                             : 'bg-green-500'
                         }`} />
                         <span className="text-xs text-gray-600">
-                          {bed.status === 'Occupied' ? bed.patient?.severity : 'Available'}
+                          {(bed as any).icuAdmissionStatus || 'Occupied'}
                         </span>
                       </div>
                       {bed.patient?.ventilatorSupport && (
@@ -770,22 +1449,140 @@ export function ICUManagement() {
                     <span className="text-gray-600">Critical</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="size-3 rounded-full bg-orange-500" />
-                    <span className="text-gray-600">Serious</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="size-3 rounded-full bg-yellow-500" />
-                    <span className="text-gray-600">Stable</span>
-                  </div>
-                  <div className="flex items-center gap-2">
                     <span className="size-3 rounded-full bg-green-500" />
-                    <span className="text-gray-600">Available</span>
+                    <span className="text-gray-600">Other Status</span>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-           
+            {/* Patient Details */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Patient Details</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {loadingBedDetails ? (
+                  <div className="text-center py-12 text-gray-500">
+                    Loading bed details...
+                  </div>
+                ) : selectedPatient ? (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                      <div>
+                        <h3 className="text-gray-900 mb-1">{selectedPatient.patientName}</h3>
+                        <p className="text-sm text-gray-600">{selectedPatient.age}Y / {selectedPatient.gender}</p>
+                      </div>
+                      <Badge variant={
+                        selectedPatient.severity === 'Critical' ? 'destructive' :
+                        selectedPatient.severity === 'Serious' ? 'default' : 'secondary'
+                      }>
+                        {selectedPatient.severity}
+                      </Badge>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <p className="text-gray-500">Patient Id</p>
+                        <p className="text-gray-900 font-mono text-xs">{selectedPatient.patientId || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-500">Age</p>
+                        <p className="text-gray-900">{selectedPatient.age}Y</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-500">Gender</p>
+                        <p className="text-gray-900">{selectedPatient.gender}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-500">PatientICUAdmissionId</p>
+                        <p className="text-gray-900 font-mono text-xs">{selectedPatient.patientICUAdmissionId || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-500">DoctorId</p>
+                        <p className="text-gray-900 font-mono text-xs">{selectedPatient.doctorId || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-500">OnVentilator</p>
+                        <p className="text-gray-900">{selectedPatient.ventilatorSupport ? 'Yes' : 'No'}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-500">PatientCondition</p>
+                        <p className="text-gray-900">{selectedPatient.patientCondition || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-500">ICUPatientStatus</p>
+                        <p className="text-gray-900">{selectedPatient.icuPatientStatus || 'N/A'}</p>
+                      </div>
+                    </div>
+
+                    <div>
+                      <p className="text-sm text-gray-500 mb-1">Diagnosis</p>
+                      <p className="text-gray-900">{selectedPatient.diagnosis}</p>
+                    </div>
+
+                    <div>
+                      <p className="text-sm text-gray-500 mb-1">Treatment</p>
+                      <p className="text-gray-900">{selectedPatient.treatment}</p>
+                    </div>
+
+                    {/* Vital Signs */}
+                    <div className="border-t border-gray-200 pt-4">
+                      <h4 className="text-gray-900 mb-3 flex items-center gap-2">
+                        <Activity className="size-5 text-blue-600" />
+                        Vital Signs
+                      </h4>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="p-3 bg-gray-50 rounded-lg">
+                          <div className="flex items-center gap-2 mb-1">
+                            <HeartPulse className="size-4 text-red-600" />
+                            <p className="text-xs text-gray-500">Heart Rate</p>
+                          </div>
+                          <p className="text-lg text-gray-900">{selectedPatient.vitals.heartRate} bpm</p>
+                        </div>
+                        <div className="p-3 bg-gray-50 rounded-lg">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Activity className="size-4 text-blue-600" />
+                            <p className="text-xs text-gray-500">Blood Pressure</p>
+                          </div>
+                          <p className="text-lg text-gray-900">{selectedPatient.vitals.bloodPressure}</p>
+                        </div>
+                        <div className="p-3 bg-gray-50 rounded-lg">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Thermometer className="size-4 text-orange-600" />
+                            <p className="text-xs text-gray-500">Temperature</p>
+                          </div>
+                          <p className="text-lg text-gray-900">{selectedPatient.vitals.temperature}°C</p>
+                        </div>
+                        <div className="p-3 bg-gray-50 rounded-lg">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Droplet className="size-4 text-cyan-600" />
+                            <p className="text-xs text-gray-500">O₂ Saturation</p>
+                          </div>
+                          <p className="text-lg text-gray-900">{selectedPatient.vitals.oxygenSaturation}%</p>
+                        </div>
+                        <div className="p-3 bg-gray-50 rounded-lg col-span-2">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Wind className="size-4 text-teal-600" />
+                            <p className="text-xs text-gray-500">Respiratory Rate</p>
+                          </div>
+                          <p className="text-lg text-gray-900">{selectedPatient.vitals.respiratoryRate} /min</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <Button variant="outline" className="flex-1">Update Vitals</Button>
+                      <Button variant="outline" className="flex-1">View History</Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-12 text-gray-500">
+                    Select a bed to view patient details
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
 
           {/* All ICU Patients List */}
@@ -807,15 +1604,13 @@ export function ICUManagement() {
                       <th className="text-left py-3 px-4 text-gray-700">Severity</th>
                       <th className="text-left py-3 px-4 text-gray-700">Doctor</th>
                       <th className="text-left py-3 px-4 text-gray-700">Ventilator</th>
-                      <th className="text-left py-3 px-4 text-gray-700">Heart Rate</th>
-                      <th className="text-left py-3 px-4 text-gray-700">O₂ Sat</th>
-                      <th className="text-left py-3 px-4 text-gray-700">Actions</th>
+                      <th className="text-left py-3 px-4 text-gray-700">Action</th>
                     </tr>
                   </thead>
                   <tbody>
                       {patients.length === 0 ? (
                         <tr>
-                          <td colSpan={9} className="text-center py-8 text-gray-500">
+                          <td colSpan={7} className="text-center py-8 text-gray-500">
                             No ICU patients found
                           </td>
                         </tr>
@@ -849,25 +1644,38 @@ export function ICUManagement() {
                             <span className="text-gray-500">No</span>
                           )}
                         </td>
-                        <td className="py-3 px-4 text-gray-900">{patient.vitals.heartRate} bpm</td>
-                        <td className="py-3 px-4">
-                          <span className={patient.vitals.oxygenSaturation < 90 ? 'text-red-600' : 'text-gray-900'}>
-                            {patient.vitals.oxygenSaturation}%
-                          </span>
-                        </td>
                         <td className="py-3 px-4">
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() => {
+                              console.log('========================================');
+                              console.log('Manage ICU Case button clicked');
+                              console.log('Patient data:', patient);
+                              console.log('patient.patientICUAdmissionId:', patient.patientICUAdmissionId);
+                              console.log('patient.id:', patient.id);
+                              
                               // Navigate to Manage ICU Case page with patient ICU admission ID (UUID)
                               // Prefer patientICUAdmissionId if available, otherwise use id
                               const patientICUAdmissionId = patient.patientICUAdmissionId || patient.id;
+                              console.log('Selected patientICUAdmissionId for navigation:', patientICUAdmissionId);
+                              console.log('Type:', typeof patientICUAdmissionId);
+                              
                               if (patientICUAdmissionId) {
                                 // Ensure it's passed as a string (UUID)
-                                window.location.hash = `manageicucase?patientICUAdmissionId=${String(patientICUAdmissionId)}`;
+                                const url = `manageicucase?patientICUAdmissionId=${String(patientICUAdmissionId)}`;
+                                console.log('Setting window.location.hash to:', url);
+                                console.log('Current hash before change:', window.location.hash);
+                                console.log('Current view should change to: manageicucase');
+                                
+                                // Set hash (browser automatically adds # prefix)
+                                window.location.hash = url;
+                                
+                                console.log('Hash after change:', window.location.hash);
+                                console.log('========================================');
                               } else {
                                 console.error('Patient ICU Admission ID not found for navigation');
+                                console.error('Available patient fields:', Object.keys(patient));
                               }
                             }}
                           >
