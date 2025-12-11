@@ -67,6 +67,9 @@ export interface DashboardMetrics {
 export interface PatientLabTest {
   id?: number;
   patientLabTestId?: number;
+  patientLabTestsId?: number; // Primary key from backend
+  patientId?: string;
+  patientName?: string;
   roomAdmissionId?: number;
   labTestId?: number;
   labTestName?: string;
@@ -75,6 +78,9 @@ export interface PatientLabTest {
   displayTestId?: string;
   description?: string;
   priority?: string;
+  patientType?: string;
+  emergencyBedSlotId?: number | string;
+  billId?: number | string;
   labTestDone?: string | boolean;
   reportsUrl?: string;
   testStatus?: string;
@@ -85,6 +91,8 @@ export interface PatientLabTest {
   result?: string;
   reportedDate?: string;
   charges?: number;
+  createdBy?: number | string;
+  createdDate?: string;
 }
 
 export interface PatientDoctorVisit {
@@ -93,6 +101,7 @@ export interface PatientDoctorVisit {
   iCUDoctorVisitId?: number; // Legacy field name support
   patientDoctorVisitId?: number;
   roomAdmissionId?: number;
+  patientId?: string;
   doctorId?: number;
   doctorName?: string;
   visitDate?: string;
@@ -106,6 +115,8 @@ export interface PatientDoctorVisit {
   doctorVisitedDateTime?: string;
   visitsRemarks?: string;
   patientCondition?: string;
+  visitCreatedBy?: string | number;
+  visitCreatedAt?: string;
 }
 
 export interface PatientNurseVisit {
@@ -141,6 +152,29 @@ export interface ICUNurseVisitVitals {
   recordedDateTime?: string;
   recordedBy?: string;
   notes?: string;
+}
+
+export interface PatientAdmitVisitVitals {
+  id?: number;
+  patientAdmitVisitVitalsId?: number;
+  roomAdmissionId?: number;
+  patientId?: string;
+  nurseId?: number;
+  patientStatus?: string;
+  recordedDateTime?: string;
+  visitRemarks?: string;
+  dailyOrHourlyVitals?: string;
+  heartRate?: number;
+  bloodPressure?: string;
+  temperature?: number;
+  o2Saturation?: number;
+  respiratoryRate?: number;
+  pulseRate?: number;
+  vitalsStatus?: string;
+  vitalsRemarks?: string;
+  vitalsCreatedBy?: string | number;
+  vitalsCreatedAt?: string;
+  status?: string;
 }
 
 // Stub data for Admissions Management
@@ -736,6 +770,17 @@ export const admissionsApi = {
       
       if (data.estimatedStay !== undefined && data.estimatedStay !== null) {
         backendData.EstimatedStay = data.estimatedStay.trim();
+      }
+
+      // Add new fields if present in data
+      if ((data as any).roomBedsId) {
+        backendData.RoomBedsId = Number((data as any).roomBedsId);
+      }
+      if ((data as any).doctorId || (data as any).admittedByDoctorId) {
+        backendData.AdmittingDoctorId = Number((data as any).doctorId || (data as any).admittedByDoctorId);
+      }
+      if ((data as any).roomAllocationDate) {
+        backendData.RoomAllocationDate = (data as any).roomAllocationDate.trim();
       }
 
       console.log('Creating admission with data:', JSON.stringify(backendData, null, 2));
@@ -1334,20 +1379,65 @@ export const admissionsApi = {
         return [];
       }
       
-      // Helper function to extract value with multiple field name variations
+      // Helper function to extract value with multiple field name variations (including nested objects)
       const extractField = (data: any, fieldVariations: string[], defaultValue: any = '') => {
         if (!Array.isArray(fieldVariations)) {
           console.error('extractField: fieldVariations must be an array', fieldVariations);
           return defaultValue;
         }
         for (const field of fieldVariations) {
-          const value = data?.[field];
+          // Check direct field
+          let value = data?.[field];
           if (value !== undefined && value !== null && value !== '') {
             return value;
+          }
+          
+          // Check nested paths (e.g., Patient.PatientId, LabTest.TestName)
+          if (field.includes('.')) {
+            const parts = field.split('.');
+            let nestedValue = data;
+            for (const part of parts) {
+              nestedValue = nestedValue?.[part];
+              if (nestedValue === undefined || nestedValue === null) break;
+            }
+            if (nestedValue !== undefined && nestedValue !== null && nestedValue !== '') {
+              return nestedValue;
+            }
+          }
+          
+          // Check nested objects (Patient, LabTest, etc.)
+          if (data?.Patient?.[field]) {
+            value = data.Patient[field];
+            if (value !== undefined && value !== null && value !== '') {
+              return value;
+            }
+          }
+          if (data?.LabTest?.[field]) {
+            value = data.LabTest[field];
+            if (value !== undefined && value !== null && value !== '') {
+              return value;
+            }
+          }
+          if (data?.patient?.[field]) {
+            value = data.patient[field];
+            if (value !== undefined && value !== null && value !== '') {
+              return value;
+            }
+          }
+          if (data?.labTest?.[field]) {
+            value = data.labTest[field];
+            if (value !== undefined && value !== null && value !== '') {
+              return value;
+            }
           }
         }
         return defaultValue;
       };
+      
+      // Log raw response for debugging
+      if (labTestsData.length > 0) {
+        console.log('Raw lab test data sample (first item):', JSON.stringify(labTestsData[0], null, 2));
+      }
       
       // Normalize the response to match PatientLabTest interface
       const normalizedLabTests: PatientLabTest[] = labTestsData.map((labTest: any) => {
@@ -1356,11 +1446,14 @@ export const admissionsApi = {
           'id', 'Id', 'ID'
         ], 0));
         
-        // Extract Lab Test ID with multiple variations
+        // Extract Lab Test ID with multiple variations (including nested LabTest object)
         const labTestIdValue = Number(extractField(labTest, [
           'labTestId', 'LabTestId', 'lab_test_id', 'Lab_Test_Id',
           'labTestsId', 'LabTestsId', 'lab_tests_id', 'Lab_Tests_Id',
-          'labTestID', 'LabTestID', 'testId', 'TestId', 'test_id', 'Test_ID'
+          'labTestID', 'LabTestID', 'testId', 'TestId', 'test_id', 'Test_ID',
+          'LabTest.labTestId', 'LabTest.LabTestId', 'labTest.labTestId', 'labTest.LabTestId',
+          'LabTest.labTestsId', 'LabTest.LabTestsId', 'labTest.labTestsId', 'labTest.LabTestsId',
+          'LabTest.testId', 'LabTest.TestId', 'labTest.testId', 'labTest.TestId'
         ], 0));
         
         // Extract Lab Test Name with multiple variations
@@ -1370,10 +1463,12 @@ export const admissionsApi = {
           'name', 'Name', 'testName', 'TestName'
         ], '');
         
-        // Extract Test Name (for backward compatibility)
+        // Extract Test Name (for backward compatibility, including nested LabTest object)
         const testName = labTestName || extractField(labTest, [
           'testName', 'TestName', 'test_name', 'Test_Name',
-          'name', 'Name'
+          'name', 'Name',
+          'LabTest.testName', 'LabTest.TestName', 'labTest.testName', 'labTest.TestName',
+          'LabTest.name', 'LabTest.Name', 'labTest.name', 'labTest.Name'
         ], '');
         
         // Extract Category with multiple variations
@@ -1475,19 +1570,90 @@ export const admissionsApi = {
         ], 0);
         const charges = chargesValue !== 0 ? Number(chargesValue) || undefined : undefined;
         
+        // Extract PatientLabTestsId (primary key from backend)
+        const patientLabTestsId = Number(extractField(labTest, [
+          'patientLabTestsId', 'PatientLabTestsId', 'patient_lab_tests_id', 'Patient_Lab_Tests_Id',
+          'patientLabTestId', 'PatientLabTestId', 'patient_lab_test_id', 'Patient_Lab_Test_Id',
+          'id', 'Id', 'ID'
+        ], 0));
+        
+        // Extract PatientId with multiple variations (including nested Patient object)
+        const patientId = extractField(labTest, [
+          'patientId', 'PatientId', 'patient_id', 'Patient_ID',
+          'patientID', 'PatientID', 'patientUUID', 'PatientUUID',
+          'patient_uuid', 'Patient_UUID',
+          'Patient.patientId', 'Patient.PatientId', 'patient.patientId', 'patient.PatientId',
+          'Patient.patient_id', 'Patient.Patient_ID', 'patient.patient_id', 'patient.Patient_ID'
+        ], '');
+        
+        // Extract PatientName with multiple variations (including nested Patient object)
+        const patientName = extractField(labTest, [
+          'patientName', 'PatientName', 'patient_name', 'Patient_Name',
+          'patientFullName', 'PatientFullName', 'patient_full_name', 'Patient_Full_Name',
+          'name', 'Name', 'fullName', 'FullName', 'full_name', 'Full_Name',
+          'Patient.patientName', 'Patient.PatientName', 'patient.patientName', 'patient.PatientName',
+          'Patient.name', 'Patient.Name', 'patient.name', 'patient.Name',
+          'Patient.fullName', 'Patient.FullName', 'patient.fullName', 'patient.FullName'
+        ], '');
+        
+        // Extract PatientType with multiple variations
+        const patientType = extractField(labTest, [
+          'patientType', 'PatientType', 'patient_type', 'Patient_Type',
+          'type', 'Type', 'admissionType', 'AdmissionType', 'admission_type', 'Admission_Type',
+          'PatientType', 'patient_type', 'Patient_Type'
+        ], '');
+        
+        // Extract EmergencyBedSlotId with multiple variations
+        const emergencyBedSlotId = extractField(labTest, [
+          'emergencyBedSlotId', 'EmergencyBedSlotId', 'emergency_bed_slot_id', 'Emergency_Bed_Slot_Id',
+          'emergencyBedId', 'EmergencyBedId', 'emergency_bed_id', 'Emergency_Bed_Id',
+          'bedSlotId', 'BedSlotId', 'bed_slot_id', 'Bed_Slot_Id'
+        ], undefined);
+        
+        // Extract BillId with multiple variations
+        const billId = extractField(labTest, [
+          'billId', 'BillId', 'bill_id', 'Bill_ID',
+          'billID', 'BillID', 'billingId', 'BillingId', 'billing_id', 'Billing_ID',
+          'invoiceId', 'InvoiceId', 'invoice_id', 'Invoice_ID'
+        ], undefined);
+        
+        // Extract CreatedBy with multiple variations
+        const createdBy = extractField(labTest, [
+          'createdBy', 'CreatedBy', 'created_by', 'Created_By',
+          'createdByUser', 'CreatedByUser', 'created_by_user', 'Created_By_User',
+          'createdByUserId', 'CreatedByUserId', 'created_by_user_id', 'Created_By_User_Id',
+          'createdByUserID', 'CreatedByUserID', 'userId', 'UserId', 'user_id', 'User_ID'
+        ], undefined);
+        
+        // Extract CreatedDate with multiple variations
+        const createdDate = extractField(labTest, [
+          'createdDate', 'CreatedDate', 'created_date', 'Created_Date',
+          'createdAt', 'CreatedAt', 'created_at', 'Created_At',
+          'createdDateTime', 'CreatedDateTime', 'created_date_time', 'Created_Date_Time',
+          'dateCreated', 'DateCreated', 'date_created', 'Date_Created'
+        ], '');
+        
         console.log('Mapped lab test fields:', {
+          patientLabTestsId,
+          patientId,
+          patientName,
           labTestId: labTestIdValue,
           labTestName,
+          testName,
+          patientType,
+          emergencyBedSlotId,
+          billId,
           priority,
           labTestDone,
           reportsUrl,
           testStatus,
           testDoneDateTime,
-          testName,
+          status,
+          createdBy,
+          createdDate,
           testCategory,
           displayTestId,
           description,
-          status,
           orderedDate,
           orderedBy,
           charges,
@@ -1495,27 +1661,33 @@ export const admissionsApi = {
         });
         
         return {
-          id: patientLabTestId || Number(extractField(labTest, ['id', 'Id', 'ID'], 0)),
-          patientLabTestId: patientLabTestId || undefined,
+          id: patientLabTestsId || patientLabTestId || Number(extractField(labTest, ['id', 'Id', 'ID'], 0)),
+          patientLabTestId: patientLabTestId || patientLabTestsId || undefined,
+          patientLabTestsId: patientLabTestsId || patientLabTestId || undefined,
+          patientId: (patientId && patientId !== '') ? patientId : undefined,
+          patientName: (patientName && patientName !== '') ? patientName : undefined,
           roomAdmissionId: Number(extractField(labTest, [
             'roomAdmissionId', 'RoomAdmissionId', 'room_admission_id', 'Room_Admission_Id',
             'admissionId', 'AdmissionId', 'admission_id', 'Admission_Id',
             'roomAdmissionID', 'RoomAdmissionID'
           ], roomAdmissionId)),
           labTestId: labTestIdValue || undefined,
-          labTestName: labTestName,
-          testName: testName,
-          testCategory: testCategory,
-          displayTestId: displayTestId,
-          description: description,
-          priority: priority,
+          labTestName: (labTestName && labTestName !== '') ? labTestName : undefined,
+          testName: (testName && testName !== '') ? testName : undefined,
+          testCategory: (testCategory && testCategory !== '') ? testCategory : undefined,
+          displayTestId: (displayTestId && displayTestId !== '') ? displayTestId : undefined,
+          description: (description && description !== '') ? description : undefined,
+          priority: (priority && priority !== '') ? priority : undefined,
+          patientType: (patientType && patientType !== '') ? patientType : undefined,
+          emergencyBedSlotId: (emergencyBedSlotId !== undefined && emergencyBedSlotId !== null && emergencyBedSlotId !== '') ? emergencyBedSlotId : undefined,
+          billId: (billId !== undefined && billId !== null && billId !== '') ? billId : undefined,
           labTestDone: labTestDone,
-          reportsUrl: reportsUrl,
-          testStatus: testStatus,
-          testDoneDateTime: testDoneDateTime,
-          status: status,
-          orderedDate: orderedDate,
-          orderedBy: orderedBy,
+          reportsUrl: (reportsUrl && reportsUrl !== '') ? reportsUrl : undefined,
+          testStatus: (testStatus && testStatus !== '') ? testStatus : undefined,
+          testDoneDateTime: (testDoneDateTime && testDoneDateTime !== '') ? testDoneDateTime : undefined,
+          status: (status && status !== '') ? status : undefined,
+          orderedDate: (orderedDate && orderedDate !== '') ? orderedDate : undefined,
+          orderedBy: (orderedBy && orderedBy !== '') ? orderedBy : undefined,
           result: extractField(labTest, [
             'result', 'Result', 'testResult', 'TestResult', 'test_result', 'Test_Result',
             'labResult', 'LabResult', 'lab_result', 'Lab_Result'
@@ -1526,6 +1698,8 @@ export const admissionsApi = {
             'completedDate', 'CompletedDate', 'completed_date', 'Completed_Date'
           ], undefined),
           charges: charges,
+          createdBy: (createdBy !== undefined && createdBy !== null && createdBy !== '') ? createdBy : undefined,
+          createdDate: (createdDate && createdDate !== '') ? createdDate : undefined,
         };
       });
       

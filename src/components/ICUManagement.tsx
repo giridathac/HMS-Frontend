@@ -1509,7 +1509,7 @@ export function ICUManagement() {
                       <div>
                         <p className="text-gray-500">PatientCondition</p>
                         <p className="text-gray-900">{selectedPatient.patientCondition || 'N/A'}</p>
-                      </div>
+                    </div>
                       <div>
                         <p className="text-gray-500">ICUPatientStatus</p>
                         <p className="text-gray-900">{selectedPatient.icuPatientStatus || 'N/A'}</p>

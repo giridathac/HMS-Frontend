@@ -44,14 +44,14 @@ const PatientAppointmentManagement = lazy(() => import('./components/PatientAppo
 const OTRoomsManagement = lazy(() => import('./components/OTRoomsManagement').then(m => ({ default: m.OTRoomsManagement })));
 const ICUBedsManagement = lazy(() => import('./components/ICUBedsManagement').then(m => ({ default: m.ICUBedsManagement })));
 const EmergencyBedManagement = lazy(() => import('./components/EmergencyBedManagement').then(m => ({ default: m.EmergencyBedManagement })));
-const SurgeryManagement = lazy(() => import('./components/SurgeryManagement').then(m => ({ default: m.SurgeryManagement })));
+//const SurgeryManagement = lazy(() => import('./components/SurgeryManagement').then(m => ({ default: m.SurgeryManagement })));
 const ManageIPDAdmission = lazy(() => import('./components/ManageIPDAdmission').then(m => ({ default: m.ManageIPDAdmission })));
 const ManageICUCase = lazy(() => import('./components/ManageICUCase').then(m => ({ default: m.ManageICUCase })));
 const ICUNurseVisitVitals = lazy(() => import('./components/ICUNurseVisitVitals').then(m => ({ default: m.ICUNurseVisitVitals })));
 const PatientOTAllocationManagement = lazy(() => import('./components/PatientOTAllocationManagement').then(m => ({ default: m.PatientOTAllocationManagement })));
 const EmergencyAdmissionManagement = lazy(() => import('./components/EmergencyAdmissionManagement').then(m => ({ default: m.EmergencyAdmissionManagement })));
 
-type View = 'dashboard' | 'frontdesk' | 'consultation' | 'admissions' | 'ot' | 'icu' | 'laboratory' | 'emergency' | 'reports' | 'doctors' | 'staff' | 'roles' | 'departments' | 'patientregistration' | 'roombeds' | 'labtests' | 'bills' | 'patientappointments' | 'otrooms' | 'icubeds' | 'emergencybeds' | 'surgerymanagement' | 'manageipdadmission' | 'manageicucase' | 'icunursevisitvitals' | 'patientotallocation' | 'emergencyadmission';
+type View = 'dashboard' | 'frontdesk' | 'consultation' | 'admissions' | 'ot' | 'icu' | 'laboratory' | 'emergency' | 'reports' | 'doctors' | 'staff' | 'roles' | 'departments' | 'patientregistration' | 'roombeds' | 'labtests' | 'bills' | 'patientappointments' | 'otrooms' | 'icubeds' | 'emergencybeds'  | 'manageipdadmission' | 'manageicucase' | 'icunursevisitvitals' | 'patientotallocation' | 'emergencyadmission';
 
 // Loading fallback component
 function LoadingFallback() {
@@ -75,7 +75,7 @@ export default function App() {
     const hash = window.location.hash.slice(1) || 'dashboard';
     // Extract view from hash (handle query parameters like #ot?otId=...)
     const viewName = hash.split('?')[0];
-    const validViews: View[] = ['dashboard', 'frontdesk', 'consultation', 'admissions', 'ot', 'icu', 'laboratory', 'emergency', 'reports', 'doctors', 'staff', 'roles', 'departments', 'patientregistration', 'roombeds', 'labtests', 'bills', 'patientappointments', 'otrooms', 'icubeds', 'emergencybeds', 'surgerymanagement', 'manageipdadmission', 'manageicucase', 'icunursevisitvitals', 'patientotallocation', 'emergencyadmission'];
+    const validViews: View[] = ['dashboard', 'frontdesk', 'consultation', 'admissions', 'ot', 'icu', 'laboratory', 'emergency', 'reports', 'doctors', 'staff', 'roles', 'departments', 'patientregistration', 'roombeds', 'labtests', 'bills', 'patientappointments', 'otrooms', 'icubeds', 'emergencybeds', 'manageipdadmission', 'manageicucase', 'icunursevisitvitals', 'patientotallocation', 'emergencyadmission'];
     const extractedView = validViews.includes(viewName as View) ? (viewName as View) : 'dashboard';
     console.log('getViewFromHash: hash=', hash, 'viewName=', viewName, 'extractedView=', extractedView);
     return extractedView;
@@ -139,7 +139,7 @@ export default function App() {
     { id: 'admissions' as View, label: 'Admissions (IPD)', icon: BedDouble },
     { id: 'ot' as View, label: 'OT Management', icon: Scissors },
     { id: 'otrooms' as View, label: 'OT Rooms Management', icon: Scissors },
-    { id: 'surgerymanagement' as View, label: 'Surgery Procedures Mgmt', icon: Activity },
+    //{ id: 'surgerymanagement' as View, label: 'Surgery Procedures Mgmt', icon: Activity },
     { id: 'patientotallocation' as View, label: 'Patient OT Allocation', icon: Scissors },
     { id: 'icu' as View, label: 'ICU Management', icon: HeartPulse },
     { id: 'icubeds' as View, label: 'ICU Bed Management', icon: HeartPulse },

@@ -3,10 +3,20 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Label } from './ui/label';
 import { Badge } from './ui/badge';
+import { Input } from './ui/input';
+import { Textarea } from './ui/textarea';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { FileText, FlaskConical, Stethoscope, Heart, ArrowLeft } from 'lucide-react';
+import { FileText, FlaskConical, Stethoscope, Heart, ArrowLeft, Plus, Search, Eye, Edit } from 'lucide-react';
 import { admissionsApi } from '../api/admissions';
 import { Admission, PatientLabTest, PatientDoctorVisit, PatientNurseVisit } from '../api/admissions';
+import { labTestsApi } from '../api/labTests';
+import { LabTest } from '../types';
+import { apiRequest } from '../api/base';
+import { doctorsApi } from '../api/doctors';
+import { Doctor } from '../types';
+import { staffApi } from '../api/staff';
+import { PatientAdmitVisitVitals } from '../api/admissions';
 
 export function ManageIPDAdmission() {
   const [admission, setAdmission] = useState<Admission | null>(null);
@@ -21,6 +31,91 @@ export function ManageIPDAdmission() {
   const [patientNurseVisits, setPatientNurseVisits] = useState<PatientNurseVisit[]>([]);
   const [nurseVisitsLoading, setNurseVisitsLoading] = useState(false);
   const [nurseVisitsError, setNurseVisitsError] = useState<string | null>(null);
+
+  // Add IPD Lab Test Dialog State
+  const [isAddIPDLabTestDialogOpen, setIsAddIPDLabTestDialogOpen] = useState(false);
+  const [isViewIPDLabTestDialogOpen, setIsViewIPDLabTestDialogOpen] = useState(false);
+  const [isEditIPDLabTestDialogOpen, setIsEditIPDLabTestDialogOpen] = useState(false);
+  const [viewingLabTest, setViewingLabTest] = useState<PatientLabTest | null>(null);
+  const [editingLabTestId, setEditingLabTestId] = useState<string | number | null>(null);
+  const [ipdLabTestFormData, setIpdLabTestFormData] = useState({
+    roomAdmissionId: '',
+    patientId: '',
+    labTestId: '',
+    priority: 'Normal',
+    orderedDate: '',
+    orderedBy: '',
+    description: '',
+    charges: '',
+    patientType: 'IPD',
+    appointmentId: '',
+    emergencyBedSlotId: '',
+    labTestDone: 'No',
+    reportsUrl: '',
+    testStatus: 'Pending',
+    testDoneDateTime: ''
+  });
+  const [ipdLabTestSubmitting, setIpdLabTestSubmitting] = useState(false);
+  const [ipdLabTestSubmitError, setIpdLabTestSubmitError] = useState<string | null>(null);
+  const [availableLabTests, setAvailableLabTests] = useState<LabTest[]>([]);
+  const [labTestSearchTerm, setLabTestSearchTerm] = useState('');
+  const [showLabTestList, setShowLabTestList] = useState(false);
+
+  // Doctor Visit Dialog State
+  const [isAddDoctorVisitDialogOpen, setIsAddDoctorVisitDialogOpen] = useState(false);
+  const [isViewDoctorVisitDialogOpen, setIsViewDoctorVisitDialogOpen] = useState(false);
+  const [isEditDoctorVisitDialogOpen, setIsEditDoctorVisitDialogOpen] = useState(false);
+  const [viewingDoctorVisit, setViewingDoctorVisit] = useState<PatientDoctorVisit | null>(null);
+  const [editingDoctorVisitId, setEditingDoctorVisitId] = useState<string | number | null>(null);
+  const [doctorVisitFormData, setDoctorVisitFormData] = useState({
+    patientId: '',
+    doctorId: '',
+    doctorVisitedDateTime: '',
+    visitsRemarks: '',
+    patientCondition: '',
+    status: 'Active',
+    visitCreatedBy: '',
+    visitCreatedAt: ''
+  });
+  const [doctorVisitSubmitting, setDoctorVisitSubmitting] = useState(false);
+  const [doctorVisitSubmitError, setDoctorVisitSubmitError] = useState<string | null>(null);
+  const [availableDoctors, setAvailableDoctors] = useState<Doctor[]>([]);
+  const [doctorSearchTerm, setDoctorSearchTerm] = useState('');
+  const [showDoctorList, setShowDoctorList] = useState(false);
+
+  // Visit Vitals Dialog State
+  const [patientAdmitVisitVitals, setPatientAdmitVisitVitals] = useState<PatientAdmitVisitVitals[]>([]);
+  const [visitVitalsLoading, setVisitVitalsLoading] = useState(false);
+  const [visitVitalsError, setVisitVitalsError] = useState<string | null>(null);
+  const [isAddVisitVitalsDialogOpen, setIsAddVisitVitalsDialogOpen] = useState(false);
+  const [isViewVisitVitalsDialogOpen, setIsViewVisitVitalsDialogOpen] = useState(false);
+  const [isEditVisitVitalsDialogOpen, setIsEditVisitVitalsDialogOpen] = useState(false);
+  const [viewingVisitVitals, setViewingVisitVitals] = useState<PatientAdmitVisitVitals | null>(null);
+  const [editingVisitVitalsId, setEditingVisitVitalsId] = useState<string | number | null>(null);
+  const [visitVitalsFormData, setVisitVitalsFormData] = useState({
+    patientId: '',
+    nurseId: '',
+    patientStatus: '',
+    recordedDateTime: '',
+    visitRemarks: '',
+    dailyOrHourlyVitals: 'Daily',
+    heartRate: '',
+    bloodPressure: '',
+    temperature: '',
+    o2Saturation: '',
+    respiratoryRate: '',
+    pulseRate: '',
+    vitalsStatus: 'Normal',
+    vitalsRemarks: '',
+    vitalsCreatedBy: '',
+    vitalsCreatedAt: '',
+    status: 'Active'
+  });
+  const [visitVitalsSubmitting, setVisitVitalsSubmitting] = useState(false);
+  const [visitVitalsSubmitError, setVisitVitalsSubmitError] = useState<string | null>(null);
+  const [availableNurses, setAvailableNurses] = useState<any[]>([]);
+  const [nurseSearchTerm, setNurseSearchTerm] = useState('');
+  const [showNurseList, setShowNurseList] = useState(false);
 
   useEffect(() => {
     // Get roomAdmissionId from URL hash parameters
@@ -54,10 +149,11 @@ export function ManageIPDAdmission() {
       });
       setAdmission(admissionData);
       
-      // Fetch patient lab tests, doctor visits, and nurse visits after admission is loaded
+      // Fetch patient lab tests, doctor visits, nurse visits, and visit vitals after admission is loaded
       fetchPatientLabTests(roomAdmissionId);
       fetchPatientDoctorVisits(roomAdmissionId);
       fetchPatientNurseVisits(roomAdmissionId);
+      fetchPatientAdmitVisitVitals(roomAdmissionId);
     } catch (err) {
       console.error('Error fetching admission details:', err);
       setError(err instanceof Error ? err.message : 'Failed to load admission details');
@@ -117,8 +213,965 @@ export function ManageIPDAdmission() {
     }
   };
 
+  // Fetch Patient Admit Visit Vitals
+  const fetchPatientAdmitVisitVitals = async (roomAdmissionId: number) => {
+    try {
+      setVisitVitalsLoading(true);
+      setVisitVitalsError(null);
+      console.log('Fetching patient admit visit vitals for roomAdmissionId:', roomAdmissionId);
+      const response = await apiRequest<any>(`/patient-admit-visit-vitals/room-admission/${roomAdmissionId}`);
+      console.log('Patient admit visit vitals API response (RAW):', JSON.stringify(response, null, 2));
+      
+      // Handle different response structures
+      let vitalsData: any[] = [];
+      
+      if (Array.isArray(response)) {
+        vitalsData = response;
+      } else if (response?.data) {
+        if (Array.isArray(response.data)) {
+          vitalsData = response.data;
+        } else if (response.data.patientAdmitVisitVitals && Array.isArray(response.data.patientAdmitVisitVitals)) {
+          vitalsData = response.data.patientAdmitVisitVitals;
+        } else if (response.data.visitVitals && Array.isArray(response.data.visitVitals)) {
+          vitalsData = response.data.visitVitals;
+        }
+      } else if (response?.patientAdmitVisitVitals && Array.isArray(response.patientAdmitVisitVitals)) {
+        vitalsData = response.patientAdmitVisitVitals;
+      } else if (response?.visitVitals && Array.isArray(response.visitVitals)) {
+        vitalsData = response.visitVitals;
+      }
+      
+      if (!Array.isArray(vitalsData) || vitalsData.length === 0) {
+        console.warn('Patient admit visit vitals response is not an array or is empty:', response);
+        setPatientAdmitVisitVitals([]);
+        return;
+      }
+      
+      // Helper function to extract field with multiple variations (including nested objects)
+      const extractField = (data: any, fieldVariations: string[], defaultValue: any = '') => {
+        for (const field of fieldVariations) {
+          // Check direct field
+          let value = data?.[field];
+          if (value !== undefined && value !== null && value !== '') {
+            return value;
+          }
+          
+          // Check nested paths (e.g., Patient.PatientId, Nurse.NurseId)
+          if (field.includes('.')) {
+            const parts = field.split('.');
+            let nestedValue = data;
+            for (const part of parts) {
+              nestedValue = nestedValue?.[part];
+              if (nestedValue === undefined || nestedValue === null) break;
+            }
+            if (nestedValue !== undefined && nestedValue !== null && nestedValue !== '') {
+              return nestedValue;
+            }
+          }
+          
+          // Check nested objects (Patient, Nurse, etc.)
+          if (data?.Patient?.[field]) {
+            value = data.Patient[field];
+            if (value !== undefined && value !== null && value !== '') {
+              return value;
+            }
+          }
+          if (data?.Nurse?.[field]) {
+            value = data.Nurse[field];
+            if (value !== undefined && value !== null && value !== '') {
+              return value;
+            }
+          }
+          if (data?.patient?.[field]) {
+            value = data.patient[field];
+            if (value !== undefined && value !== null && value !== '') {
+              return value;
+            }
+          }
+          if (data?.nurse?.[field]) {
+            value = data.nurse[field];
+            if (value !== undefined && value !== null && value !== '') {
+              return value;
+            }
+          }
+        }
+        return defaultValue;
+      };
+      
+      // Map the response to PatientAdmitVisitVitals interface
+      const mappedVitals: PatientAdmitVisitVitals[] = vitalsData.map((vital: any) => {
+        const patientAdmitVisitVitalsId = Number(extractField(vital, [
+          'patientAdmitVisitVitalsId', 'PatientAdmitVisitVitalsId', 'patient_admit_visit_vitals_id', 'Patient_Admit_Visit_Vitals_Id',
+          'id', 'Id', 'ID'
+        ], 0));
+        
+        const roomAdmissionIdValue = Number(extractField(vital, [
+          'roomAdmissionId', 'RoomAdmissionId', 'room_admission_id', 'Room_Admission_Id',
+          'admissionId', 'AdmissionId', 'admission_id', 'Admission_Id'
+        ], roomAdmissionId));
+        
+        const patientIdValue = String(extractField(vital, [
+          'patientId', 'PatientId', 'patient_id', 'Patient_ID',
+          'patientID', 'PatientID', 'Patient.patientId', 'Patient.PatientId'
+        ], ''));
+        
+        const nurseIdValue = Number(extractField(vital, [
+          'nurseId', 'NurseId', 'nurse_id', 'Nurse_Id',
+          'nurseID', 'NurseID', 'Nurse.nurseId', 'Nurse.NurseId'
+        ], 0)) || undefined;
+        
+        const patientStatusValue = extractField(vital, [
+          'patientStatus', 'PatientStatus', 'patient_status', 'Patient_Status',
+          'status', 'Status'
+        ], '');
+        
+        const recordedDateTimeValue = extractField(vital, [
+          'recordedDateTime', 'RecordedDateTime', 'recorded_date_time', 'Recorded_Date_Time',
+          'recordedAt', 'RecordedAt', 'recorded_at', 'Recorded_At'
+        ], '');
+        
+        const visitRemarksValue = extractField(vital, [
+          'visitRemarks', 'VisitRemarks', 'visit_remarks', 'Visit_Remarks',
+          'remarks', 'Remarks', 'visitNotes', 'VisitNotes'
+        ], '');
+        
+        const dailyOrHourlyVitalsValue = extractField(vital, [
+          'dailyOrHourlyVitals', 'DailyOrHourlyVitals', 'daily_or_hourly_vitals', 'Daily_Or_Hourly_Vitals',
+          'vitalsType', 'VitalsType', 'vitals_type', 'Vitals_Type'
+        ], '');
+        
+        const heartRateValue = Number(extractField(vital, [
+          'heartRate', 'HeartRate', 'heart_rate', 'Heart_Rate',
+          'hr', 'HR', 'heartrate', 'Heartrate'
+        ], 0)) || undefined;
+        
+        const bloodPressureValue = extractField(vital, [
+          'bloodPressure', 'BloodPressure', 'blood_pressure', 'Blood_Pressure',
+          'bp', 'BP', 'bloodpressure', 'Bloodpressure'
+        ], '');
+        
+        const temperatureValue = Number(extractField(vital, [
+          'temperature', 'Temperature', 'temp', 'Temp',
+          'bodyTemperature', 'BodyTemperature', 'body_temperature', 'Body_Temperature'
+        ], 0)) || undefined;
+        
+        const o2SaturationValue = Number(extractField(vital, [
+          'o2Saturation', 'O2Saturation', 'o2_saturation', 'O2_Saturation',
+          'oxygenSaturation', 'OxygenSaturation', 'oxygen_saturation', 'Oxygen_Saturation',
+          'spo2', 'SpO2', 'SPO2', 'o2Sat', 'O2Sat'
+        ], 0)) || undefined;
+        
+        const respiratoryRateValue = Number(extractField(vital, [
+          'respiratoryRate', 'RespiratoryRate', 'respiratory_rate', 'Respiratory_Rate',
+          'rr', 'RR', 'respirationRate', 'RespirationRate'
+        ], 0)) || undefined;
+        
+        const pulseRateValue = Number(extractField(vital, [
+          'pulseRate', 'PulseRate', 'pulse_rate', 'Pulse_Rate',
+          'pr', 'PR', 'pulse', 'Pulse'
+        ], 0)) || undefined;
+        
+        const vitalsStatusValue = extractField(vital, [
+          'vitalsStatus', 'VitalsStatus', 'vitals_status', 'Vitals_Status',
+          'status', 'Status'
+        ], '');
+        
+        const vitalsRemarksValue = extractField(vital, [
+          'vitalsRemarks', 'VitalsRemarks', 'vitals_remarks', 'Vitals_Remarks',
+          'remarks', 'Remarks', 'vitalsNotes', 'VitalsNotes'
+        ], '');
+        
+        const vitalsCreatedByValue = extractField(vital, [
+          'vitalsCreatedBy', 'VitalsCreatedBy', 'vitals_created_by', 'Vitals_Created_By',
+          'createdBy', 'CreatedBy', 'created_by', 'Created_By'
+        ], undefined);
+        
+        const vitalsCreatedAtValue = extractField(vital, [
+          'vitalsCreatedAt', 'VitalsCreatedAt', 'vitals_created_at', 'Vitals_Created_At',
+          'createdAt', 'CreatedAt', 'created_at', 'Created_At',
+          'createdDate', 'CreatedDate', 'created_date', 'Created_Date'
+        ], '');
+        
+        const statusValue = extractField(vital, [
+          'status', 'Status', 'recordStatus', 'RecordStatus',
+          'record_status', 'Record_Status'
+        ], '');
+        
+        return {
+          id: patientAdmitVisitVitalsId,
+          patientAdmitVisitVitalsId: patientAdmitVisitVitalsId,
+          roomAdmissionId: roomAdmissionIdValue,
+          patientId: (patientIdValue && patientIdValue !== '') ? patientIdValue : undefined,
+          nurseId: nurseIdValue,
+          patientStatus: (patientStatusValue && patientStatusValue !== '') ? patientStatusValue : undefined,
+          recordedDateTime: (recordedDateTimeValue && recordedDateTimeValue !== '') ? recordedDateTimeValue : undefined,
+          visitRemarks: (visitRemarksValue && visitRemarksValue !== '') ? visitRemarksValue : undefined,
+          dailyOrHourlyVitals: (dailyOrHourlyVitalsValue && dailyOrHourlyVitalsValue !== '') ? dailyOrHourlyVitalsValue : undefined,
+          heartRate: heartRateValue,
+          bloodPressure: (bloodPressureValue && bloodPressureValue !== '') ? bloodPressureValue : undefined,
+          temperature: temperatureValue,
+          o2Saturation: o2SaturationValue,
+          respiratoryRate: respiratoryRateValue,
+          pulseRate: pulseRateValue,
+          vitalsStatus: (vitalsStatusValue && vitalsStatusValue !== '') ? vitalsStatusValue : undefined,
+          vitalsRemarks: (vitalsRemarksValue && vitalsRemarksValue !== '') ? vitalsRemarksValue : undefined,
+          vitalsCreatedBy: vitalsCreatedByValue !== undefined && vitalsCreatedByValue !== null && vitalsCreatedByValue !== '' ? vitalsCreatedByValue : undefined,
+          vitalsCreatedAt: (vitalsCreatedAtValue && vitalsCreatedAtValue !== '') ? vitalsCreatedAtValue : undefined,
+          status: (statusValue && statusValue !== '') ? statusValue : undefined
+        };
+      });
+      
+      console.log('Mapped patient admit visit vitals:', mappedVitals);
+      setPatientAdmitVisitVitals(mappedVitals);
+    } catch (err) {
+      console.error('Error fetching patient admit visit vitals:', err);
+      setVisitVitalsError(err instanceof Error ? err.message : 'Failed to load patient admit visit vitals');
+      setPatientAdmitVisitVitals([]);
+    } finally {
+      setVisitVitalsLoading(false);
+    }
+  };
+
   const handleBack = () => {
     window.location.hash = 'admissions';
+  };
+
+  // Handle viewing IPD Lab Test
+  const handleViewIPDLabTest = (labTest: PatientLabTest) => {
+    setViewingLabTest(labTest);
+    setIsViewIPDLabTestDialogOpen(true);
+  };
+
+  // Handle opening Edit IPD Lab Test dialog
+  const handleOpenEditIPDLabTestDialog = async (labTest: PatientLabTest) => {
+    // Fetch available lab tests
+    try {
+      const labTests = await labTestsApi.getAll();
+      setAvailableLabTests(labTests);
+    } catch (err) {
+      console.error('Error fetching lab tests:', err);
+    }
+
+    const patientLabTestsId = labTest.patientLabTestsId || labTest.patientLabTestId || labTest.id;
+    setEditingLabTestId(patientLabTestsId || null);
+
+    // Find the selected lab test to populate the search term
+    const selectedLabTest = availableLabTests.find((lt: LabTest) => {
+      const lid = (lt as any).labTestId || (lt as any).id || '';
+      return String(lid) === String(labTest.labTestId);
+    });
+
+    setIpdLabTestFormData({
+      roomAdmissionId: String(labTest.roomAdmissionId || admission?.roomAdmissionId || admission?.admissionId || ''),
+      patientId: String(labTest.patientId || admission?.patientId || ''),
+      labTestId: String(labTest.labTestId || ''),
+      priority: labTest.priority || 'Normal',
+      orderedDate: labTest.orderedDate || new Date().toISOString().split('T')[0],
+      orderedBy: labTest.orderedBy || '',
+      description: labTest.description || '',
+      charges: labTest.charges ? String(labTest.charges) : '',
+      patientType: (labTest.patientType as string) || 'IPD',
+      appointmentId: (labTest as any).appointmentId || '',
+      emergencyBedSlotId: String(labTest.emergencyBedSlotId || ''),
+      labTestDone: labTest.labTestDone === true || String(labTest.labTestDone).toLowerCase() === 'true' || String(labTest.labTestDone).toLowerCase() === 'yes' ? 'Yes' : 'No',
+      reportsUrl: labTest.reportsUrl || '',
+      testStatus: labTest.testStatus || 'Pending',
+      testDoneDateTime: labTest.testDoneDateTime ? new Date(labTest.testDoneDateTime).toISOString().slice(0, 16) : ''
+    });
+
+    setLabTestSearchTerm(selectedLabTest ? `${selectedLabTest.testName || 'Unknown'} (${selectedLabTest.testCategory || 'N/A'})` : '');
+    setShowLabTestList(false);
+    setIpdLabTestSubmitError(null);
+    setIsEditIPDLabTestDialogOpen(true);
+  };
+
+  // Handle opening Add IPD Lab Test dialog
+  const handleOpenAddIPDLabTestDialog = async () => {
+    if (admission) {
+      // Fetch available lab tests
+      try {
+        const labTests = await labTestsApi.getAll();
+        setAvailableLabTests(labTests);
+      } catch (err) {
+        console.error('Error fetching lab tests:', err);
+      }
+      
+      // Extract PatientId with fallbacks for different field name variations
+      const patientIdValue = (admission as any).patientId || 
+                            (admission as any).PatientId || 
+                            (admission as any).PatientID || 
+                            (admission as any).patient_id || 
+                            (admission as any).Patient_ID || 
+                            '';
+      
+      // Extract RoomAdmissionId with fallbacks
+      const roomAdmissionIdValue = admission.roomAdmissionId || 
+                                  admission.admissionId || 
+                                  (admission as any).RoomAdmissionId || 
+                                  (admission as any).room_admission_id || 
+                                  (admission as any).id || 
+                                  '';
+      
+      console.log('Initializing IPD Lab Test form:', {
+        roomAdmissionId: roomAdmissionIdValue,
+        patientId: patientIdValue,
+        admission: admission
+      });
+      
+      setIpdLabTestFormData({
+        roomAdmissionId: String(roomAdmissionIdValue),
+        patientId: String(patientIdValue),
+        labTestId: '',
+        priority: 'Normal',
+        orderedDate: new Date().toISOString().split('T')[0], // Today's date
+        orderedBy: '',
+        description: '',
+        charges: '',
+        patientType: 'IPD', // Default to IPD
+        appointmentId: '',
+        emergencyBedSlotId: '',
+        labTestDone: 'No',
+        reportsUrl: '',
+        testStatus: 'Pending',
+        testDoneDateTime: ''
+      });
+      setLabTestSearchTerm('');
+      setShowLabTestList(false);
+      setIpdLabTestSubmitError(null);
+      setIsAddIPDLabTestDialogOpen(true);
+    } else {
+      setIpdLabTestSubmitError('Admission data is not loaded. Please wait and try again.');
+    }
+  };
+
+  // Handle saving IPD Lab Test
+  const handleSaveIPDLabTest = async () => {
+    try {
+      setIpdLabTestSubmitting(true);
+      setIpdLabTestSubmitError(null);
+
+      console.log('Saving IPD Lab Test with data:', ipdLabTestFormData);
+
+      // Validate required fields
+      if (!ipdLabTestFormData.roomAdmissionId || ipdLabTestFormData.roomAdmissionId === 'undefined' || ipdLabTestFormData.roomAdmissionId === '') {
+        throw new Error('Room Admission ID is required');
+      }
+      
+      // Extract PatientId with fallbacks for different field name variations
+      let patientIdValue = ipdLabTestFormData.patientId;
+      if (!patientIdValue || patientIdValue === 'undefined' || patientIdValue === '' || patientIdValue === 'null') {
+        // Try to get from admission with multiple field name variations
+        patientIdValue = (admission as any)?.patientId || 
+                        (admission as any)?.PatientId || 
+                        (admission as any)?.PatientID || 
+                        (admission as any)?.patient_id || 
+                        (admission as any)?.Patient_ID || 
+                        '';
+        console.log('PatientId from form was empty, trying from admission:', patientIdValue);
+      }
+      
+      if (!patientIdValue || patientIdValue === 'undefined' || patientIdValue === '' || patientIdValue === 'null') {
+        throw new Error('Patient ID is required. Please ensure the admission has a valid patient ID.');
+      }
+      
+      if (!ipdLabTestFormData.labTestId || ipdLabTestFormData.labTestId === '') {
+        throw new Error('Lab Test is required. Please select a lab test.');
+      }
+      
+      if (!ipdLabTestFormData.orderedDate) {
+        throw new Error('Ordered Date is required');
+      }
+
+      if (!ipdLabTestFormData.patientType || ipdLabTestFormData.patientType === '') {
+        throw new Error('Patient Type is required.');
+      }
+
+      // Get selected lab test details
+      const selectedLabTest = availableLabTests.find((lt: LabTest) => {
+        const lid = (lt as any).labTestId || (lt as any).id || '';
+        return String(lid) === ipdLabTestFormData.labTestId;
+      });
+      if (!selectedLabTest) {
+        throw new Error('Selected lab test details not found.');
+      }
+
+      // Prepare the request payload
+      const payload: any = {
+        RoomAdmissionId: Number(ipdLabTestFormData.roomAdmissionId),
+        PatientId: String(patientIdValue).trim(),
+        LabTestId: Number(ipdLabTestFormData.labTestId),
+        Priority: ipdLabTestFormData.priority || 'Normal',
+        OrderedDate: ipdLabTestFormData.orderedDate,
+        PatientType: ipdLabTestFormData.patientType,
+        LabTestDone: ipdLabTestFormData.labTestDone || 'No',
+        TestStatus: ipdLabTestFormData.testStatus || 'Pending',
+      };
+
+      // Add conditional fields based on PatientType (only if they have values)
+      if (ipdLabTestFormData.patientType === 'OPD') {
+        if (ipdLabTestFormData.appointmentId && ipdLabTestFormData.appointmentId.trim() !== '') {
+          payload.AppointmentId = String(ipdLabTestFormData.appointmentId).trim();
+        }
+      }
+      if (ipdLabTestFormData.patientType === 'IPD') {
+        if (ipdLabTestFormData.roomAdmissionId && ipdLabTestFormData.roomAdmissionId.trim() !== '') {
+          payload.RoomAdmissionId = Number(ipdLabTestFormData.roomAdmissionId);
+        }
+      }
+      if (ipdLabTestFormData.patientType === 'Emergency') {
+        if (ipdLabTestFormData.emergencyBedSlotId && ipdLabTestFormData.emergencyBedSlotId.trim() !== '') {
+          payload.EmergencyBedSlotId = String(ipdLabTestFormData.emergencyBedSlotId).trim();
+        }
+      }
+
+      // Add optional fields
+      if (ipdLabTestFormData.orderedBy && ipdLabTestFormData.orderedBy.trim() !== '') {
+        payload.OrderedBy = ipdLabTestFormData.orderedBy.trim();
+      }
+      if (ipdLabTestFormData.description && ipdLabTestFormData.description.trim() !== '') {
+        payload.Description = ipdLabTestFormData.description.trim();
+      }
+      if (ipdLabTestFormData.charges && ipdLabTestFormData.charges.trim() !== '') {
+        payload.Charges = Number(ipdLabTestFormData.charges);
+      } else if (selectedLabTest.charges) {
+        payload.Charges = selectedLabTest.charges;
+      }
+      if (ipdLabTestFormData.reportsUrl && ipdLabTestFormData.reportsUrl.trim() !== '') {
+        payload.ReportsUrl = ipdLabTestFormData.reportsUrl.trim();
+      }
+      if (ipdLabTestFormData.testDoneDateTime && ipdLabTestFormData.testDoneDateTime.trim() !== '') {
+        // Convert datetime-local to ISO 8601 format
+        try {
+          const date = new Date(ipdLabTestFormData.testDoneDateTime);
+          if (!isNaN(date.getTime())) {
+            payload.TestDoneDateTime = date.toISOString();
+          } else {
+            payload.TestDoneDateTime = ipdLabTestFormData.testDoneDateTime;
+          }
+        } catch (e) {
+          payload.TestDoneDateTime = ipdLabTestFormData.testDoneDateTime;
+        }
+      }
+
+      console.log('API Payload:', JSON.stringify(payload, null, 2));
+
+      // Call the API to create or update the patient lab test
+      let response;
+      if (editingLabTestId) {
+        // Update existing lab test
+        const patientLabTestsId = editingLabTestId;
+        console.log('API Endpoint: PUT /patient-lab-tests/' + patientLabTestsId);
+        response = await apiRequest<any>(`/patient-lab-tests/${patientLabTestsId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        });
+        console.log('IPD Lab test updated successfully:', response);
+      } else {
+        // Create new lab test
+        console.log('API Endpoint: POST /patient-lab-tests');
+        response = await apiRequest<any>('/patient-lab-tests', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        });
+        console.log('IPD Lab test created successfully:', response);
+      }
+
+      // Close dialog
+      setIsAddIPDLabTestDialogOpen(false);
+      setIsEditIPDLabTestDialogOpen(false);
+      setEditingLabTestId(null);
+      setIsEditIPDLabTestDialogOpen(false);
+      setEditingLabTestId(null);
+      
+      // Refresh the lab tests list
+      if (admission?.roomAdmissionId) {
+        await fetchPatientLabTests(admission.roomAdmissionId);
+      }
+
+      // Reset form
+      setIpdLabTestFormData({
+        roomAdmissionId: '',
+        patientId: '',
+        labTestId: '',
+        priority: 'Normal',
+        orderedDate: '',
+        orderedBy: '',
+        description: '',
+        charges: '',
+        patientType: 'IPD',
+        appointmentId: '',
+        emergencyBedSlotId: '',
+        labTestDone: 'No',
+        reportsUrl: '',
+        testStatus: 'Pending',
+        testDoneDateTime: ''
+      });
+      setLabTestSearchTerm('');
+      setShowLabTestList(false);
+    } catch (err) {
+      console.error('Error saving IPD Lab Test:', err);
+      setIpdLabTestSubmitError(
+        err instanceof Error ? err.message : 'Failed to save IPD Lab Test'
+      );
+    } finally {
+      setIpdLabTestSubmitting(false);
+    }
+  };
+
+  // Handle opening Add Doctor Visit dialog
+  const handleOpenAddDoctorVisitDialog = async () => {
+    if (admission) {
+      // Fetch available doctors
+      try {
+        const doctors = await doctorsApi.getAll();
+        setAvailableDoctors(doctors);
+      } catch (err) {
+        console.error('Error fetching doctors:', err);
+      }
+      
+      // Extract PatientId with fallbacks
+      const patientIdValue = (admission as any).patientId || 
+                            (admission as any).PatientId || 
+                            (admission as any).PatientID || 
+                            (admission as any).patient_id || 
+                            (admission as any).Patient_ID || 
+                            '';
+      
+      setDoctorVisitFormData({
+        patientId: String(patientIdValue),
+        doctorId: '',
+        doctorVisitedDateTime: new Date().toISOString().slice(0, 16), // Current date and time
+        visitsRemarks: '',
+        patientCondition: '',
+        status: 'Active',
+        visitCreatedBy: '',
+        visitCreatedAt: new Date().toISOString()
+      });
+      setDoctorSearchTerm('');
+      setShowDoctorList(false);
+      setDoctorVisitSubmitError(null);
+      setIsAddDoctorVisitDialogOpen(true);
+    } else {
+      setDoctorVisitSubmitError('Admission data is not loaded. Please wait and try again.');
+    }
+  };
+
+  // Handle viewing Doctor Visit
+  const handleViewDoctorVisit = (visit: PatientDoctorVisit) => {
+    setViewingDoctorVisit(visit);
+    setIsViewDoctorVisitDialogOpen(true);
+  };
+
+  // Handle opening Edit Doctor Visit dialog
+  const handleOpenEditDoctorVisitDialog = async (visit: PatientDoctorVisit) => {
+    // Fetch available doctors
+    try {
+      const doctors = await doctorsApi.getAll();
+      setAvailableDoctors(doctors);
+    } catch (err) {
+      console.error('Error fetching doctors:', err);
+    }
+
+    const patientDoctorVisitId = visit.patientDoctorVisitId || visit.id;
+    setEditingDoctorVisitId(patientDoctorVisitId || null);
+
+    // Find the selected doctor to populate the search term
+    const selectedDoctor = availableDoctors.find((doc: Doctor) => {
+      const did = doc.id || 0;
+      return String(did) === String(visit.doctorId);
+    });
+
+    setDoctorVisitFormData({
+      patientId: String(visit.patientId || admission?.patientId || ''),
+      doctorId: String(visit.doctorId || ''),
+      doctorVisitedDateTime: visit.doctorVisitedDateTime ? new Date(visit.doctorVisitedDateTime).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16),
+      visitsRemarks: visit.visitsRemarks || '',
+      patientCondition: visit.patientCondition || '',
+      status: visit.status || 'Active',
+      visitCreatedBy: String(visit.visitCreatedBy || ''),
+      visitCreatedAt: visit.visitCreatedAt || new Date().toISOString()
+    });
+
+    setDoctorSearchTerm(selectedDoctor ? `${selectedDoctor.name} (${selectedDoctor.specialty || 'N/A'})` : '');
+    setShowDoctorList(false);
+    setDoctorVisitSubmitError(null);
+    setIsEditDoctorVisitDialogOpen(true);
+  };
+
+  // Handle saving Doctor Visit
+  const handleSaveDoctorVisit = async () => {
+    try {
+      setDoctorVisitSubmitting(true);
+      setDoctorVisitSubmitError(null);
+
+      console.log('Saving Doctor Visit with data:', doctorVisitFormData);
+
+      // Validate required fields
+      if (!admission?.roomAdmissionId) {
+        throw new Error('Room Admission ID is required');
+      }
+      
+      let patientIdValue = doctorVisitFormData.patientId;
+      if (!patientIdValue || patientIdValue === 'undefined' || patientIdValue === '' || patientIdValue === 'null') {
+        patientIdValue = (admission as any)?.patientId || 
+                        (admission as any)?.PatientId || 
+                        (admission as any)?.PatientID || 
+                        (admission as any)?.patient_id || 
+                        (admission as any)?.Patient_ID || 
+                        '';
+      }
+      
+      if (!patientIdValue || patientIdValue === 'undefined' || patientIdValue === '' || patientIdValue === 'null') {
+        throw new Error('Patient ID is required. Please ensure the admission has a valid patient ID.');
+      }
+      
+      if (!doctorVisitFormData.doctorId || doctorVisitFormData.doctorId === '') {
+        throw new Error('Doctor is required. Please select a doctor.');
+      }
+      
+      if (!doctorVisitFormData.doctorVisitedDateTime) {
+        throw new Error('Doctor Visited Date & Time is required');
+      }
+
+      // Prepare the request payload
+      const payload: any = {
+        RoomAdmissionId: Number(admission.roomAdmissionId),
+        PatientId: String(patientIdValue).trim(),
+        DoctorId: Number(doctorVisitFormData.doctorId),
+        DoctorVisitedDateTime: new Date(doctorVisitFormData.doctorVisitedDateTime).toISOString(),
+        VisitsRemarks: doctorVisitFormData.visitsRemarks || '',
+        PatientCondition: doctorVisitFormData.patientCondition || '',
+        Status: doctorVisitFormData.status || 'Active',
+      };
+
+      // Add optional fields
+      if (doctorVisitFormData.visitCreatedBy && doctorVisitFormData.visitCreatedBy.trim() !== '') {
+        payload.VisitCreatedBy = doctorVisitFormData.visitCreatedBy.trim();
+      }
+      if (doctorVisitFormData.visitCreatedAt && doctorVisitFormData.visitCreatedAt.trim() !== '') {
+        payload.VisitCreatedAt = new Date(doctorVisitFormData.visitCreatedAt).toISOString();
+      }
+
+      console.log('API Payload:', JSON.stringify(payload, null, 2));
+
+      // Call the API to create or update the doctor visit
+      let response;
+      if (editingDoctorVisitId) {
+        // Update existing doctor visit
+        console.log('API Endpoint: PUT /patient-admit-doctor-visits/' + editingDoctorVisitId);
+        response = await apiRequest<any>(`/patient-admit-doctor-visits/${editingDoctorVisitId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        });
+        console.log('Doctor visit updated successfully:', response);
+      } else {
+        // Create new doctor visit
+        console.log('API Endpoint: POST /patient-admit-doctor-visits');
+        response = await apiRequest<any>('/patient-admit-doctor-visits', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        });
+        console.log('Doctor visit created successfully:', response);
+      }
+
+      // Close dialog
+      setIsAddDoctorVisitDialogOpen(false);
+      setIsEditDoctorVisitDialogOpen(false);
+      setEditingDoctorVisitId(null);
+      
+      // Refresh the doctor visits list
+      if (admission?.roomAdmissionId) {
+        await fetchPatientDoctorVisits(admission.roomAdmissionId);
+      }
+      
+      // Reset form
+      setDoctorVisitFormData({
+        patientId: '',
+        doctorId: '',
+        doctorVisitedDateTime: '',
+        visitsRemarks: '',
+        patientCondition: '',
+        status: 'Active',
+        visitCreatedBy: '',
+        visitCreatedAt: ''
+      });
+      setDoctorSearchTerm('');
+      setShowDoctorList(false);
+    } catch (err) {
+      console.error('Error saving doctor visit:', err);
+      setDoctorVisitSubmitError(err instanceof Error ? err.message : 'Failed to save doctor visit');
+    } finally {
+      setDoctorVisitSubmitting(false);
+    }
+  };
+
+  // Handle opening Add Visit Vitals dialog
+  const handleOpenAddVisitVitalsDialog = async () => {
+    if (admission) {
+      // Fetch available nurses
+      try {
+        const staff = await staffApi.getAll();
+        const nurses = staff.filter((member: any) => {
+          const roleName = member.RoleName || member.roleName || '';
+          return roleName.toLowerCase().includes('nurse');
+        });
+        setAvailableNurses(nurses);
+      } catch (err) {
+        console.error('Error fetching nurses:', err);
+      }
+      
+      // Extract PatientId with fallbacks
+      const patientIdValue = (admission as any).patientId || 
+                            (admission as any).PatientId || 
+                            (admission as any).PatientID || 
+                            (admission as any).patient_id || 
+                            (admission as any).Patient_ID || 
+                            '';
+      
+      setVisitVitalsFormData({
+        patientId: String(patientIdValue),
+        nurseId: '',
+        patientStatus: '',
+        recordedDateTime: new Date().toISOString().slice(0, 16),
+        visitRemarks: '',
+        dailyOrHourlyVitals: 'Daily',
+        heartRate: '',
+        bloodPressure: '',
+        temperature: '',
+        o2Saturation: '',
+        respiratoryRate: '',
+        pulseRate: '',
+        vitalsStatus: 'Normal',
+        vitalsRemarks: '',
+        vitalsCreatedBy: '',
+        vitalsCreatedAt: new Date().toISOString(),
+        status: 'Active'
+      });
+      setNurseSearchTerm('');
+      setShowNurseList(false);
+      setVisitVitalsSubmitError(null);
+      setIsAddVisitVitalsDialogOpen(true);
+    } else {
+      setVisitVitalsSubmitError('Admission data is not loaded. Please wait and try again.');
+    }
+  };
+
+  // Handle viewing Visit Vitals
+  const handleViewVisitVitals = (vitals: PatientAdmitVisitVitals) => {
+    setViewingVisitVitals(vitals);
+    setIsViewVisitVitalsDialogOpen(true);
+  };
+
+  // Handle opening Edit Visit Vitals dialog
+  const handleOpenEditVisitVitalsDialog = async (vitals: PatientAdmitVisitVitals) => {
+    // Fetch available nurses
+    try {
+      const staff = await staffApi.getAll();
+      const nurses = staff.filter((member: any) => {
+        const roleName = member.RoleName || member.roleName || '';
+        return roleName.toLowerCase().includes('nurse');
+      });
+      setAvailableNurses(nurses);
+    } catch (err) {
+      console.error('Error fetching nurses:', err);
+    }
+
+    const patientAdmitVisitVitalsId = vitals.patientAdmitVisitVitalsId || vitals.id;
+    setEditingVisitVitalsId(patientAdmitVisitVitalsId || null);
+
+    // Find the selected nurse to populate the search term
+    const selectedNurse = availableNurses.find((nurse: any) => {
+      const nid = nurse.UserId || nurse.id || 0;
+      return String(nid) === String(vitals.nurseId);
+    });
+
+    setVisitVitalsFormData({
+      patientId: String(vitals.patientId || admission?.patientId || ''),
+      nurseId: String(vitals.nurseId || ''),
+      patientStatus: vitals.patientStatus || '',
+      recordedDateTime: vitals.recordedDateTime ? new Date(vitals.recordedDateTime).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16),
+      visitRemarks: vitals.visitRemarks || '',
+      dailyOrHourlyVitals: vitals.dailyOrHourlyVitals || 'Daily',
+      heartRate: vitals.heartRate ? String(vitals.heartRate) : '',
+      bloodPressure: vitals.bloodPressure || '',
+      temperature: vitals.temperature ? String(vitals.temperature) : '',
+      o2Saturation: vitals.o2Saturation ? String(vitals.o2Saturation) : '',
+      respiratoryRate: vitals.respiratoryRate ? String(vitals.respiratoryRate) : '',
+      pulseRate: vitals.pulseRate ? String(vitals.pulseRate) : '',
+      vitalsStatus: vitals.vitalsStatus || 'Normal',
+      vitalsRemarks: vitals.vitalsRemarks || '',
+      vitalsCreatedBy: String(vitals.vitalsCreatedBy || ''),
+      vitalsCreatedAt: vitals.vitalsCreatedAt ? new Date(vitals.vitalsCreatedAt).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16),
+      status: vitals.status || 'Active'
+    });
+
+    setNurseSearchTerm(selectedNurse ? `${selectedNurse.UserName || selectedNurse.name || 'Unknown'}` : '');
+    setShowNurseList(false);
+    setVisitVitalsSubmitError(null);
+    setIsEditVisitVitalsDialogOpen(true);
+  };
+
+  // Handle saving Visit Vitals
+  const handleSaveVisitVitals = async () => {
+    try {
+      setVisitVitalsSubmitting(true);
+      setVisitVitalsSubmitError(null);
+
+      console.log('Saving Visit Vitals with data:', visitVitalsFormData);
+
+      // Validate required fields
+      if (!admission?.roomAdmissionId) {
+        throw new Error('Room Admission ID is required');
+      }
+      
+      let patientIdValue = visitVitalsFormData.patientId;
+      if (!patientIdValue || patientIdValue === 'undefined' || patientIdValue === '' || patientIdValue === 'null') {
+        patientIdValue = (admission as any)?.patientId || 
+                        (admission as any)?.PatientId || 
+                        (admission as any)?.PatientID || 
+                        (admission as any)?.patient_id || 
+                        (admission as any)?.Patient_ID || 
+                        '';
+      }
+      
+      if (!patientIdValue || patientIdValue === 'undefined' || patientIdValue === '' || patientIdValue === 'null') {
+        throw new Error('Patient ID is required. Please ensure the admission has a valid patient ID.');
+      }
+      
+      if (!visitVitalsFormData.nurseId || visitVitalsFormData.nurseId === '') {
+        throw new Error('Nurse is required. Please select a nurse.');
+      }
+      
+      if (!visitVitalsFormData.recordedDateTime) {
+        throw new Error('Recorded Date & Time is required');
+      }
+
+      // Prepare the request payload
+      const payload: any = {
+        RoomAdmissionId: Number(admission.roomAdmissionId),
+        PatientId: String(patientIdValue).trim(),
+        NurseId: Number(visitVitalsFormData.nurseId),
+        RecordedDateTime: new Date(visitVitalsFormData.recordedDateTime).toISOString(),
+        DailyOrHourlyVitals: visitVitalsFormData.dailyOrHourlyVitals || 'Daily',
+        Status: visitVitalsFormData.status || 'Active',
+      };
+
+      // Add optional fields
+      if (visitVitalsFormData.patientStatus && visitVitalsFormData.patientStatus.trim() !== '') {
+        payload.PatientStatus = visitVitalsFormData.patientStatus.trim();
+      }
+      if (visitVitalsFormData.visitRemarks && visitVitalsFormData.visitRemarks.trim() !== '') {
+        payload.VisitRemarks = visitVitalsFormData.visitRemarks.trim();
+      }
+      if (visitVitalsFormData.heartRate && visitVitalsFormData.heartRate.trim() !== '') {
+        payload.HeartRate = Number(visitVitalsFormData.heartRate);
+      }
+      if (visitVitalsFormData.bloodPressure && visitVitalsFormData.bloodPressure.trim() !== '') {
+        payload.BloodPressure = visitVitalsFormData.bloodPressure.trim();
+      }
+      if (visitVitalsFormData.temperature && visitVitalsFormData.temperature.trim() !== '') {
+        payload.Temperature = Number(visitVitalsFormData.temperature);
+      }
+      if (visitVitalsFormData.o2Saturation && visitVitalsFormData.o2Saturation.trim() !== '') {
+        payload.O2Saturation = Number(visitVitalsFormData.o2Saturation);
+      }
+      if (visitVitalsFormData.respiratoryRate && visitVitalsFormData.respiratoryRate.trim() !== '') {
+        payload.RespiratoryRate = Number(visitVitalsFormData.respiratoryRate);
+      }
+      if (visitVitalsFormData.pulseRate && visitVitalsFormData.pulseRate.trim() !== '') {
+        payload.PulseRate = Number(visitVitalsFormData.pulseRate);
+      }
+      if (visitVitalsFormData.vitalsStatus && visitVitalsFormData.vitalsStatus.trim() !== '') {
+        payload.VitalsStatus = visitVitalsFormData.vitalsStatus.trim();
+      }
+      if (visitVitalsFormData.vitalsRemarks && visitVitalsFormData.vitalsRemarks.trim() !== '') {
+        payload.VitalsRemarks = visitVitalsFormData.vitalsRemarks.trim();
+      }
+      if (visitVitalsFormData.vitalsCreatedBy && visitVitalsFormData.vitalsCreatedBy.trim() !== '') {
+        payload.VitalsCreatedBy = visitVitalsFormData.vitalsCreatedBy.trim();
+      }
+      if (visitVitalsFormData.vitalsCreatedAt && visitVitalsFormData.vitalsCreatedAt.trim() !== '') {
+        payload.VitalsCreatedAt = new Date(visitVitalsFormData.vitalsCreatedAt).toISOString();
+      }
+
+      console.log('API Payload:', JSON.stringify(payload, null, 2));
+
+      // Call the API to create or update the visit vitals
+      let response;
+      if (editingVisitVitalsId) {
+        // Update existing visit vitals
+        console.log('API Endpoint: PUT /patient-admit-visit-vitals/' + editingVisitVitalsId);
+        response = await apiRequest<any>(`/patient-admit-visit-vitals/${editingVisitVitalsId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        });
+        console.log('Visit vitals updated successfully:', response);
+      } else {
+        // Create new visit vitals
+        console.log('API Endpoint: POST /patient-admit-visit-vitals');
+        response = await apiRequest<any>('/patient-admit-visit-vitals', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        });
+        console.log('Visit vitals created successfully:', response);
+      }
+
+      // Close dialog
+      setIsAddVisitVitalsDialogOpen(false);
+      setIsEditVisitVitalsDialogOpen(false);
+      setEditingVisitVitalsId(null);
+      
+      // Refresh the visit vitals list
+      if (admission?.roomAdmissionId) {
+        await fetchPatientAdmitVisitVitals(admission.roomAdmissionId);
+      }
+      
+      // Reset form
+      setVisitVitalsFormData({
+        patientId: '',
+        nurseId: '',
+        patientStatus: '',
+        recordedDateTime: '',
+        visitRemarks: '',
+        dailyOrHourlyVitals: 'Daily',
+        heartRate: '',
+        bloodPressure: '',
+        temperature: '',
+        o2Saturation: '',
+        respiratoryRate: '',
+        pulseRate: '',
+        vitalsStatus: 'Normal',
+        vitalsRemarks: '',
+        vitalsCreatedBy: '',
+        vitalsCreatedAt: '',
+        status: 'Active'
+      });
+      setNurseSearchTerm('');
+      setShowNurseList(false);
+    } catch (err) {
+      console.error('Error saving visit vitals:', err);
+      setVisitVitalsSubmitError(err instanceof Error ? err.message : 'Failed to save visit vitals');
+    } finally {
+      setVisitVitalsSubmitting(false);
+    }
   };
 
   if (loading) {
@@ -240,7 +1293,7 @@ export function ManageIPDAdmission() {
           </CardContent>
         </Card>
 
-        {/* Tabs for Case Details, Lab Tests, Doctor Visits, Nurse Visits */}
+        {/* Tabs for Case Details, Lab Tests, Doctor Visits, Nurse Visits and Vitals */}
         <Tabs defaultValue="case-details" className="w-full">
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="case-details" className="gap-2">
@@ -257,7 +1310,7 @@ export function ManageIPDAdmission() {
             </TabsTrigger>
             <TabsTrigger value="nurse-visits" className="gap-2">
               <Heart className="size-4" />
-              Nurse Visits
+              Nurse Visits and Vitals
             </TabsTrigger>
           </TabsList>
 
@@ -306,7 +1359,16 @@ export function ManageIPDAdmission() {
           <TabsContent value="lab-tests" className="mt-4">
             <Card>
               <CardHeader>
+                <div className="flex items-center justify-between">
                 <CardTitle>Patient's Lab Tests</CardTitle>
+                  <Button
+                    onClick={handleOpenAddIPDLabTestDialog}
+                    className="gap-2"
+                  >
+                    <Plus className="size-4" />
+                    Add New IPD Lab Test
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
                 {labTestsLoading && (
@@ -333,22 +1395,64 @@ export function ManageIPDAdmission() {
                     <table className="w-full border-collapse">
                       <thead>
                         <tr className="border-b border-gray-200">
-                          <th className="text-left py-3 px-4 font-semibold text-gray-700">Lab Test ID</th>
-                          <th className="text-left py-3 px-4 font-semibold text-gray-700">Lab Test Name</th>
+                          <th className="text-left py-3 px-4 font-semibold text-gray-700">PatientLabTestsId</th>
+                          <th className="text-left py-3 px-4 font-semibold text-gray-700">PatientId</th>
+                          <th className="text-left py-3 px-4 font-semibold text-gray-700">PatientName</th>
+                          <th className="text-left py-3 px-4 font-semibold text-gray-700">TestName</th>
+                          <th className="text-left py-3 px-4 font-semibold text-gray-700">PatientType</th>
+                          <th className="text-left py-3 px-4 font-semibold text-gray-700">LabTestId</th>
+                          <th className="text-left py-3 px-4 font-semibold text-gray-700">EmergencyBedSlotId</th>
+                          <th className="text-left py-3 px-4 font-semibold text-gray-700">BillId</th>
                           <th className="text-left py-3 px-4 font-semibold text-gray-700">Priority</th>
-                          <th className="text-left py-3 px-4 font-semibold text-gray-700">Lab Test Done</th>
-                          <th className="text-left py-3 px-4 font-semibold text-gray-700">Reports URL</th>
-                          <th className="text-left py-3 px-4 font-semibold text-gray-700">Test Status</th>
-                          <th className="text-left py-3 px-4 font-semibold text-gray-700">Test Done DateTime</th>
+                          <th className="text-left py-3 px-4 font-semibold text-gray-700">LabTestDone</th>
+                          <th className="text-left py-3 px-4 font-semibold text-gray-700">ReportsUrl</th>
+                          <th className="text-left py-3 px-4 font-semibold text-gray-700">TestStatus</th>
+                          <th className="text-left py-3 px-4 font-semibold text-gray-700">TestDoneDateTime</th>
+                          <th className="text-left py-3 px-4 font-semibold text-gray-700">Status</th>
+                          <th className="text-left py-3 px-4 font-semibold text-gray-700">CreatedBy</th>
+                          <th className="text-left py-3 px-4 font-semibold text-gray-700">CreatedDate</th>
+                          <th className="text-left py-3 px-4 font-semibold text-gray-700">Action</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {patientLabTests.map((labTest, index) => (
-                          <tr key={labTest.patientLabTestId || labTest.id || index} className="border-b border-gray-100 hover:bg-gray-50">
+                        {patientLabTests.map((labTest, index) => {
+                          // Helper function to extract field with multiple variations
+                          const extract = (obj: any, fields: string[]) => {
+                            for (const field of fields) {
+                              if (obj?.[field] !== undefined && obj?.[field] !== null && obj?.[field] !== '') {
+                                return obj[field];
+                              }
+                            }
+                            return undefined;
+                          };
+                          
+                          const patientLabTestsId = labTest.patientLabTestsId || labTest.patientLabTestId || labTest.id;
+                          const patientId = labTest.patientId || (labTest as any).PatientId || (labTest as any).patient_id;
+                          const patientName = labTest.patientName || (labTest as any).PatientName || (labTest as any).patient_name;
+                          const testName = labTest.testName || labTest.labTestName || (labTest as any).TestName;
+                          const patientType = labTest.patientType || (labTest as any).PatientType || (labTest as any).patient_type;
+                          const labTestId = labTest.labTestId || (labTest as any).LabTestId || (labTest as any).lab_test_id;
+                          const emergencyBedSlotId = labTest.emergencyBedSlotId || (labTest as any).EmergencyBedSlotId || (labTest as any).emergency_bed_slot_id;
+                          const billId = labTest.billId || (labTest as any).BillId || (labTest as any).bill_id;
+                          const createdBy = labTest.createdBy || (labTest as any).CreatedBy || (labTest as any).created_by;
+                          const createdDate = labTest.createdDate || (labTest as any).CreatedDate || (labTest as any).created_date || (labTest as any).createdAt;
+                          
+                          return (
+                            <tr key={patientLabTestsId || index} className="border-b border-gray-100 hover:bg-gray-50">
                             <td className="py-3 px-4 text-gray-600">
-                              <Badge variant="outline">{labTest.labTestId || 'N/A'}</Badge>
+                                <Badge variant="outline">{patientLabTestsId || 'N/A'}</Badge>
                             </td>
-                            <td className="py-3 px-4 text-gray-900">{labTest.labTestName || labTest.testName || 'N/A'}</td>
+                              <td className="py-3 px-4 text-gray-600">{patientId || 'N/A'}</td>
+                              <td className="py-3 px-4 text-gray-900">{patientName || 'N/A'}</td>
+                              <td className="py-3 px-4 text-gray-900">{testName || 'N/A'}</td>
+                              <td className="py-3 px-4">
+                                <Badge variant="outline">{patientType || 'N/A'}</Badge>
+                              </td>
+                              <td className="py-3 px-4 text-gray-600">
+                                <Badge variant="outline">{labTestId || 'N/A'}</Badge>
+                              </td>
+                              <td className="py-3 px-4 text-gray-600">{emergencyBedSlotId || 'N/A'}</td>
+                              <td className="py-3 px-4 text-gray-600">{billId || 'N/A'}</td>
                             <td className="py-3 px-4">
                               <Badge variant={
                                 labTest.priority?.toLowerCase() === 'urgent' || labTest.priority?.toLowerCase() === 'high' ? 'destructive' :
@@ -384,8 +1488,42 @@ export function ManageIPDAdmission() {
                               </Badge>
                             </td>
                             <td className="py-3 px-4 text-gray-600">{labTest.testDoneDateTime || 'N/A'}</td>
+                              <td className="py-3 px-4">
+                                <Badge variant={
+                                  labTest.status?.toLowerCase() === 'active' || labTest.status?.toLowerCase() === 'completed' ? 'default' :
+                                  labTest.status?.toLowerCase() === 'pending' || labTest.status?.toLowerCase() === 'in progress' ? 'outline' :
+                                  'outline'
+                                }>
+                                  {labTest.status || 'N/A'}
+                                </Badge>
+                              </td>
+                              <td className="py-3 px-4 text-gray-600">{createdBy || 'N/A'}</td>
+                              <td className="py-3 px-4 text-gray-600">
+                                {createdDate ? (typeof createdDate === 'string' ? new Date(createdDate).toLocaleString() : String(createdDate)) : 'N/A'}
+                              </td>
+                              <td className="py-3 px-4">
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleViewIPDLabTest(labTest)}
+                                    className="h-8 w-8 p-0"
+                                  >
+                                    <Eye className="h-4 w-4 text-blue-600" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleOpenEditIPDLabTestDialog(labTest)}
+                                    className="h-8 w-8 p-0"
+                                  >
+                                    <Edit className="h-4 w-4 text-green-600" />
+                                  </Button>
+                                </div>
+                              </td>
                           </tr>
-                        ))}
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
@@ -397,7 +1535,16 @@ export function ManageIPDAdmission() {
           <TabsContent value="doctor-visits" className="mt-4">
             <Card>
               <CardHeader>
+                <div className="flex items-center justify-between">
                 <CardTitle>Patient's Doctor Visits</CardTitle>
+                  <Button
+                    onClick={handleOpenAddDoctorVisitDialog}
+                    className="gap-2"
+                  >
+                    <Plus className="size-4" />
+                    Add New Doctor Visit
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
                 {doctorVisitsLoading && (
@@ -424,19 +1571,27 @@ export function ManageIPDAdmission() {
                     <table className="w-full border-collapse">
                       <thead>
                         <tr className="border-b border-gray-200">
+                          <th className="text-left py-3 px-4 font-semibold text-gray-700">Patient ID</th>
                           <th className="text-left py-3 px-4 font-semibold text-gray-700">Doctor ID</th>
                           <th className="text-left py-3 px-4 font-semibold text-gray-700">Doctor Visited DateTime</th>
                           <th className="text-left py-3 px-4 font-semibold text-gray-700">Visits Remarks</th>
                           <th className="text-left py-3 px-4 font-semibold text-gray-700">Patient Condition</th>
+                          <th className="text-left py-3 px-4 font-semibold text-gray-700">Status</th>
+                          <th className="text-left py-3 px-4 font-semibold text-gray-700">Visit Created By</th>
+                          <th className="text-left py-3 px-4 font-semibold text-gray-700">Visit Created At</th>
+                          <th className="text-left py-3 px-4 font-semibold text-gray-700">Action</th>
                         </tr>
                       </thead>
                       <tbody>
                         {patientDoctorVisits.map((visit, index) => (
                           <tr key={visit.patientDoctorVisitId || visit.id || index} className="border-b border-gray-100 hover:bg-gray-50">
+                            <td className="py-3 px-4 text-gray-600">{visit.patientId || 'N/A'}</td>
                             <td className="py-3 px-4 text-gray-900">
                               <Badge variant="outline">{visit.doctorId || 'N/A'}</Badge>
                             </td>
-                            <td className="py-3 px-4 text-gray-600">{visit.doctorVisitedDateTime || 'N/A'}</td>
+                            <td className="py-3 px-4 text-gray-600">
+                              {visit.doctorVisitedDateTime ? new Date(visit.doctorVisitedDateTime).toLocaleString() : 'N/A'}
+                            </td>
                             <td className="py-3 px-4 text-gray-600">{visit.visitsRemarks || 'N/A'}</td>
                             <td className="py-3 px-4">
                               <Badge variant={
@@ -446,6 +1601,39 @@ export function ManageIPDAdmission() {
                               }>
                                 {visit.patientCondition || 'N/A'}
                               </Badge>
+                            </td>
+                            <td className="py-3 px-4">
+                              <Badge variant={
+                                visit.status?.toLowerCase() === 'active' ? 'default' :
+                                visit.status?.toLowerCase() === 'completed' ? 'default' :
+                                'outline'
+                              }>
+                                {visit.status || 'N/A'}
+                              </Badge>
+                            </td>
+                            <td className="py-3 px-4 text-gray-600">{visit.visitCreatedBy || 'N/A'}</td>
+                            <td className="py-3 px-4 text-gray-600">
+                              {visit.visitCreatedAt ? (typeof visit.visitCreatedAt === 'string' ? new Date(visit.visitCreatedAt).toLocaleString() : String(visit.visitCreatedAt)) : 'N/A'}
+                            </td>
+                            <td className="py-3 px-4">
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleViewDoctorVisit(visit)}
+                                  className="h-8 w-8 p-0"
+                                >
+                                  <Eye className="h-4 w-4 text-blue-600" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleOpenEditDoctorVisitDialog(visit)}
+                                  className="h-8 w-8 p-0"
+                                >
+                                  <Edit className="h-4 w-4 text-green-600" />
+                                </Button>
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -460,60 +1648,139 @@ export function ManageIPDAdmission() {
           <TabsContent value="nurse-visits" className="mt-4">
             <Card>
               <CardHeader>
-                <CardTitle>Patient's Nurse Visits</CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle>Patient's Nurse Visits and Vitals</CardTitle>
+                  <Button
+                    onClick={handleOpenAddVisitVitalsDialog}
+                    className="gap-2"
+                  >
+                    <Plus className="size-4" />
+                    Add Visit Vitals
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
-                {nurseVisitsLoading && (
+                {visitVitalsLoading && (
                   <div className="text-center py-8">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
-                    <p className="text-gray-500">Loading nurse visits...</p>
+                    <p className="text-gray-500">Loading visit vitals...</p>
                   </div>
                 )}
                 
-                {nurseVisitsError && (
+                {visitVitalsError && (
                   <div className="text-center py-8">
-                    <p className="text-red-600">{nurseVisitsError}</p>
+                    <p className="text-red-600">{visitVitalsError}</p>
                   </div>
                 )}
                 
-                {!nurseVisitsLoading && !nurseVisitsError && patientNurseVisits.length === 0 && (
+                {!visitVitalsLoading && !visitVitalsError && patientAdmitVisitVitals.length === 0 && (
                   <div className="text-center py-8 text-gray-500">
-                    No nurse visits found for this admission.
+                    No visit vitals found for this admission.
                   </div>
                 )}
                 
-                {!nurseVisitsLoading && !nurseVisitsError && patientNurseVisits.length > 0 && (
+                {!visitVitalsLoading && !visitVitalsError && patientAdmitVisitVitals.length > 0 && (
                   <div className="overflow-x-auto">
                     <table className="w-full border-collapse">
                       <thead>
                         <tr className="border-b border-gray-200">
-                          <th className="text-left py-3 px-4 font-semibold text-gray-700">Nurse ID</th>
-                          <th className="text-left py-3 px-4 font-semibold text-gray-700">Visit Date</th>
-                          <th className="text-left py-3 px-4 font-semibold text-gray-700">Visit Time</th>
-                          <th className="text-left py-3 px-4 font-semibold text-gray-700">Patient Status</th>
-                          <th className="text-left py-3 px-4 font-semibold text-gray-700">Supervision Details</th>
-                          <th className="text-left py-3 px-4 font-semibold text-gray-700">Remarks</th>
+                          <th className="text-left py-3 px-4 font-semibold text-gray-700">PatientAdmitVisitVitalsId</th>
+                          <th className="text-left py-3 px-4 font-semibold text-gray-700">RoomAdmissionId</th>
+                          <th className="text-left py-3 px-4 font-semibold text-gray-700">PatientId</th>
+                          <th className="text-left py-3 px-4 font-semibold text-gray-700">NurseId</th>
+                          <th className="text-left py-3 px-4 font-semibold text-gray-700">PatientStatus</th>
+                          <th className="text-left py-3 px-4 font-semibold text-gray-700">RecordedDateTime</th>
+                          <th className="text-left py-3 px-4 font-semibold text-gray-700">VisitRemarks</th>
+                          <th className="text-left py-3 px-4 font-semibold text-gray-700">DailyOrHourlyVitals</th>
+                          <th className="text-left py-3 px-4 font-semibold text-gray-700">HeartRate</th>
+                          <th className="text-left py-3 px-4 font-semibold text-gray-700">BloodPressure</th>
+                          <th className="text-left py-3 px-4 font-semibold text-gray-700">Temperature</th>
+                          <th className="text-left py-3 px-4 font-semibold text-gray-700">O2Saturation</th>
+                          <th className="text-left py-3 px-4 font-semibold text-gray-700">RespiratoryRate</th>
+                          <th className="text-left py-3 px-4 font-semibold text-gray-700">PulseRate</th>
+                          <th className="text-left py-3 px-4 font-semibold text-gray-700">VitalsStatus</th>
+                          <th className="text-left py-3 px-4 font-semibold text-gray-700">VitalsRemarks</th>
+                          <th className="text-left py-3 px-4 font-semibold text-gray-700">VitalsCreatedBy</th>
+                          <th className="text-left py-3 px-4 font-semibold text-gray-700">VitalsCreatedAt</th>
+                          <th className="text-left py-3 px-4 font-semibold text-gray-700">Status</th>
+                          <th className="text-left py-3 px-4 font-semibold text-gray-700">Action</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {patientNurseVisits.map((visit, index) => (
-                          <tr key={visit.patientNurseVisitId || visit.id || index} className="border-b border-gray-100 hover:bg-gray-50">
-                            <td className="py-3 px-4 text-gray-900">
-                              <Badge variant="outline">{visit.nurseId || 'N/A'}</Badge>
+                        {patientAdmitVisitVitals.map((vital, index) => (
+                          <tr key={vital.patientAdmitVisitVitalsId || vital.id || index} className="border-b border-gray-100 hover:bg-gray-50">
+                            <td className="py-3 px-4 text-gray-600">
+                              <Badge variant="outline">{vital.patientAdmitVisitVitalsId || vital.id || 'N/A'}</Badge>
                             </td>
-                            <td className="py-3 px-4 text-gray-600">{visit.visitDate || 'N/A'}</td>
-                            <td className="py-3 px-4 text-gray-600">{visit.visitTime || 'N/A'}</td>
+                            <td className="py-3 px-4 text-gray-600">{vital.roomAdmissionId || 'N/A'}</td>
+                            <td className="py-3 px-4 text-gray-600">{vital.patientId || 'N/A'}</td>
+                            <td className="py-3 px-4 text-gray-600">
+                              <Badge variant="outline">{vital.nurseId || 'N/A'}</Badge>
+                            </td>
                             <td className="py-3 px-4">
                               <Badge variant={
-                                visit.patientStatus?.toLowerCase() === 'stable' || visit.patientStatus?.toLowerCase() === 'good' ? 'default' :
-                                visit.patientStatus?.toLowerCase() === 'critical' || visit.patientStatus?.toLowerCase() === 'serious' ? 'destructive' :
+                                vital.patientStatus?.toLowerCase() === 'stable' || vital.patientStatus?.toLowerCase() === 'good' ? 'default' :
+                                vital.patientStatus?.toLowerCase() === 'critical' || vital.patientStatus?.toLowerCase() === 'serious' ? 'destructive' :
                                 'outline'
                               }>
-                                {visit.patientStatus || 'N/A'}
+                                {vital.patientStatus || 'N/A'}
                               </Badge>
                             </td>
-                            <td className="py-3 px-4 text-gray-600">{visit.supervisionDetails || 'N/A'}</td>
-                            <td className="py-3 px-4 text-gray-600">{visit.remarks || 'N/A'}</td>
+                            <td className="py-3 px-4 text-gray-600">
+                              {vital.recordedDateTime ? new Date(vital.recordedDateTime).toLocaleString() : 'N/A'}
+                            </td>
+                            <td className="py-3 px-4 text-gray-600">{vital.visitRemarks || 'N/A'}</td>
+                            <td className="py-3 px-4">
+                              <Badge variant="outline">{vital.dailyOrHourlyVitals || 'N/A'}</Badge>
+                            </td>
+                            <td className="py-3 px-4 text-gray-600">{vital.heartRate || 'N/A'}</td>
+                            <td className="py-3 px-4 text-gray-600">{vital.bloodPressure || 'N/A'}</td>
+                            <td className="py-3 px-4 text-gray-600">{vital.temperature || 'N/A'}</td>
+                            <td className="py-3 px-4 text-gray-600">{vital.o2Saturation || 'N/A'}</td>
+                            <td className="py-3 px-4 text-gray-600">{vital.respiratoryRate || 'N/A'}</td>
+                            <td className="py-3 px-4 text-gray-600">{vital.pulseRate || 'N/A'}</td>
+                            <td className="py-3 px-4">
+                              <Badge variant={
+                                vital.vitalsStatus?.toLowerCase() === 'normal' ? 'default' :
+                                vital.vitalsStatus?.toLowerCase() === 'critical' ? 'destructive' :
+                                'outline'
+                              }>
+                                {vital.vitalsStatus || 'N/A'}
+                              </Badge>
+                            </td>
+                            <td className="py-3 px-4 text-gray-600">{vital.vitalsRemarks || 'N/A'}</td>
+                            <td className="py-3 px-4 text-gray-600">{vital.vitalsCreatedBy || 'N/A'}</td>
+                            <td className="py-3 px-4 text-gray-600">
+                              {vital.vitalsCreatedAt ? (typeof vital.vitalsCreatedAt === 'string' ? new Date(vital.vitalsCreatedAt).toLocaleString() : String(vital.vitalsCreatedAt)) : 'N/A'}
+                            </td>
+                            <td className="py-3 px-4">
+                              <Badge variant={
+                                vital.status?.toLowerCase() === 'active' ? 'default' :
+                                'outline'
+                              }>
+                                {vital.status || 'N/A'}
+                              </Badge>
+                            </td>
+                            <td className="py-3 px-4">
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleViewVisitVitals(vital)}
+                                  className="h-8 w-8 p-0"
+                                >
+                                  <Eye className="h-4 w-4 text-blue-600" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleOpenEditVisitVitalsDialog(vital)}
+                                  className="h-8 w-8 p-0"
+                                >
+                                  <Edit className="h-4 w-4 text-green-600" />
+                                </Button>
+                              </div>
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -525,6 +1792,1233 @@ export function ManageIPDAdmission() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Add/Edit IPD Lab Test Dialog */}
+      <Dialog open={isAddIPDLabTestDialogOpen || isEditIPDLabTestDialogOpen} onOpenChange={(open) => {
+        if (!open) {
+          setIsAddIPDLabTestDialogOpen(false);
+          setIsEditIPDLabTestDialogOpen(false);
+          setEditingLabTestId(null);
+        }
+      }}>
+        <DialogContent className="p-0 gap-0 large-dialog max-h-[90vh]">
+          <DialogHeader className="px-6 pt-4 pb-3 flex-shrink-0">
+            <DialogTitle>{editingLabTestId ? 'Edit IPD Lab Test' : 'Add New IPD Lab Test'}</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto px-6 pb-1 patient-list-scrollable min-h-0">
+            <div className="space-y-4 py-4">
+              {ipdLabTestSubmitError && (
+                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
+                  {ipdLabTestSubmitError}
+    </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="ipdLabTestRoomAdmissionId">Room Admission ID</Label>
+                  <Input
+                    id="ipdLabTestRoomAdmissionId"
+                    value={ipdLabTestFormData.roomAdmissionId}
+                    disabled
+                    className="bg-gray-100"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="ipdLabTestPatientId">Patient ID</Label>
+                  <Input
+                    id="ipdLabTestPatientId"
+                    value={ipdLabTestFormData.patientId}
+                    onChange={(e) => setIpdLabTestFormData({ ...ipdLabTestFormData, patientId: e.target.value })}
+                    placeholder="Enter Patient ID"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="ipdLabTestId">Lab Test *</Label>
+                  <Input
+                    id="ipdLabTestId"
+                    value={labTestSearchTerm}
+                    onChange={(e) => {
+                      setLabTestSearchTerm(e.target.value);
+                      setShowLabTestList(true);
+                    }}
+                    onFocus={() => setShowLabTestList(true)}
+                    placeholder="Search and select lab test..."
+                    className="cursor-pointer"
+                  />
+                  {showLabTestList && (
+                    <div className="mt-1 border border-gray-200 rounded-md max-h-48 overflow-y-auto bg-white z-50 relative">
+                      <table className="w-full text-sm">
+                        <thead className="bg-gray-50 sticky top-0">
+                          <tr>
+                            <th className="text-left py-2 px-3 text-gray-700 font-semibold">Test ID</th>
+                            <th className="text-left py-2 px-3 text-gray-700 font-semibold">Test Name</th>
+                            <th className="text-left py-2 px-3 text-gray-700 font-semibold">Category</th>
+                            <th className="text-left py-2 px-3 text-gray-700 font-semibold">Charges</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {availableLabTests
+                            .filter((test) => {
+                              if (!labTestSearchTerm) return true;
+                              const searchLower = labTestSearchTerm.toLowerCase();
+                              const name = (test.testName || '').toLowerCase();
+                              const id = String(test.labTestId || test.id || '').toLowerCase();
+                              const category = (test.testCategory || '').toLowerCase();
+                              return name.includes(searchLower) || id.includes(searchLower) || category.includes(searchLower);
+                            })
+                            .map((test) => {
+                              const testId = String(test.labTestId || test.id || '');
+                              const isSelected = ipdLabTestFormData.labTestId === testId;
+                              return (
+                                <tr
+                                  key={test.labTestId || test.id}
+                                  onClick={() => {
+                                    setIpdLabTestFormData({ ...ipdLabTestFormData, labTestId: testId });
+                                    setLabTestSearchTerm(`${test.testName || 'Unknown'} (${test.testCategory || 'N/A'})`);
+                                    setShowLabTestList(false);
+                                  }}
+                                  className={`border-b border-gray-100 cursor-pointer hover:bg-blue-50 ${isSelected ? 'bg-blue-100' : ''}`}
+                                >
+                                  <td className="py-2 px-3 text-sm text-gray-900 font-mono">{test.displayTestId || testId}</td>
+                                  <td className="py-2 px-3 text-sm text-gray-600">{test.testName || 'Unknown'}</td>
+                                  <td className="py-2 px-3 text-sm text-gray-600">{test.testCategory || 'N/A'}</td>
+                                  <td className="py-2 px-3 text-sm text-gray-600">₹{test.charges || 0}</td>
+                                </tr>
+                              );
+                            })}
+                        </tbody>
+                      </table>
+                      {availableLabTests.filter((test) => {
+                        if (!labTestSearchTerm) return true;
+                        const searchLower = labTestSearchTerm.toLowerCase();
+                        const name = (test.testName || '').toLowerCase();
+                        const id = String(test.labTestId || test.id || '').toLowerCase();
+                        const category = (test.testCategory || '').toLowerCase();
+                        return name.includes(searchLower) || id.includes(searchLower) || category.includes(searchLower);
+                      }).length === 0 && (
+                        <div className="text-center py-4 text-gray-500 text-sm">No lab tests found</div>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <Label htmlFor="ipdPriority">Priority *</Label>
+                  <select
+                    id="ipdPriority"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                    value={ipdLabTestFormData.priority}
+                    onChange={(e) => setIpdLabTestFormData({ ...ipdLabTestFormData, priority: e.target.value })}
+                    required
+                  >
+                    <option value="Normal">Normal</option>
+                    <option value="High">High</option>
+                    <option value="Urgent">Urgent</option>
+                  </select>
+                </div>
+                <div>
+                  <Label htmlFor="ipdOrderedDate">Ordered Date *</Label>
+                  <Input
+                    id="ipdOrderedDate"
+                    type="date"
+                    value={ipdLabTestFormData.orderedDate}
+                    onChange={(e) => setIpdLabTestFormData({ ...ipdLabTestFormData, orderedDate: e.target.value })}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="ipdOrderedBy">Ordered By</Label>
+                  <Input
+                    id="ipdOrderedBy"
+                    value={ipdLabTestFormData.orderedBy}
+                    onChange={(e) => setIpdLabTestFormData({ ...ipdLabTestFormData, orderedBy: e.target.value })}
+                    placeholder="Enter name of person ordering"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="ipdCharges">Charges</Label>
+                  <Input
+                    id="ipdCharges"
+                    type="number"
+                    value={ipdLabTestFormData.charges}
+                    onChange={(e) => setIpdLabTestFormData({ ...ipdLabTestFormData, charges: e.target.value })}
+                    placeholder="Enter charges (optional)"
+                  />
+                </div>
+                <div className="col-span-2">
+                  <Label htmlFor="ipdDescription">Description</Label>
+                  <Textarea
+                    id="ipdDescription"
+                    value={ipdLabTestFormData.description}
+                    onChange={(e) => setIpdLabTestFormData({ ...ipdLabTestFormData, description: e.target.value })}
+                    placeholder="Enter description (optional)"
+                    rows={4}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="ipdPatientType">Patient Type *</Label>
+                  <select
+                    id="ipdPatientType"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-100"
+                    value={ipdLabTestFormData.patientType}
+                    disabled
+                    required
+                  >
+                    <option value="IPD">IPD</option>
+                  </select>
+                </div>
+                {ipdLabTestFormData.patientType === 'OPD' && (
+                  <div>
+                    <Label htmlFor="ipdAppointmentId">Appointment ID</Label>
+                    <Input
+                      id="ipdAppointmentId"
+                      value={ipdLabTestFormData.appointmentId}
+                      onChange={(e) => setIpdLabTestFormData({ ...ipdLabTestFormData, appointmentId: e.target.value })}
+                      placeholder="Enter Appointment ID (optional)"
+                    />
+                  </div>
+                )}
+                {ipdLabTestFormData.patientType === 'Emergency' && (
+                  <div>
+                    <Label htmlFor="ipdEmergencyBedSlotId">Emergency Bed Slot ID</Label>
+                    <Input
+                      id="ipdEmergencyBedSlotId"
+                      value={ipdLabTestFormData.emergencyBedSlotId}
+                      onChange={(e) => setIpdLabTestFormData({ ...ipdLabTestFormData, emergencyBedSlotId: e.target.value })}
+                      placeholder="Enter Emergency Bed Slot ID (optional)"
+                    />
+                  </div>
+                )}
+                <div>
+                  <Label htmlFor="ipdLabTestDone">Lab Test Done *</Label>
+                  <select
+                    id="ipdLabTestDone"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                    value={ipdLabTestFormData.labTestDone}
+                    onChange={(e) => setIpdLabTestFormData({ ...ipdLabTestFormData, labTestDone: e.target.value })}
+                    required
+                  >
+                    <option value="No">No</option>
+                    <option value="Yes">Yes</option>
+                  </select>
+                </div>
+                <div>
+                  <Label htmlFor="ipdTestStatus">Test Status *</Label>
+                  <select
+                    id="ipdTestStatus"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                    value={ipdLabTestFormData.testStatus}
+                    onChange={(e) => setIpdLabTestFormData({ ...ipdLabTestFormData, testStatus: e.target.value })}
+                    required
+                  >
+                    <option value="Pending">Pending</option>
+                    <option value="InProgress">InProgress</option>
+                    <option value="Completed">Completed</option>
+                  </select>
+                </div>
+                <div>
+                  <Label htmlFor="ipdReportsUrl">Reports URL</Label>
+                  <Input
+                    id="ipdReportsUrl"
+                    value={ipdLabTestFormData.reportsUrl}
+                    onChange={(e) => setIpdLabTestFormData({ ...ipdLabTestFormData, reportsUrl: e.target.value })}
+                    placeholder="Enter reports URL (optional)"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="ipdTestDoneDateTime">Test Done Date & Time</Label>
+                  <Input
+                    id="ipdTestDoneDateTime"
+                    type="datetime-local"
+                    value={ipdLabTestFormData.testDoneDateTime}
+                    onChange={(e) => setIpdLabTestFormData({ ...ipdLabTestFormData, testDoneDateTime: e.target.value })}
+                    placeholder="Enter test done date and time"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+          <DialogFooter className="px-6 pb-4 flex-shrink-0">
+            <Button
+              variant="outline"
+              onClick={() => setIsAddIPDLabTestDialogOpen(false)}
+              disabled={ipdLabTestSubmitting}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSaveIPDLabTest}
+              disabled={ipdLabTestSubmitting}
+            >
+              {ipdLabTestSubmitting ? 'Saving...' : 'Save'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* View IPD Lab Test Dialog */}
+      <Dialog open={isViewIPDLabTestDialogOpen} onOpenChange={(open) => {
+        if (!open) {
+          setIsViewIPDLabTestDialogOpen(false);
+          setViewingLabTest(null);
+        }
+      }}>
+        <DialogContent className="p-0 gap-0 large-dialog max-h-[90vh]">
+          <DialogHeader className="px-6 pt-4 pb-3 flex-shrink-0">
+            <DialogTitle>View IPD Lab Test Details</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto px-6 pb-1 patient-list-scrollable min-h-0">
+            {viewingLabTest && (
+              <div className="space-y-4 py-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm text-gray-500">Patient Lab Tests ID</Label>
+                    <p className="text-gray-900 font-medium mt-1">
+                      {viewingLabTest.patientLabTestsId || viewingLabTest.patientLabTestId || viewingLabTest.id || 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-gray-500">Patient ID</Label>
+                    <p className="text-gray-900 font-medium mt-1">
+                      {viewingLabTest.patientId || 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-gray-500">Patient Name</Label>
+                    <p className="text-gray-900 font-medium mt-1">
+                      {viewingLabTest.patientName || 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-gray-500">Test Name</Label>
+                    <p className="text-gray-900 font-medium mt-1">
+                      {viewingLabTest.testName || viewingLabTest.labTestName || 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-gray-500">Patient Type</Label>
+                    <p className="text-gray-900 font-medium mt-1">
+                      <Badge variant="outline">{viewingLabTest.patientType || 'N/A'}</Badge>
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-gray-500">Lab Test ID</Label>
+                    <p className="text-gray-900 font-medium mt-1">
+                      {viewingLabTest.labTestId || 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-gray-500">Room Admission ID</Label>
+                    <p className="text-gray-900 font-medium mt-1">
+                      {viewingLabTest.roomAdmissionId || 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-gray-500">Emergency Bed Slot ID</Label>
+                    <p className="text-gray-900 font-medium mt-1">
+                      {viewingLabTest.emergencyBedSlotId || 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-gray-500">Bill ID</Label>
+                    <p className="text-gray-900 font-medium mt-1">
+                      {viewingLabTest.billId || 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-gray-500">Priority</Label>
+                    <p className="text-gray-900 font-medium mt-1">
+                      <Badge variant={
+                        viewingLabTest.priority?.toLowerCase() === 'urgent' || viewingLabTest.priority?.toLowerCase() === 'high' ? 'destructive' :
+                        viewingLabTest.priority?.toLowerCase() === 'normal' || viewingLabTest.priority?.toLowerCase() === 'medium' ? 'default' :
+                        'outline'
+                      }>
+                        {viewingLabTest.priority || 'N/A'}
+                      </Badge>
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-gray-500">Lab Test Done</Label>
+                    <p className="text-gray-900 font-medium mt-1">
+                      <Badge variant={
+                        viewingLabTest.labTestDone === true || String(viewingLabTest.labTestDone).toLowerCase() === 'true' || String(viewingLabTest.labTestDone).toLowerCase() === 'yes' ? 'default' :
+                        'outline'
+                      }>
+                        {viewingLabTest.labTestDone === true || String(viewingLabTest.labTestDone).toLowerCase() === 'true' || String(viewingLabTest.labTestDone).toLowerCase() === 'yes' ? 'Yes' : 
+                         viewingLabTest.labTestDone === false || String(viewingLabTest.labTestDone).toLowerCase() === 'false' || String(viewingLabTest.labTestDone).toLowerCase() === 'no' ? 'No' : 'N/A'}
+                      </Badge>
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-gray-500">Test Status</Label>
+                    <p className="text-gray-900 font-medium mt-1">
+                      <Badge variant={
+                        viewingLabTest.testStatus?.toLowerCase() === 'completed' || viewingLabTest.testStatus?.toLowerCase() === 'done' ? 'default' :
+                        viewingLabTest.testStatus?.toLowerCase() === 'pending' || viewingLabTest.testStatus?.toLowerCase() === 'in progress' ? 'outline' :
+                        'outline'
+                      }>
+                        {viewingLabTest.testStatus || viewingLabTest.status || 'N/A'}
+                      </Badge>
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-gray-500">Status</Label>
+                    <p className="text-gray-900 font-medium mt-1">
+                      <Badge variant={
+                        viewingLabTest.status?.toLowerCase() === 'active' || viewingLabTest.status?.toLowerCase() === 'completed' ? 'default' :
+                        viewingLabTest.status?.toLowerCase() === 'pending' || viewingLabTest.status?.toLowerCase() === 'in progress' ? 'outline' :
+                        'outline'
+                      }>
+                        {viewingLabTest.status || 'N/A'}
+                      </Badge>
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-gray-500">Ordered Date</Label>
+                    <p className="text-gray-900 font-medium mt-1">
+                      {viewingLabTest.orderedDate ? new Date(viewingLabTest.orderedDate).toLocaleDateString() : 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-gray-500">Ordered By</Label>
+                    <p className="text-gray-900 font-medium mt-1">
+                      {viewingLabTest.orderedBy || 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-gray-500">Test Done Date & Time</Label>
+                    <p className="text-gray-900 font-medium mt-1">
+                      {viewingLabTest.testDoneDateTime ? new Date(viewingLabTest.testDoneDateTime).toLocaleString() : 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-gray-500">Charges</Label>
+                    <p className="text-gray-900 font-medium mt-1">
+                      {viewingLabTest.charges ? `₹${viewingLabTest.charges}` : 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-gray-500">Created By</Label>
+                    <p className="text-gray-900 font-medium mt-1">
+                      {viewingLabTest.createdBy || 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-gray-500">Created Date</Label>
+                    <p className="text-gray-900 font-medium mt-1">
+                      {viewingLabTest.createdDate ? (typeof viewingLabTest.createdDate === 'string' ? new Date(viewingLabTest.createdDate).toLocaleString() : String(viewingLabTest.createdDate)) : 'N/A'}
+                    </p>
+                  </div>
+                  <div className="col-span-2">
+                    <Label className="text-sm text-gray-500">Reports URL</Label>
+                    <p className="text-gray-900 font-medium mt-1">
+                      {viewingLabTest.reportsUrl ? (
+                        <a href={viewingLabTest.reportsUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                          {viewingLabTest.reportsUrl}
+                        </a>
+                      ) : 'N/A'}
+                    </p>
+                  </div>
+                  {viewingLabTest.description && (
+                    <div className="col-span-2">
+                      <Label className="text-sm text-gray-500">Description</Label>
+                      <div className="mt-1 p-3 bg-gray-50 rounded-md border border-gray-200">
+                        <p className="text-gray-900 whitespace-pre-wrap">{viewingLabTest.description}</p>
+                      </div>
+                    </div>
+                  )}
+                  {(viewingLabTest as any).appointmentId && (
+                    <div>
+                      <Label className="text-sm text-gray-500">Appointment ID</Label>
+                      <p className="text-gray-900 font-medium mt-1">
+                        {(viewingLabTest as any).appointmentId || 'N/A'}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+          <DialogFooter className="px-6 py-3 flex-shrink-0 border-t">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsViewIPDLabTestDialogOpen(false);
+                setViewingLabTest(null);
+              }}
+            >
+              Close
+            </Button>
+            {viewingLabTest && (
+              <Button
+                onClick={() => {
+                  setIsViewIPDLabTestDialogOpen(false);
+                  handleOpenEditIPDLabTestDialog(viewingLabTest);
+                }}
+              >
+                <Edit className="h-4 w-4 mr-2" />
+                Edit
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add/Edit Doctor Visit Dialog */}
+      <Dialog open={isAddDoctorVisitDialogOpen || isEditDoctorVisitDialogOpen} onOpenChange={(open) => {
+        if (!open) {
+          setIsAddDoctorVisitDialogOpen(false);
+          setIsEditDoctorVisitDialogOpen(false);
+          setEditingDoctorVisitId(null);
+        }
+      }}>
+        <DialogContent className="p-0 gap-0 large-dialog max-h-[90vh]">
+          <DialogHeader className="px-6 pt-4 pb-3 flex-shrink-0">
+            <DialogTitle>{editingDoctorVisitId ? 'Edit Doctor Visit' : 'Add New Doctor Visit'}</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto px-6 pb-1 patient-list-scrollable min-h-0">
+            <div className="space-y-4 py-4">
+              {doctorVisitSubmitError && (
+                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
+                  {doctorVisitSubmitError}
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="doctorVisitPatientId">Patient ID *</Label>
+                  <Input
+                    id="doctorVisitPatientId"
+                    value={doctorVisitFormData.patientId}
+                    onChange={(e) => setDoctorVisitFormData({ ...doctorVisitFormData, patientId: e.target.value })}
+                    placeholder="Enter Patient ID"
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="doctorVisitDoctorId">Doctor *</Label>
+                  <Input
+                    id="doctorVisitDoctorId"
+                    value={doctorSearchTerm}
+                    onChange={(e) => {
+                      setDoctorSearchTerm(e.target.value);
+                      setShowDoctorList(true);
+                    }}
+                    onFocus={() => setShowDoctorList(true)}
+                    placeholder="Search and select doctor..."
+                    className="cursor-pointer"
+                    required
+                  />
+                  {showDoctorList && (
+                    <div className="mt-1 border border-gray-200 rounded-md max-h-48 overflow-y-auto bg-white z-50 relative">
+                      <table className="w-full text-sm">
+                        <thead className="bg-gray-50 sticky top-0">
+                          <tr>
+                            <th className="text-left py-2 px-3 text-gray-700 font-semibold">Doctor ID</th>
+                            <th className="text-left py-2 px-3 text-gray-700 font-semibold">Name</th>
+                            <th className="text-left py-2 px-3 text-gray-700 font-semibold">Specialty</th>
+                            <th className="text-left py-2 px-3 text-gray-700 font-semibold">Type</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {availableDoctors
+                            .filter((doctor) => {
+                              if (!doctorSearchTerm) return true;
+                              const searchLower = doctorSearchTerm.toLowerCase();
+                              const name = (doctor.name || '').toLowerCase();
+                              const id = String(doctor.id || '').toLowerCase();
+                              const specialty = (doctor.specialty || '').toLowerCase();
+                              return name.includes(searchLower) || id.includes(searchLower) || specialty.includes(searchLower);
+                            })
+                            .map((doctor) => {
+                              const doctorId = String(doctor.id || '');
+                              const isSelected = doctorVisitFormData.doctorId === doctorId;
+                              return (
+                                <tr
+                                  key={doctor.id}
+                                  onClick={() => {
+                                    setDoctorVisitFormData({ ...doctorVisitFormData, doctorId: doctorId });
+                                    setDoctorSearchTerm(`${doctor.name || 'Unknown'} (${doctor.specialty || 'N/A'})`);
+                                    setShowDoctorList(false);
+                                  }}
+                                  className={`border-b border-gray-100 cursor-pointer hover:bg-blue-50 ${isSelected ? 'bg-blue-100' : ''}`}
+                                >
+                                  <td className="py-2 px-3 text-sm text-gray-900 font-mono">{doctor.id}</td>
+                                  <td className="py-2 px-3 text-sm text-gray-600">{doctor.name || 'Unknown'}</td>
+                                  <td className="py-2 px-3 text-sm text-gray-600">{doctor.specialty || 'N/A'}</td>
+                                  <td className="py-2 px-3 text-sm text-gray-600">{doctor.type || 'N/A'}</td>
+                                </tr>
+                              );
+                            })}
+                        </tbody>
+                      </table>
+                      {availableDoctors.filter((doctor) => {
+                        if (!doctorSearchTerm) return true;
+                        const searchLower = doctorSearchTerm.toLowerCase();
+                        const name = (doctor.name || '').toLowerCase();
+                        const id = String(doctor.id || '').toLowerCase();
+                        const specialty = (doctor.specialty || '').toLowerCase();
+                        return name.includes(searchLower) || id.includes(searchLower) || specialty.includes(searchLower);
+                      }).length === 0 && (
+                        <div className="text-center py-4 text-gray-500 text-sm">No doctors found</div>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <Label htmlFor="doctorVisitDateTime">Doctor Visited Date & Time *</Label>
+                  <Input
+                    id="doctorVisitDateTime"
+                    type="datetime-local"
+                    value={doctorVisitFormData.doctorVisitedDateTime}
+                    onChange={(e) => setDoctorVisitFormData({ ...doctorVisitFormData, doctorVisitedDateTime: e.target.value })}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="doctorVisitStatus">Status *</Label>
+                  <select
+                    id="doctorVisitStatus"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                    value={doctorVisitFormData.status}
+                    onChange={(e) => setDoctorVisitFormData({ ...doctorVisitFormData, status: e.target.value })}
+                    required
+                  >
+                    <option value="Active">Active</option>
+                    <option value="Completed">Completed</option>
+                    <option value="Cancelled">Cancelled</option>
+                  </select>
+                </div>
+                <div>
+                  <Label htmlFor="doctorVisitPatientCondition">Patient Condition</Label>
+                  <Input
+                    id="doctorVisitPatientCondition"
+                    value={doctorVisitFormData.patientCondition}
+                    onChange={(e) => setDoctorVisitFormData({ ...doctorVisitFormData, patientCondition: e.target.value })}
+                    placeholder="Enter patient condition (optional)"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="doctorVisitCreatedBy">Visit Created By</Label>
+                  <Input
+                    id="doctorVisitCreatedBy"
+                    value={doctorVisitFormData.visitCreatedBy}
+                    onChange={(e) => setDoctorVisitFormData({ ...doctorVisitFormData, visitCreatedBy: e.target.value })}
+                    placeholder="Enter creator name (optional)"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="doctorVisitCreatedAt">Visit Created At</Label>
+                  <Input
+                    id="doctorVisitCreatedAt"
+                    type="datetime-local"
+                    value={doctorVisitFormData.visitCreatedAt ? new Date(doctorVisitFormData.visitCreatedAt).toISOString().slice(0, 16) : ''}
+                    onChange={(e) => setDoctorVisitFormData({ ...doctorVisitFormData, visitCreatedAt: e.target.value ? new Date(e.target.value).toISOString() : '' })}
+                    placeholder="Enter creation date (optional)"
+                  />
+                </div>
+                <div className="col-span-2">
+                  <Label htmlFor="doctorVisitRemarks">Visits Remarks</Label>
+                  <Textarea
+                    id="doctorVisitRemarks"
+                    value={doctorVisitFormData.visitsRemarks}
+                    onChange={(e) => setDoctorVisitFormData({ ...doctorVisitFormData, visitsRemarks: e.target.value })}
+                    placeholder="Enter visit remarks (optional)"
+                    rows={4}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+          <DialogFooter className="px-6 py-3 flex-shrink-0 border-t">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsAddDoctorVisitDialogOpen(false);
+                setIsEditDoctorVisitDialogOpen(false);
+                setEditingDoctorVisitId(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSaveDoctorVisit}
+              disabled={doctorVisitSubmitting}
+            >
+              {doctorVisitSubmitting ? 'Saving...' : 'Save'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* View Doctor Visit Dialog */}
+      <Dialog open={isViewDoctorVisitDialogOpen} onOpenChange={(open) => {
+        if (!open) {
+          setIsViewDoctorVisitDialogOpen(false);
+          setViewingDoctorVisit(null);
+        }
+      }}>
+        <DialogContent className="p-0 gap-0 large-dialog max-h-[90vh]">
+          <DialogHeader className="px-6 pt-4 pb-3 flex-shrink-0">
+            <DialogTitle>View Doctor Visit Details</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto px-6 pb-1 patient-list-scrollable min-h-0">
+            {viewingDoctorVisit && (
+              <div className="space-y-4 py-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm text-gray-500">Patient ID</Label>
+                    <p className="text-gray-900 font-medium mt-1">
+                      {viewingDoctorVisit.patientId || 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-gray-500">Doctor ID</Label>
+                    <p className="text-gray-900 font-medium mt-1">
+                      {viewingDoctorVisit.doctorId || 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-gray-500">Doctor Name</Label>
+                    <p className="text-gray-900 font-medium mt-1">
+                      {viewingDoctorVisit.doctorName || 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-gray-500">Doctor Visited Date & Time</Label>
+                    <p className="text-gray-900 font-medium mt-1">
+                      {viewingDoctorVisit.doctorVisitedDateTime ? new Date(viewingDoctorVisit.doctorVisitedDateTime).toLocaleString() : 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-gray-500">Patient Condition</Label>
+                    <p className="text-gray-900 font-medium mt-1">
+                      <Badge variant={
+                        viewingDoctorVisit.patientCondition?.toLowerCase() === 'stable' || viewingDoctorVisit.patientCondition?.toLowerCase() === 'good' ? 'default' :
+                        viewingDoctorVisit.patientCondition?.toLowerCase() === 'critical' || viewingDoctorVisit.patientCondition?.toLowerCase() === 'serious' ? 'destructive' :
+                        'outline'
+                      }>
+                        {viewingDoctorVisit.patientCondition || 'N/A'}
+                      </Badge>
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-gray-500">Status</Label>
+                    <p className="text-gray-900 font-medium mt-1">
+                      <Badge variant={
+                        viewingDoctorVisit.status?.toLowerCase() === 'active' ? 'default' :
+                        viewingDoctorVisit.status?.toLowerCase() === 'completed' ? 'default' :
+                        'outline'
+                      }>
+                        {viewingDoctorVisit.status || 'N/A'}
+                      </Badge>
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-gray-500">Visit Created By</Label>
+                    <p className="text-gray-900 font-medium mt-1">
+                      {viewingDoctorVisit.visitCreatedBy || 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-gray-500">Visit Created At</Label>
+                    <p className="text-gray-900 font-medium mt-1">
+                      {viewingDoctorVisit.visitCreatedAt ? (typeof viewingDoctorVisit.visitCreatedAt === 'string' ? new Date(viewingDoctorVisit.visitCreatedAt).toLocaleString() : String(viewingDoctorVisit.visitCreatedAt)) : 'N/A'}
+                    </p>
+                  </div>
+                  {viewingDoctorVisit.visitsRemarks && (
+                    <div className="col-span-2">
+                      <Label className="text-sm text-gray-500">Visits Remarks</Label>
+                      <div className="mt-1 p-3 bg-gray-50 rounded-md border border-gray-200">
+                        <p className="text-gray-900 whitespace-pre-wrap">{viewingDoctorVisit.visitsRemarks}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+          <DialogFooter className="px-6 py-3 flex-shrink-0 border-t">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsViewDoctorVisitDialogOpen(false);
+                setViewingDoctorVisit(null);
+              }}
+            >
+              Close
+            </Button>
+            {viewingDoctorVisit && (
+              <Button
+                onClick={() => {
+                  setIsViewDoctorVisitDialogOpen(false);
+                  handleOpenEditDoctorVisitDialog(viewingDoctorVisit);
+                }}
+              >
+                <Edit className="h-4 w-4 mr-2" />
+                Edit
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add/Edit Visit Vitals Dialog */}
+      <Dialog open={isAddVisitVitalsDialogOpen || isEditVisitVitalsDialogOpen} onOpenChange={(open) => {
+        if (!open) {
+          setIsAddVisitVitalsDialogOpen(false);
+          setIsEditVisitVitalsDialogOpen(false);
+          setEditingVisitVitalsId(null);
+        }
+      }}>
+        <DialogContent className="p-0 gap-0 large-dialog max-h-[90vh]">
+          <DialogHeader className="px-6 pt-4 pb-3 flex-shrink-0">
+            <DialogTitle>{editingVisitVitalsId ? 'Edit Visit Vitals' : 'Add Visit Vitals'}</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto px-6 pb-1 patient-list-scrollable min-h-0">
+            <div className="space-y-4 py-4">
+              {visitVitalsSubmitError && (
+                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
+                  {visitVitalsSubmitError}
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="visitVitalsPatientId">Patient ID *</Label>
+                  <Input
+                    id="visitVitalsPatientId"
+                    value={visitVitalsFormData.patientId}
+                    onChange={(e) => setVisitVitalsFormData({ ...visitVitalsFormData, patientId: e.target.value })}
+                    placeholder="Enter Patient ID"
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="visitVitalsNurseId">Nurse *</Label>
+                  <Input
+                    id="visitVitalsNurseId"
+                    value={nurseSearchTerm}
+                    onChange={(e) => {
+                      setNurseSearchTerm(e.target.value);
+                      setShowNurseList(true);
+                    }}
+                    onFocus={() => setShowNurseList(true)}
+                    placeholder="Search and select nurse..."
+                    className="cursor-pointer"
+                    required
+                  />
+                  {showNurseList && (
+                    <div className="mt-1 border border-gray-200 rounded-md max-h-48 overflow-y-auto bg-white z-50 relative">
+                      <table className="w-full text-sm">
+                        <thead className="bg-gray-50 sticky top-0">
+                          <tr>
+                            <th className="text-left py-2 px-3 text-gray-700 font-semibold">Nurse ID</th>
+                            <th className="text-left py-2 px-3 text-gray-700 font-semibold">Name</th>
+                            <th className="text-left py-2 px-3 text-gray-700 font-semibold">Department</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {availableNurses
+                            .filter((nurse) => {
+                              if (!nurseSearchTerm) return true;
+                              const searchLower = nurseSearchTerm.toLowerCase();
+                              const name = (nurse.UserName || nurse.name || '').toLowerCase();
+                              const id = String(nurse.UserId || nurse.id || '').toLowerCase();
+                              return name.includes(searchLower) || id.includes(searchLower);
+                            })
+                            .map((nurse) => {
+                              const nurseId = String(nurse.UserId || nurse.id || '');
+                              const isSelected = visitVitalsFormData.nurseId === nurseId;
+                              return (
+                                <tr
+                                  key={nurse.UserId || nurse.id}
+                                  onClick={() => {
+                                    setVisitVitalsFormData({ ...visitVitalsFormData, nurseId: nurseId });
+                                    setNurseSearchTerm(nurse.UserName || nurse.name || 'Unknown');
+                                    setShowNurseList(false);
+                                  }}
+                                  className={`border-b border-gray-100 cursor-pointer hover:bg-blue-50 ${isSelected ? 'bg-blue-100' : ''}`}
+                                >
+                                  <td className="py-2 px-3 text-sm text-gray-900 font-mono">{nurse.UserId || nurse.id}</td>
+                                  <td className="py-2 px-3 text-sm text-gray-600">{nurse.UserName || nurse.name || 'Unknown'}</td>
+                                  <td className="py-2 px-3 text-sm text-gray-600">{nurse.DepartmentName || nurse.department || 'N/A'}</td>
+                                </tr>
+                              );
+                            })}
+                        </tbody>
+                      </table>
+                      {availableNurses.filter((nurse) => {
+                        if (!nurseSearchTerm) return true;
+                        const searchLower = nurseSearchTerm.toLowerCase();
+                        const name = (nurse.UserName || nurse.name || '').toLowerCase();
+                        const id = String(nurse.UserId || nurse.id || '').toLowerCase();
+                        return name.includes(searchLower) || id.includes(searchLower);
+                      }).length === 0 && (
+                        <div className="text-center py-4 text-gray-500 text-sm">No nurses found</div>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <Label htmlFor="visitVitalsRecordedDateTime">Recorded Date & Time *</Label>
+                  <Input
+                    id="visitVitalsRecordedDateTime"
+                    type="datetime-local"
+                    value={visitVitalsFormData.recordedDateTime}
+                    onChange={(e) => setVisitVitalsFormData({ ...visitVitalsFormData, recordedDateTime: e.target.value })}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="visitVitalsDailyOrHourlyVitals">Daily/Hourly Vitals *</Label>
+                  <select
+                    id="visitVitalsDailyOrHourlyVitals"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                    value={visitVitalsFormData.dailyOrHourlyVitals}
+                    onChange={(e) => setVisitVitalsFormData({ ...visitVitalsFormData, dailyOrHourlyVitals: e.target.value })}
+                    required
+                  >
+                    <option value="Daily">Daily</option>
+                    <option value="Hourly">Hourly</option>
+                  </select>
+                </div>
+                <div>
+                  <Label htmlFor="visitVitalsPatientStatus">Patient Status</Label>
+                  <Input
+                    id="visitVitalsPatientStatus"
+                    value={visitVitalsFormData.patientStatus}
+                    onChange={(e) => setVisitVitalsFormData({ ...visitVitalsFormData, patientStatus: e.target.value })}
+                    placeholder="Enter patient status (optional)"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="visitVitalsHeartRate">Heart Rate</Label>
+                  <Input
+                    id="visitVitalsHeartRate"
+                    type="number"
+                    value={visitVitalsFormData.heartRate}
+                    onChange={(e) => setVisitVitalsFormData({ ...visitVitalsFormData, heartRate: e.target.value })}
+                    placeholder="Enter heart rate (optional)"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="visitVitalsBloodPressure">Blood Pressure</Label>
+                  <Input
+                    id="visitVitalsBloodPressure"
+                    value={visitVitalsFormData.bloodPressure}
+                    onChange={(e) => setVisitVitalsFormData({ ...visitVitalsFormData, bloodPressure: e.target.value })}
+                    placeholder="e.g., 120/80 (optional)"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="visitVitalsTemperature">Temperature</Label>
+                  <Input
+                    id="visitVitalsTemperature"
+                    type="number"
+                    step="0.1"
+                    value={visitVitalsFormData.temperature}
+                    onChange={(e) => setVisitVitalsFormData({ ...visitVitalsFormData, temperature: e.target.value })}
+                    placeholder="Enter temperature (optional)"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="visitVitalsO2Saturation">O2 Saturation</Label>
+                  <Input
+                    id="visitVitalsO2Saturation"
+                    type="number"
+                    value={visitVitalsFormData.o2Saturation}
+                    onChange={(e) => setVisitVitalsFormData({ ...visitVitalsFormData, o2Saturation: e.target.value })}
+                    placeholder="Enter O2 saturation (optional)"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="visitVitalsRespiratoryRate">Respiratory Rate</Label>
+                  <Input
+                    id="visitVitalsRespiratoryRate"
+                    type="number"
+                    value={visitVitalsFormData.respiratoryRate}
+                    onChange={(e) => setVisitVitalsFormData({ ...visitVitalsFormData, respiratoryRate: e.target.value })}
+                    placeholder="Enter respiratory rate (optional)"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="visitVitalsPulseRate">Pulse Rate</Label>
+                  <Input
+                    id="visitVitalsPulseRate"
+                    type="number"
+                    value={visitVitalsFormData.pulseRate}
+                    onChange={(e) => setVisitVitalsFormData({ ...visitVitalsFormData, pulseRate: e.target.value })}
+                    placeholder="Enter pulse rate (optional)"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="visitVitalsVitalsStatus">Vitals Status</Label>
+                  <select
+                    id="visitVitalsVitalsStatus"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                    value={visitVitalsFormData.vitalsStatus}
+                    onChange={(e) => setVisitVitalsFormData({ ...visitVitalsFormData, vitalsStatus: e.target.value })}
+                  >
+                    <option value="Normal">Normal</option>
+                    <option value="Abnormal">Abnormal</option>
+                    <option value="Critical">Critical</option>
+                  </select>
+                </div>
+                <div>
+                  <Label htmlFor="visitVitalsStatus">Status *</Label>
+                  <select
+                    id="visitVitalsStatus"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                    value={visitVitalsFormData.status}
+                    onChange={(e) => setVisitVitalsFormData({ ...visitVitalsFormData, status: e.target.value })}
+                    required
+                  >
+                    <option value="Active">Active</option>
+                    <option value="Completed">Completed</option>
+                    <option value="Cancelled">Cancelled</option>
+                  </select>
+                </div>
+                <div>
+                  <Label htmlFor="visitVitalsCreatedBy">Vitals Created By</Label>
+                  <Input
+                    id="visitVitalsCreatedBy"
+                    value={visitVitalsFormData.vitalsCreatedBy}
+                    onChange={(e) => setVisitVitalsFormData({ ...visitVitalsFormData, vitalsCreatedBy: e.target.value })}
+                    placeholder="Enter creator name (optional)"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="visitVitalsCreatedAt">Vitals Created At</Label>
+                  <Input
+                    id="visitVitalsCreatedAt"
+                    type="datetime-local"
+                    value={visitVitalsFormData.vitalsCreatedAt ? new Date(visitVitalsFormData.vitalsCreatedAt).toISOString().slice(0, 16) : ''}
+                    onChange={(e) => setVisitVitalsFormData({ ...visitVitalsFormData, vitalsCreatedAt: e.target.value ? new Date(e.target.value).toISOString() : '' })}
+                    placeholder="Enter creation date (optional)"
+                  />
+                </div>
+                <div className="col-span-2">
+                  <Label htmlFor="visitVitalsRemarks">Visit Remarks</Label>
+                  <Textarea
+                    id="visitVitalsRemarks"
+                    value={visitVitalsFormData.visitRemarks}
+                    onChange={(e) => setVisitVitalsFormData({ ...visitVitalsFormData, visitRemarks: e.target.value })}
+                    placeholder="Enter visit remarks (optional)"
+                    rows={3}
+                  />
+                </div>
+                <div className="col-span-2">
+                  <Label htmlFor="visitVitalsVitalsRemarks">Vitals Remarks</Label>
+                  <Textarea
+                    id="visitVitalsVitalsRemarks"
+                    value={visitVitalsFormData.vitalsRemarks}
+                    onChange={(e) => setVisitVitalsFormData({ ...visitVitalsFormData, vitalsRemarks: e.target.value })}
+                    placeholder="Enter vitals remarks (optional)"
+                    rows={3}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+          <DialogFooter className="px-6 py-3 flex-shrink-0 border-t">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsAddVisitVitalsDialogOpen(false);
+                setIsEditVisitVitalsDialogOpen(false);
+                setEditingVisitVitalsId(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSaveVisitVitals}
+              disabled={visitVitalsSubmitting}
+            >
+              {visitVitalsSubmitting ? 'Saving...' : 'Save'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* View Visit Vitals Dialog */}
+      <Dialog open={isViewVisitVitalsDialogOpen} onOpenChange={(open) => {
+        if (!open) {
+          setIsViewVisitVitalsDialogOpen(false);
+          setViewingVisitVitals(null);
+        }
+      }}>
+        <DialogContent className="p-0 gap-0 large-dialog max-h-[90vh]">
+          <DialogHeader className="px-6 pt-4 pb-3 flex-shrink-0">
+            <DialogTitle>View Visit Vitals Details</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto px-6 pb-1 patient-list-scrollable min-h-0">
+            {viewingVisitVitals && (
+              <div className="space-y-4 py-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm text-gray-500">Patient Admit Visit Vitals ID</Label>
+                    <p className="text-gray-900 font-medium mt-1">
+                      {viewingVisitVitals.patientAdmitVisitVitalsId || viewingVisitVitals.id || 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-gray-500">Room Admission ID</Label>
+                    <p className="text-gray-900 font-medium mt-1">
+                      {viewingVisitVitals.roomAdmissionId || 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-gray-500">Patient ID</Label>
+                    <p className="text-gray-900 font-medium mt-1">
+                      {viewingVisitVitals.patientId || 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-gray-500">Nurse ID</Label>
+                    <p className="text-gray-900 font-medium mt-1">
+                      {viewingVisitVitals.nurseId || 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-gray-500">Patient Status</Label>
+                    <p className="text-gray-900 font-medium mt-1">
+                      <Badge variant={
+                        viewingVisitVitals.patientStatus?.toLowerCase() === 'stable' || viewingVisitVitals.patientStatus?.toLowerCase() === 'good' ? 'default' :
+                        viewingVisitVitals.patientStatus?.toLowerCase() === 'critical' || viewingVisitVitals.patientStatus?.toLowerCase() === 'serious' ? 'destructive' :
+                        'outline'
+                      }>
+                        {viewingVisitVitals.patientStatus || 'N/A'}
+                      </Badge>
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-gray-500">Recorded Date & Time</Label>
+                    <p className="text-gray-900 font-medium mt-1">
+                      {viewingVisitVitals.recordedDateTime ? new Date(viewingVisitVitals.recordedDateTime).toLocaleString() : 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-gray-500">Daily/Hourly Vitals</Label>
+                    <p className="text-gray-900 font-medium mt-1">
+                      <Badge variant="outline">{viewingVisitVitals.dailyOrHourlyVitals || 'N/A'}</Badge>
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-gray-500">Heart Rate</Label>
+                    <p className="text-gray-900 font-medium mt-1">
+                      {viewingVisitVitals.heartRate || 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-gray-500">Blood Pressure</Label>
+                    <p className="text-gray-900 font-medium mt-1">
+                      {viewingVisitVitals.bloodPressure || 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-gray-500">Temperature</Label>
+                    <p className="text-gray-900 font-medium mt-1">
+                      {viewingVisitVitals.temperature || 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-gray-500">O2 Saturation</Label>
+                    <p className="text-gray-900 font-medium mt-1">
+                      {viewingVisitVitals.o2Saturation || 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-gray-500">Respiratory Rate</Label>
+                    <p className="text-gray-900 font-medium mt-1">
+                      {viewingVisitVitals.respiratoryRate || 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-gray-500">Pulse Rate</Label>
+                    <p className="text-gray-900 font-medium mt-1">
+                      {viewingVisitVitals.pulseRate || 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-gray-500">Vitals Status</Label>
+                    <p className="text-gray-900 font-medium mt-1">
+                      <Badge variant={
+                        viewingVisitVitals.vitalsStatus?.toLowerCase() === 'normal' ? 'default' :
+                        viewingVisitVitals.vitalsStatus?.toLowerCase() === 'critical' ? 'destructive' :
+                        'outline'
+                      }>
+                        {viewingVisitVitals.vitalsStatus || 'N/A'}
+                      </Badge>
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-gray-500">Status</Label>
+                    <p className="text-gray-900 font-medium mt-1">
+                      <Badge variant={
+                        viewingVisitVitals.status?.toLowerCase() === 'active' ? 'default' :
+                        'outline'
+                      }>
+                        {viewingVisitVitals.status || 'N/A'}
+                      </Badge>
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-gray-500">Vitals Created By</Label>
+                    <p className="text-gray-900 font-medium mt-1">
+                      {viewingVisitVitals.vitalsCreatedBy || 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-gray-500">Vitals Created At</Label>
+                    <p className="text-gray-900 font-medium mt-1">
+                      {viewingVisitVitals.vitalsCreatedAt ? (typeof viewingVisitVitals.vitalsCreatedAt === 'string' ? new Date(viewingVisitVitals.vitalsCreatedAt).toLocaleString() : String(viewingVisitVitals.vitalsCreatedAt)) : 'N/A'}
+                    </p>
+                  </div>
+                  {viewingVisitVitals.visitRemarks && (
+                    <div className="col-span-2">
+                      <Label className="text-sm text-gray-500">Visit Remarks</Label>
+                      <div className="mt-1 p-3 bg-gray-50 rounded-md border border-gray-200">
+                        <p className="text-gray-900 whitespace-pre-wrap">{viewingVisitVitals.visitRemarks}</p>
+                      </div>
+                    </div>
+                  )}
+                  {viewingVisitVitals.vitalsRemarks && (
+                    <div className="col-span-2">
+                      <Label className="text-sm text-gray-500">Vitals Remarks</Label>
+                      <div className="mt-1 p-3 bg-gray-50 rounded-md border border-gray-200">
+                        <p className="text-gray-900 whitespace-pre-wrap">{viewingVisitVitals.vitalsRemarks}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+          <DialogFooter className="px-6 py-3 flex-shrink-0 border-t">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsViewVisitVitalsDialogOpen(false);
+                setViewingVisitVitals(null);
+              }}
+            >
+              Close
+            </Button>
+            {viewingVisitVitals && (
+              <Button
+                onClick={() => {
+                  setIsViewVisitVitalsDialogOpen(false);
+                  handleOpenEditVisitVitalsDialog(viewingVisitVitals);
+                }}
+              >
+                <Edit className="h-4 w-4 mr-2" />
+                Edit
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

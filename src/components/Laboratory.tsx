@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -8,6 +8,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Badge } from './ui/badge';
 import { TestTube, Search, FileText, Clock, CheckCircle, AlertCircle, Download } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { apiRequest } from '../api/base';
+import { PatientLabTest } from '../api/admissions';
+import { patientsApi } from '../api/patients';
+import { labTestsApi } from '../api/labTests';
+import { doctorsApi } from '../api/doctors';
+import { patientAppointmentsApi } from '../api/patientAppointments';
+import { admissionsApi } from '../api/admissions';
+import { emergencyBedSlotsApi } from '../api/emergencyBedSlots';
+import { LabTest as LabTestType, Doctor } from '../types';
+import { Textarea } from './ui/textarea';
+import { DialogFooter } from './ui/dialog';
 
 interface LabTest {
   id: number;
@@ -498,12 +509,323 @@ const weeklyTestData = [
   { date: 'Nov 14', tests: 63, completed: 45 },
 ];
 
+interface TestStatusCounts {
+  pending?: number;
+  inProgress?: number;
+  in_progress?: number;
+  completed?: number;
+  sampleCollected?: number;
+  sample_collected?: number;
+  reported?: number;
+  total?: number;
+  [key: string]: number | undefined; // Allow for other status variations
+}
+
 export function Laboratory() {
-  const [tests, setTests] = useState<LabTest[]>(mockLabTests);
+  const [tests, setTests] = useState<LabTest[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [selectedTest, setSelectedTest] = useState<LabTest | null>(null);
   const [showReportsDialog, setShowReportsDialog] = useState(false);
+  const [testStatusCounts, setTestStatusCounts] = useState<TestStatusCounts>({});
+  const [countsLoading, setCountsLoading] = useState(false);
+  const [countsError, setCountsError] = useState<string | null>(null);
+  const [testsLoading, setTestsLoading] = useState(true);
+  const [testsError, setTestsError] = useState<string | null>(null);
+
+  // New Lab Order Dialog State
+  const [newLabOrderFormData, setNewLabOrderFormData] = useState({
+    patientId: '',
+    labTestId: '',
+    patientType: 'OPD' as 'IPD' | 'OPD' | 'Emergency',
+    roomAdmissionId: '',
+    appointmentId: '',
+    emergencyBedSlotId: '',
+    priority: 'Normal' as 'Normal' | 'Urgent',
+    testStatus: 'Pending' as 'Pending' | 'InProgress' | 'Completed',
+    labTestDone: 'No' as 'Yes' | 'No',
+    reportsUrl: '',
+    orderedByDoctorId: ''
+  });
+  const [newLabOrderSubmitting, setNewLabOrderSubmitting] = useState(false);
+  const [newLabOrderSubmitError, setNewLabOrderSubmitError] = useState<string | null>(null);
+  
+  // Searchable dropdowns state
+  const [availablePatients, setAvailablePatients] = useState<any[]>([]);
+  const [availableLabTests, setAvailableLabTests] = useState<LabTestType[]>([]);
+  const [availableDoctors, setAvailableDoctors] = useState<Doctor[]>([]);
+  const [availableAppointments, setAvailableAppointments] = useState<any[]>([]);
+  const [availableAdmissions, setAvailableAdmissions] = useState<any[]>([]);
+  const [availableEmergencyBedSlots, setAvailableEmergencyBedSlots] = useState<any[]>([]);
+  
+  const [patientSearchTerm, setPatientSearchTerm] = useState('');
+  const [labTestSearchTerm, setLabTestSearchTerm] = useState('');
+  const [doctorSearchTerm, setDoctorSearchTerm] = useState('');
+  const [showPatientList, setShowPatientList] = useState(false);
+  const [showLabTestList, setShowLabTestList] = useState(false);
+  const [showDoctorList, setShowDoctorList] = useState(false);
+
+  // Fetch test status counts from API
+  useEffect(() => {
+    const fetchTestStatusCounts = async () => {
+      try {
+        setCountsLoading(true);
+        setCountsError(null);
+        console.log('Fetching test status counts from /patient-lab-tests/count/test-status');
+        const response = await apiRequest<any>('/patient-lab-tests/count/test-status');
+        console.log('Test status counts API response:', JSON.stringify(response, null, 2));
+        
+        // Handle different response structures
+        let countsData: any = {};
+        
+        if (response && typeof response === 'object') {
+          // Check if response has a 'counts' object (new API structure)
+          if (response.counts && typeof response.counts === 'object') {
+            countsData = response.counts;
+          }
+          // Check if response has a 'data' object
+          else if (response.data && typeof response.data === 'object') {
+            // Check if data has a 'counts' object
+            if (response.data.counts && typeof response.data.counts === 'object') {
+              countsData = response.data.counts;
+            } else {
+              countsData = response.data;
+            }
+          }
+          // Direct object response
+          else {
+            countsData = response;
+          }
+        }
+        
+        // Map the API response fields to normalized counts
+        // API response structure: { counts: { TotalActiveCount, PendingCount, InProgressCount, CompletedCount, NullStatusCount } }
+        const normalizedCounts: TestStatusCounts = {
+          pending: countsData.PendingCount || countsData.pendingCount || countsData.pending || countsData.Pending || 0,
+          inProgress: countsData.InProgressCount || countsData.inProgressCount || countsData.inProgress || countsData.InProgress || 
+                     countsData.in_progress || countsData.In_Progress || 0,
+          sampleCollected: countsData.SampleCollectedCount || countsData.sampleCollectedCount || 
+                          countsData.sampleCollected || countsData.SampleCollected || 
+                          countsData.sample_collected || countsData.Sample_Collected || 0,
+          completed: countsData.CompletedCount || countsData.completedCount || countsData.completed || countsData.Completed || 0,
+          reported: countsData.ReportedCount || countsData.reportedCount || countsData.reported || countsData.Reported || 0,
+          total: countsData.TotalActiveCount || countsData.totalActiveCount || countsData.total || countsData.Total || 
+                countsData.totalCount || countsData.TotalCount || 0
+        };
+        
+        console.log('Normalized test status counts:', normalizedCounts);
+        setTestStatusCounts(normalizedCounts);
+      } catch (err) {
+        console.error('Error fetching test status counts:', err);
+        setCountsError(err instanceof Error ? err.message : 'Failed to load test status counts');
+        // Fallback to calculated counts from loaded tests
+        setTestStatusCounts({
+          pending: tests.filter(t => t.status === 'Pending').length,
+          inProgress: tests.filter(t => t.status === 'In Progress' || t.status === 'Sample Collected').length,
+          completed: tests.filter(t => t.status === 'Completed' || t.status === 'Reported').length,
+          total: tests.length
+        });
+      } finally {
+        setCountsLoading(false);
+      }
+    };
+
+    fetchTestStatusCounts();
+  }, [tests]); // Include tests in dependency array to update counts when tests change
+
+  // Fetch patient lab tests from API
+  useEffect(() => {
+    const fetchPatientLabTests = async () => {
+      try {
+        setTestsLoading(true);
+        setTestsError(null);
+        console.log('Fetching patient lab tests from /patient-lab-tests/with-details');
+        const response = await apiRequest<any>('/patient-lab-tests/with-details');
+        console.log('Patient lab tests API response (RAW):', JSON.stringify(response, null, 2));
+        
+        // Handle different response structures
+        let labTestsData: any[] = [];
+        
+        if (Array.isArray(response)) {
+          labTestsData = response;
+        } else if (response?.data) {
+          if (Array.isArray(response.data)) {
+            labTestsData = response.data;
+          } else if (response.data.patientLabTests && Array.isArray(response.data.patientLabTests)) {
+            labTestsData = response.data.patientLabTests;
+          } else if (response.data.labTests && Array.isArray(response.data.labTests)) {
+            labTestsData = response.data.labTests;
+          }
+        } else if (response?.patientLabTests && Array.isArray(response.patientLabTests)) {
+          labTestsData = response.patientLabTests;
+        } else if (response?.labTests && Array.isArray(response.labTests)) {
+          labTestsData = response.labTests;
+        }
+        
+        if (!Array.isArray(labTestsData) || labTestsData.length === 0) {
+          console.warn('Patient lab tests response is not an array or is empty:', response);
+          setTests([]);
+          return;
+        }
+        
+        // Helper function to extract field with multiple variations
+        const extractField = (data: any, fieldVariations: string[], defaultValue: any = '') => {
+          for (const field of fieldVariations) {
+            const value = data?.[field];
+            if (value !== undefined && value !== null && value !== '') {
+              return value;
+            }
+          }
+          return defaultValue;
+        };
+        
+        // Map API response to LabTest interface
+        const mappedTests: LabTest[] = labTestsData.map((labTest: any, index: number) => {
+          const patientLabTestsId = extractField(labTest, [
+            'patientLabTestsId', 'PatientLabTestsId', 'patient_lab_tests_id', 'Patient_Lab_Tests_Id',
+            'patientLabTestId', 'PatientLabTestId', 'id', 'Id', 'ID'
+          ], index + 1);
+          
+          const testId = extractField(labTest, [
+            'displayTestId', 'DisplayTestId', 'display_test_id', 'Display_Test_Id',
+            'testId', 'TestId', 'test_id', 'Test_ID',
+            'patientLabTestsId', 'PatientLabTestsId', 'id', 'Id', 'ID'
+          ], `LAB-${patientLabTestsId}`);
+          
+          const patientName = extractField(labTest, [
+            'patientName', 'PatientName', 'patient_name', 'Patient_Name',
+            'patientFullName', 'PatientFullName', 'name', 'Name'
+          ], 'Unknown Patient');
+          
+          const patientId = extractField(labTest, [
+            'patientId', 'PatientId', 'patient_id', 'Patient_ID',
+            'patientID', 'PatientID'
+          ], 'N/A');
+          
+          const testName = extractField(labTest, [
+            'testName', 'TestName', 'test_name', 'Test_Name',
+            'labTestName', 'LabTestName', 'lab_test_name', 'Lab_Test_Name',
+            'name', 'Name'
+          ], 'Unknown Test');
+          
+          const category = extractField(labTest, [
+            'testCategory', 'TestCategory', 'test_category', 'Test_Category',
+            'category', 'Category', 'labTestCategory', 'LabTestCategory'
+          ], 'Other');
+          
+          const orderedBy = extractField(labTest, [
+            'orderedBy', 'OrderedBy', 'ordered_by', 'Ordered_By',
+            'doctorName', 'DoctorName', 'doctor_name', 'Doctor_Name'
+          ], 'N/A');
+          
+          const orderedDate = extractField(labTest, [
+            'orderedDate', 'OrderedDate', 'ordered_date', 'Ordered_Date',
+            'createdDate', 'CreatedDate', 'created_date', 'Created_Date',
+            'date', 'Date'
+          ], new Date().toISOString().split('T')[0]);
+          
+          const orderedTime = extractField(labTest, [
+            'orderedTime', 'OrderedTime', 'ordered_time', 'Ordered_Time',
+            'createdTime', 'CreatedTime', 'created_time', 'Created_Time',
+            'time', 'Time'
+          ], new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }));
+          
+          const priority = extractField(labTest, [
+            'priority', 'Priority', 'testPriority', 'TestPriority'
+          ], 'Routine');
+          
+          const testStatus = extractField(labTest, [
+            'testStatus', 'TestStatus', 'test_status', 'Test_Status',
+            'status', 'Status'
+          ], 'Pending');
+          
+          // Map testStatus to LabTest status format
+          let status: 'Pending' | 'Sample Collected' | 'In Progress' | 'Completed' | 'Reported' = 'Pending';
+          if (testStatus) {
+            const statusLower = String(testStatus).toLowerCase();
+            if (statusLower === 'pending') {
+              status = 'Pending';
+            } else if (statusLower === 'sample collected' || statusLower === 'samplecollected') {
+              status = 'Sample Collected';
+            } else if (statusLower === 'in progress' || statusLower === 'inprogress' || statusLower === 'in_progress') {
+              status = 'In Progress';
+            } else if (statusLower === 'completed' || statusLower === 'done') {
+              status = 'Completed';
+            } else if (statusLower === 'reported') {
+              status = 'Reported';
+            }
+          }
+          
+          const age = extractField(labTest, [
+            'age', 'Age', 'patientAge', 'PatientAge'
+          ], 0);
+          
+          const gender = extractField(labTest, [
+            'gender', 'Gender', 'patientGender', 'PatientGender',
+            'sex', 'Sex'
+          ], 'N/A');
+          
+          const sampleCollectedBy = extractField(labTest, [
+            'sampleCollectedBy', 'SampleCollectedBy', 'sample_collected_by', 'Sample_Collected_By',
+            'collectedBy', 'CollectedBy', 'collected_by', 'Collected_By'
+          ], undefined);
+          
+          const technician = extractField(labTest, [
+            'technician', 'Technician', 'assignedTechnician', 'AssignedTechnician',
+            'tech', 'Tech'
+          ], undefined);
+          
+          const result = extractField(labTest, [
+            'result', 'Result', 'testResult', 'TestResult',
+            'report', 'Report'
+          ], undefined);
+          
+          const reportedDate = extractField(labTest, [
+            'reportedDate', 'ReportedDate', 'reported_date', 'Reported_Date',
+            'resultDate', 'ResultDate', 'result_date', 'Result_Date'
+          ], undefined);
+          
+          const reportedTime = extractField(labTest, [
+            'reportedTime', 'ReportedTime', 'reported_time', 'Reported_Time',
+            'resultTime', 'ResultTime', 'result_time', 'Result_Time'
+          ], undefined);
+          
+          return {
+            id: Number(patientLabTestsId) || index + 1,
+            testId: String(testId),
+            patientName: String(patientName),
+            patientId: String(patientId),
+            age: Number(age) || 0,
+            gender: String(gender),
+            testName: String(testName),
+            category: (category as 'Blood Test' | 'Urine Test' | 'Imaging' | 'Pathology' | 'Radiology' | 'Other') || 'Other',
+            orderedBy: String(orderedBy),
+            orderedDate: String(orderedDate),
+            orderedTime: String(orderedTime),
+            priority: (priority as 'Routine' | 'Urgent' | 'Emergency') || 'Routine',
+            status: status,
+            sampleCollectedBy: sampleCollectedBy ? String(sampleCollectedBy) : undefined,
+            technician: technician ? String(technician) : undefined,
+            result: result ? String(result) : undefined,
+            reportedDate: reportedDate ? String(reportedDate) : undefined,
+            reportedTime: reportedTime ? String(reportedTime) : undefined
+          };
+        });
+        
+        console.log('Mapped patient lab tests:', mappedTests);
+        setTests(mappedTests);
+      } catch (err) {
+        console.error('Error fetching patient lab tests:', err);
+        setTestsError(err instanceof Error ? err.message : 'Failed to load patient lab tests');
+        // Fallback to empty array or mock data
+        setTests([]);
+      } finally {
+        setTestsLoading(false);
+      }
+    };
+
+    fetchPatientLabTests();
+  }, []); // Empty dependency array - fetch once on mount
 
   const filteredTests = tests.filter(test =>
     test.patientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -515,9 +837,176 @@ export function Laboratory() {
     return filteredTests.filter(t => t.status === status);
   };
 
-  const pendingCount = tests.filter(t => t.status === 'Pending').length;
-  const inProgressCount = tests.filter(t => t.status === 'In Progress' || t.status === 'Sample Collected').length;
-  const completedCount = tests.filter(t => t.status === 'Completed' || t.status === 'Reported').length;
+  // Use API counts if available, otherwise fallback to calculated counts
+  const pendingCount = testStatusCounts.pending !== undefined ? testStatusCounts.pending : tests.filter(t => t.status === 'Pending').length;
+  const inProgressCount = testStatusCounts.inProgress !== undefined ? testStatusCounts.inProgress : 
+                         (testStatusCounts.sampleCollected !== undefined ? testStatusCounts.sampleCollected : 0) +
+                         tests.filter(t => t.status === 'In Progress' || t.status === 'Sample Collected').length;
+  const completedCount = testStatusCounts.completed !== undefined ? testStatusCounts.completed : 
+                        (testStatusCounts.reported !== undefined ? testStatusCounts.reported : 0) +
+                        tests.filter(t => t.status === 'Completed' || t.status === 'Reported').length;
+  const totalCount = testStatusCounts.total !== undefined ? testStatusCounts.total : tests.length;
+
+  // Handle opening New Lab Order dialog
+  const handleOpenNewLabOrderDialog = async () => {
+    try {
+      // Fetch all required data
+      const [patientsData, labTestsData, doctorsData] = await Promise.all([
+        patientsApi.getAll(),
+        labTestsApi.getAll(),
+        doctorsApi.getAll()
+      ]);
+      
+      setAvailablePatients(patientsData);
+      setAvailableLabTests(labTestsData);
+      setAvailableDoctors(doctorsData);
+      
+      // Reset form
+      setNewLabOrderFormData({
+        patientId: '',
+        labTestId: '',
+        patientType: 'OPD',
+        roomAdmissionId: '',
+        appointmentId: '',
+        emergencyBedSlotId: '',
+        priority: 'Normal',
+        testStatus: 'Pending',
+        labTestDone: 'No',
+        reportsUrl: '',
+        orderedByDoctorId: ''
+      });
+      
+      setPatientSearchTerm('');
+      setLabTestSearchTerm('');
+      setDoctorSearchTerm('');
+      setShowPatientList(false);
+      setShowLabTestList(false);
+      setShowDoctorList(false);
+      setNewLabOrderSubmitError(null);
+    } catch (err) {
+      console.error('Error fetching data for new lab order:', err);
+    }
+  };
+
+  // Handle PatientType change - fetch conditional data
+  const handlePatientTypeChange = async (patientType: 'IPD' | 'OPD' | 'Emergency') => {
+    setNewLabOrderFormData({
+      ...newLabOrderFormData,
+      patientType,
+      roomAdmissionId: '',
+      appointmentId: '',
+      emergencyBedSlotId: ''
+    });
+
+    try {
+      if (patientType === 'IPD') {
+        const admissions = await admissionsApi.getAll();
+        setAvailableAdmissions(admissions);
+      } else if (patientType === 'OPD') {
+        const appointments = await patientAppointmentsApi.getAll({ status: 'Active' });
+        setAvailableAppointments(appointments);
+      } else if (patientType === 'Emergency') {
+        const bedSlots = await emergencyBedSlotsApi.getAll('Active');
+        setAvailableEmergencyBedSlots(bedSlots);
+      }
+    } catch (err) {
+      console.error(`Error fetching ${patientType} data:`, err);
+    }
+  };
+
+  // Handle saving New Lab Order
+  const handleSaveNewLabOrder = async () => {
+    try {
+      setNewLabOrderSubmitting(true);
+      setNewLabOrderSubmitError(null);
+
+      // Validate required fields
+      if (!newLabOrderFormData.patientId) {
+        throw new Error('Patient is required');
+      }
+      if (!newLabOrderFormData.labTestId) {
+        throw new Error('Lab Test is required');
+      }
+      if (!newLabOrderFormData.orderedByDoctorId) {
+        throw new Error('Ordered By Doctor is required');
+      }
+
+      // Validate conditional fields based on PatientType
+      if (newLabOrderFormData.patientType === 'IPD' && !newLabOrderFormData.roomAdmissionId) {
+        throw new Error('Room Admission ID is required for IPD');
+      }
+      if (newLabOrderFormData.patientType === 'OPD' && !newLabOrderFormData.appointmentId) {
+        throw new Error('Appointment ID is required for OPD');
+      }
+      if (newLabOrderFormData.patientType === 'Emergency' && !newLabOrderFormData.emergencyBedSlotId) {
+        throw new Error('Emergency Bed Slot ID is required for Emergency');
+      }
+
+      // Construct payload
+      const payload: any = {
+        PatientId: newLabOrderFormData.patientId,
+        LabTestId: Number(newLabOrderFormData.labTestId),
+        PatientType: newLabOrderFormData.patientType,
+        Priority: newLabOrderFormData.priority,
+        TestStatus: newLabOrderFormData.testStatus,
+        LabTestDone: newLabOrderFormData.labTestDone,
+        OrderedByDoctorId: Number(newLabOrderFormData.orderedByDoctorId),
+        OrderedDate: new Date().toISOString().split('T')[0]
+      };
+
+      // Add conditional fields
+      if (newLabOrderFormData.patientType === 'IPD' && newLabOrderFormData.roomAdmissionId) {
+        payload.RoomAdmissionId = Number(newLabOrderFormData.roomAdmissionId);
+      }
+      if (newLabOrderFormData.patientType === 'OPD' && newLabOrderFormData.appointmentId) {
+        payload.AppointmentId = Number(newLabOrderFormData.appointmentId);
+      }
+      if (newLabOrderFormData.patientType === 'Emergency' && newLabOrderFormData.emergencyBedSlotId) {
+        payload.EmergencyBedSlotId = Number(newLabOrderFormData.emergencyBedSlotId);
+      }
+
+      // Add optional fields
+      if (newLabOrderFormData.reportsUrl) {
+        payload.ReportsUrl = newLabOrderFormData.reportsUrl;
+      }
+
+      console.log('Saving new lab order with payload:', payload);
+      await apiRequest('/patient-lab-tests', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+
+      // Close dialog and reset form
+      setIsAddDialogOpen(false);
+      setNewLabOrderFormData({
+        patientId: '',
+        labTestId: '',
+        patientType: 'OPD',
+        roomAdmissionId: '',
+        appointmentId: '',
+        emergencyBedSlotId: '',
+        priority: 'Normal',
+        testStatus: 'Pending',
+        labTestDone: 'No',
+        reportsUrl: '',
+        orderedByDoctorId: ''
+      });
+      setPatientSearchTerm('');
+      setLabTestSearchTerm('');
+      setDoctorSearchTerm('');
+      setShowPatientList(false);
+      setShowLabTestList(false);
+      setShowDoctorList(false);
+      
+      // Refresh the tests list by calling the fetch function
+      window.location.reload(); // Simple refresh for now - could be optimized to refetch only
+    } catch (err) {
+      console.error('Error saving new lab order:', err);
+      setNewLabOrderSubmitError(err instanceof Error ? err.message : 'Failed to save lab order');
+    } finally {
+      setNewLabOrderSubmitting(false);
+    }
+  };
 
   return (
     <div className="flex-1 bg-blue-100 flex flex-col overflow-hidden min-h-0">
@@ -532,62 +1021,367 @@ export function Laboratory() {
             <FileText className="size-4" />
             View Reports
           </Button>
-          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+          <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
+            setIsAddDialogOpen(open);
+            if (open) {
+              handleOpenNewLabOrderDialog();
+            }
+          }}>
             <DialogTrigger asChild>
-              <Button className="gap-2">
+              <Button className="gap-2" onClick={handleOpenNewLabOrderDialog}>
                 <TestTube className="size-4" />
                 New Lab Order
               </Button>
             </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Create Lab Test Order</DialogTitle>
+            <DialogContent className="p-0 gap-0 large-dialog max-w-4xl">
+              <DialogHeader className="px-6 pt-4 pb-3 flex-shrink-0">
+                <DialogTitle>New Lab Order</DialogTitle>
               </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="grid grid-cols-2 gap-4">
+              <div className="flex-1 overflow-y-auto px-6 pb-1 patient-list-scrollable min-h-0">
+                <div className="space-y-4 py-4">
+                  {/* Patient Selection - Searchable */}
                   <div>
-                    <Label htmlFor="patientId">Patient ID</Label>
-                    <Input id="patientId" placeholder="Enter patient ID" />
+                    <Label htmlFor="patientId">Patient *</Label>
+                    <div className="relative">
+                      <Input
+                        id="patientId"
+                        placeholder="Search patient by name, ID, or phone..."
+                        value={patientSearchTerm}
+                        onChange={(e) => {
+                          setPatientSearchTerm(e.target.value);
+                          setShowPatientList(true);
+                        }}
+                        onFocus={() => setShowPatientList(true)}
+                      />
+                      {showPatientList && availablePatients.length > 0 && (
+                        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                          <table className="w-full text-sm">
+                            <thead className="bg-gray-50 sticky top-0">
+                              <tr>
+                                <th className="py-2 px-3 text-left text-xs font-medium text-gray-700">Patient No</th>
+                                <th className="py-2 px-3 text-left text-xs font-medium text-gray-700">Name</th>
+                                <th className="py-2 px-3 text-left text-xs font-medium text-gray-700">Phone</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {availablePatients.filter((patient: any) => {
+                                if (!patientSearchTerm) return true;
+                                const searchLower = patientSearchTerm.toLowerCase();
+                                const patientId = (patient as any).patientId || (patient as any).PatientId || '';
+                                const patientNo = (patient as any).patientNo || (patient as any).PatientNo || '';
+                                const patientName = (patient as any).patientName || (patient as any).PatientName || '';
+                                const lastName = (patient as any).lastName || (patient as any).LastName || '';
+                                const fullName = `${patientName} ${lastName}`.trim();
+                                const phoneNo = (patient as any).phoneNo || (patient as any).PhoneNo || (patient as any).phone || '';
+                                return (
+                                  patientId.toLowerCase().includes(searchLower) ||
+                                  patientNo.toLowerCase().includes(searchLower) ||
+                                  fullName.toLowerCase().includes(searchLower) ||
+                                  phoneNo.includes(patientSearchTerm)
+                                );
+                              }).map((patient: any) => {
+                                const patientId = (patient as any).patientId || (patient as any).PatientId || '';
+                                const patientNo = (patient as any).patientNo || (patient as any).PatientNo || patientId.substring(0, 8);
+                                const patientName = (patient as any).patientName || (patient as any).PatientName || '';
+                                const lastName = (patient as any).lastName || (patient as any).LastName || '';
+                                const fullName = `${patientName} ${lastName}`.trim();
+                                const phoneNo = (patient as any).phoneNo || (patient as any).PhoneNo || (patient as any).phone || '';
+                                const isSelected = newLabOrderFormData.patientId === patientId;
+                                return (
+                                  <tr
+                                    key={patientId}
+                                    onClick={() => {
+                                      setNewLabOrderFormData({ ...newLabOrderFormData, patientId });
+                                      setPatientSearchTerm(`${patientNo ? `${patientNo} - ` : ''}${fullName || 'Unknown'}`);
+                                      setShowPatientList(false);
+                                    }}
+                                    className={`border-b border-gray-100 cursor-pointer hover:bg-blue-50 ${isSelected ? 'bg-blue-100' : ''}`}
+                                  >
+                                    <td className="py-2 px-3 text-sm text-gray-900 font-mono">{patientNo}</td>
+                                    <td className="py-2 px-3 text-sm text-gray-600">{fullName || 'Unknown'}</td>
+                                    <td className="py-2 px-3 text-sm text-gray-600">{phoneNo || '-'}</td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
                   </div>
+
+                  {/* Lab Test Selection - Searchable */}
                   <div>
-                    <Label htmlFor="patientName">Patient Name</Label>
-                    <Input id="patientName" placeholder="Enter patient name" />
+                    <Label htmlFor="labTestId">Lab Test *</Label>
+                    <div className="relative">
+                      <Input
+                        id="labTestId"
+                        placeholder="Search lab test by name..."
+                        value={labTestSearchTerm}
+                        onChange={(e) => {
+                          setLabTestSearchTerm(e.target.value);
+                          setShowLabTestList(true);
+                        }}
+                        onFocus={() => setShowLabTestList(true)}
+                      />
+                      {showLabTestList && availableLabTests.length > 0 && (
+                        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                          <table className="w-full text-sm">
+                            <thead className="bg-gray-50 sticky top-0">
+                              <tr>
+                                <th className="py-2 px-3 text-left text-xs font-medium text-gray-700">Test Name</th>
+                                <th className="py-2 px-3 text-left text-xs font-medium text-gray-700">Category</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {availableLabTests.filter((test: any) => {
+                                if (!labTestSearchTerm) return true;
+                                const searchLower = labTestSearchTerm.toLowerCase();
+                                const testName = test.labTestName || test.LabTestName || test.name || test.Name || '';
+                                return testName.toLowerCase().includes(searchLower);
+                              }).map((test: any) => {
+                                const testId = test.labTestId || test.LabTestId || test.id || test.Id || '';
+                                const testName = test.labTestName || test.LabTestName || test.name || test.Name || '';
+                                const category = test.testCategory || test.TestCategory || test.category || test.Category || '';
+                                const isSelected = newLabOrderFormData.labTestId === String(testId);
+                                return (
+                                  <tr
+                                    key={testId}
+                                    onClick={() => {
+                                      setNewLabOrderFormData({ ...newLabOrderFormData, labTestId: String(testId) });
+                                      setLabTestSearchTerm(testName);
+                                      setShowLabTestList(false);
+                                    }}
+                                    className={`border-b border-gray-100 cursor-pointer hover:bg-blue-50 ${isSelected ? 'bg-blue-100' : ''}`}
+                                  >
+                                    <td className="py-2 px-3 text-sm text-gray-900">{testName}</td>
+                                    <td className="py-2 px-3 text-sm text-gray-600">{category || '-'}</td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-                <div>
-                  <Label htmlFor="testName">Test Name</Label>
-                  <Input id="testName" placeholder="Enter test name" />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
+
+                  {/* Patient Type */}
                   <div>
-                    <Label htmlFor="category">Category</Label>
-                    <select id="category" aria-label="Category" className="w-full px-3 py-2 border border-gray-200 rounded-md">
-                      <option value="Blood Test">Blood Test</option>
-                      <option value="Urine Test">Urine Test</option>
-                      <option value="Imaging">Imaging</option>
-                      <option value="Pathology">Pathology</option>
-                      <option value="Radiology">Radiology</option>
-                      <option value="Other">Other</option>
-                    </select>
-                  </div>
-                  <div>
-                    <Label htmlFor="priority">Priority</Label>
-                    <select id="priority" aria-label="Priority" className="w-full px-3 py-2 border border-gray-200 rounded-md">
-                      <option value="Routine">Routine</option>
-                      <option value="Urgent">Urgent</option>
+                    <Label htmlFor="patientType">Patient Type *</Label>
+                    <select
+                      id="patientType"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                      value={newLabOrderFormData.patientType}
+                      onChange={(e) => handlePatientTypeChange(e.target.value as 'IPD' | 'OPD' | 'Emergency')}
+                    >
+                      <option value="OPD">OPD</option>
+                      <option value="IPD">IPD</option>
                       <option value="Emergency">Emergency</option>
                     </select>
                   </div>
-                </div>
-                <div>
-                  <Label htmlFor="orderedBy">Ordered By (Doctor)</Label>
-                  <Input id="orderedBy" placeholder="Doctor name" />
+
+                  {/* Conditional Fields based on PatientType */}
+                  {newLabOrderFormData.patientType === 'IPD' && (
+                    <div>
+                      <Label htmlFor="roomAdmissionId">Room Admission ID *</Label>
+                      <select
+                        id="roomAdmissionId"
+                        className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                        value={newLabOrderFormData.roomAdmissionId}
+                        onChange={(e) => setNewLabOrderFormData({ ...newLabOrderFormData, roomAdmissionId: e.target.value })}
+                      >
+                        <option value="">Select Room Admission</option>
+                        {availableAdmissions.map((admission: any) => {
+                          const admissionId = admission.roomAdmissionId || admission.admissionId || admission.id || '';
+                          const patientName = admission.patientName || admission.PatientName || '';
+                          const bedNumber = admission.bedNumber || admission.BedNumber || '';
+                          return (
+                            <option key={admissionId} value={String(admissionId)}>
+                              {patientName} - Bed {bedNumber}
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </div>
+                  )}
+
+                  {newLabOrderFormData.patientType === 'OPD' && (
+                    <div>
+                      <Label htmlFor="appointmentId">Appointment ID *</Label>
+                      <select
+                        id="appointmentId"
+                        className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                        value={newLabOrderFormData.appointmentId}
+                        onChange={(e) => setNewLabOrderFormData({ ...newLabOrderFormData, appointmentId: e.target.value })}
+                      >
+                        <option value="">Select Appointment</option>
+                        {availableAppointments.map((appointment: any) => {
+                          const appointmentId = appointment.id || appointment.patientAppointmentId || '';
+                          const tokenNo = appointment.tokenNo || appointment.TokenNo || '';
+                          return (
+                            <option key={appointmentId} value={String(appointmentId)}>
+                              {tokenNo} - {appointment.patientId?.substring(0, 8) || ''}
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </div>
+                  )}
+
+                  {newLabOrderFormData.patientType === 'Emergency' && (
+                    <div>
+                      <Label htmlFor="emergencyBedSlotId">Emergency Bed Slot ID *</Label>
+                      <select
+                        id="emergencyBedSlotId"
+                        className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                        value={newLabOrderFormData.emergencyBedSlotId}
+                        onChange={(e) => setNewLabOrderFormData({ ...newLabOrderFormData, emergencyBedSlotId: e.target.value })}
+                      >
+                        <option value="">Select Emergency Bed Slot</option>
+                        {availableEmergencyBedSlots.map((slot: any) => {
+                          const slotId = slot.emergencyBedSlotId || slot.id || slot.EmergencyBedSlotId || '';
+                          const slotNo = slot.eBedSlotNo || slot.EBedSlotNo || slot.slotNo || '';
+                          return (
+                            <option key={slotId} value={String(slotId)}>
+                              Slot {slotNo}
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </div>
+                  )}
+
+                  {/* Priority */}
+                  <div>
+                    <Label htmlFor="priority">Priority *</Label>
+                    <select
+                      id="priority"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                      value={newLabOrderFormData.priority}
+                      onChange={(e) => setNewLabOrderFormData({ ...newLabOrderFormData, priority: e.target.value as 'Normal' | 'Urgent' })}
+                    >
+                      <option value="Normal">Normal</option>
+                      <option value="Urgent">Urgent</option>
+                    </select>
+                  </div>
+
+                  {/* Test Status */}
+                  <div>
+                    <Label htmlFor="testStatus">Test Status *</Label>
+                    <select
+                      id="testStatus"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                      value={newLabOrderFormData.testStatus}
+                      onChange={(e) => setNewLabOrderFormData({ ...newLabOrderFormData, testStatus: e.target.value as 'Pending' | 'InProgress' | 'Completed' })}
+                    >
+                      <option value="Pending">Pending</option>
+                      <option value="InProgress">InProgress</option>
+                      <option value="Completed">Completed</option>
+                    </select>
+                  </div>
+
+                  {/* Lab Test Done */}
+                  <div>
+                    <Label htmlFor="labTestDone">Lab Test Done *</Label>
+                    <select
+                      id="labTestDone"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                      value={newLabOrderFormData.labTestDone}
+                      onChange={(e) => setNewLabOrderFormData({ ...newLabOrderFormData, labTestDone: e.target.value as 'Yes' | 'No' })}
+                    >
+                      <option value="No">No</option>
+                      <option value="Yes">Yes</option>
+                    </select>
+                  </div>
+
+                  {/* Report URL */}
+                  <div>
+                    <Label htmlFor="reportsUrl">Report URL</Label>
+                    <Input
+                      id="reportsUrl"
+                      placeholder="Enter report URL (optional)"
+                      value={newLabOrderFormData.reportsUrl}
+                      onChange={(e) => setNewLabOrderFormData({ ...newLabOrderFormData, reportsUrl: e.target.value })}
+                    />
+                  </div>
+
+                  {/* Ordered By Doctor - Searchable */}
+                  <div>
+                    <Label htmlFor="orderedByDoctorId">Ordered By Doctor *</Label>
+                    <div className="relative">
+                      <Input
+                        id="orderedByDoctorId"
+                        placeholder="Search doctor by name..."
+                        value={doctorSearchTerm}
+                        onChange={(e) => {
+                          setDoctorSearchTerm(e.target.value);
+                          setShowDoctorList(true);
+                        }}
+                        onFocus={() => setShowDoctorList(true)}
+                      />
+                      {showDoctorList && availableDoctors.length > 0 && (
+                        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                          <table className="w-full text-sm">
+                            <thead className="bg-gray-50 sticky top-0">
+                              <tr>
+                                <th className="py-2 px-3 text-left text-xs font-medium text-gray-700">Doctor Name</th>
+                                <th className="py-2 px-3 text-left text-xs font-medium text-gray-700">Specialization</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {availableDoctors.filter((doctor: any) => {
+                                if (!doctorSearchTerm) return true;
+                                const searchLower = doctorSearchTerm.toLowerCase();
+                                const doctorName = doctor.name || doctor.Name || doctor.doctorName || doctor.DoctorName || '';
+                                const specialization = doctor.specialization || doctor.Specialization || doctor.speciality || doctor.Speciality || '';
+                                return (
+                                  doctorName.toLowerCase().includes(searchLower) ||
+                                  specialization.toLowerCase().includes(searchLower)
+                                );
+                              }).map((doctor: any) => {
+                                const doctorId = doctor.id || doctor.Id || doctor.doctorId || doctor.DoctorId || '';
+                                const doctorName = doctor.name || doctor.Name || doctor.doctorName || doctor.DoctorName || '';
+                                const specialization = doctor.specialization || doctor.Specialization || doctor.speciality || doctor.Speciality || '';
+                                const isSelected = newLabOrderFormData.orderedByDoctorId === String(doctorId);
+                                return (
+                                  <tr
+                                    key={doctorId}
+                                    onClick={() => {
+                                      setNewLabOrderFormData({ ...newLabOrderFormData, orderedByDoctorId: String(doctorId) });
+                                      setDoctorSearchTerm(doctorName);
+                                      setShowDoctorList(false);
+                                    }}
+                                    className={`border-b border-gray-100 cursor-pointer hover:bg-blue-50 ${isSelected ? 'bg-blue-100' : ''}`}
+                                  >
+                                    <td className="py-2 px-3 text-sm text-gray-900">{doctorName}</td>
+                                    <td className="py-2 px-3 text-sm text-gray-600">{specialization || '-'}</td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Error Message */}
+                  {newLabOrderSubmitError && (
+                    <div className="text-red-600 text-sm bg-red-50 p-3 rounded-md">
+                      {newLabOrderSubmitError}
+                    </div>
+                  )}
                 </div>
               </div>
-              <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>Cancel</Button>
-                <Button onClick={() => setIsAddDialogOpen(false)}>Create Order</Button>
-              </div>
+              <DialogFooter className="px-6 py-3 flex-shrink-0 border-t">
+                <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleSaveNewLabOrder} disabled={newLabOrderSubmitting}>
+                  {newLabOrderSubmitting ? 'Saving...' : 'Save Lab Order'}
+                </Button>
+              </DialogFooter>
             </DialogContent>
           </Dialog>
           </div>
@@ -603,8 +1397,16 @@ export function Laboratory() {
               <p className="text-sm text-gray-500">Total Tests Today</p>
               <TestTube className="size-5 text-blue-600" />
             </div>
-            <h3 className="text-gray-900">{tests.length}</h3>
-            <p className="text-xs text-gray-500">Active orders</p>
+            {countsLoading ? (
+              <div className="animate-pulse">
+                <div className="h-8 bg-gray-200 rounded w-16"></div>
+              </div>
+            ) : (
+              <>
+                <h3 className="text-gray-900">{totalCount}</h3>
+                <p className="text-xs text-gray-500">Active orders</p>
+              </>
+            )}
           </CardContent>
         </Card>
 
@@ -614,8 +1416,16 @@ export function Laboratory() {
               <p className="text-sm text-gray-500">Pending</p>
               <Clock className="size-5 text-orange-600" />
             </div>
-            <h3 className="text-gray-900">{pendingCount}</h3>
-            <p className="text-xs text-gray-500">Awaiting sample</p>
+            {countsLoading ? (
+              <div className="animate-pulse">
+                <div className="h-8 bg-gray-200 rounded w-16"></div>
+              </div>
+            ) : (
+              <>
+                <h3 className="text-gray-900">{pendingCount}</h3>
+                <p className="text-xs text-gray-500">Awaiting sample</p>
+              </>
+            )}
           </CardContent>
         </Card>
 
@@ -625,8 +1435,16 @@ export function Laboratory() {
               <p className="text-sm text-gray-500">In Progress</p>
               <AlertCircle className="size-5 text-blue-600" />
             </div>
-            <h3 className="text-gray-900">{inProgressCount}</h3>
-            <p className="text-xs text-gray-500">Being processed</p>
+            {countsLoading ? (
+              <div className="animate-pulse">
+                <div className="h-8 bg-gray-200 rounded w-16"></div>
+              </div>
+            ) : (
+              <>
+                <h3 className="text-gray-900">{inProgressCount}</h3>
+                <p className="text-xs text-gray-500">Being processed</p>
+              </>
+            )}
           </CardContent>
         </Card>
 
@@ -636,8 +1454,16 @@ export function Laboratory() {
               <p className="text-sm text-gray-500">Completed</p>
               <CheckCircle className="size-5 text-green-600" />
             </div>
-            <h3 className="text-gray-900">{completedCount}</h3>
-            <p className="text-xs text-gray-500">Reports ready</p>
+            {countsLoading ? (
+              <div className="animate-pulse">
+                <div className="h-8 bg-gray-200 rounded w-16"></div>
+              </div>
+            ) : (
+              <>
+                <h3 className="text-gray-900">{completedCount}</h3>
+                <p className="text-xs text-gray-500">Reports ready</p>
+              </>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -658,33 +1484,55 @@ export function Laboratory() {
       </Card>
 
       {/* Tests List */}
-      <Tabs defaultValue="all" className="space-y-6">
-        <TabsList>
-          <TabsTrigger value="all">All Tests ({filteredTests.length})</TabsTrigger>
-          <TabsTrigger value="pending">Pending ({getTestsByStatus('Pending').length})</TabsTrigger>
-          <TabsTrigger value="progress">In Progress ({getTestsByStatus('In Progress').length + getTestsByStatus('Sample Collected').length})</TabsTrigger>
-          <TabsTrigger value="completed">Completed ({getTestsByStatus('Completed').length + getTestsByStatus('Reported').length})</TabsTrigger>
-        </TabsList>
+      {testsLoading ? (
+        <Card className="mb-4">
+          <CardContent className="p-6">
+            <div className="text-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+              <p className="text-gray-500">Loading lab tests...</p>
+            </div>
+          </CardContent>
+        </Card>
+      ) : testsError ? (
+        <Card className="mb-4">
+          <CardContent className="p-6">
+            <div className="text-center py-12">
+              <p className="text-red-600 mb-2">{testsError}</p>
+              <Button variant="outline" onClick={() => window.location.reload()}>
+                Retry
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <Tabs defaultValue="all" className="space-y-6">
+          <TabsList>
+            <TabsTrigger value="all">All Tests ({filteredTests.length})</TabsTrigger>
+            <TabsTrigger value="pending">Pending ({getTestsByStatus('Pending').length})</TabsTrigger>
+            <TabsTrigger value="progress">In Progress ({getTestsByStatus('In Progress').length + getTestsByStatus('Sample Collected').length})</TabsTrigger>
+            <TabsTrigger value="completed">Completed ({getTestsByStatus('Completed').length + getTestsByStatus('Reported').length})</TabsTrigger>
+          </TabsList>
 
-        <TabsContent value="all">
-          <TestsList tests={filteredTests} onSelectTest={setSelectedTest} />
-        </TabsContent>
-        <TabsContent value="pending">
-          <TestsList tests={getTestsByStatus('Pending')} onSelectTest={setSelectedTest} />
-        </TabsContent>
-        <TabsContent value="progress">
-          <TestsList 
-            tests={[...getTestsByStatus('In Progress'), ...getTestsByStatus('Sample Collected')]} 
-            onSelectTest={setSelectedTest} 
-          />
-        </TabsContent>
-        <TabsContent value="completed">
-          <TestsList 
-            tests={[...getTestsByStatus('Completed'), ...getTestsByStatus('Reported')]} 
-            onSelectTest={setSelectedTest} 
-          />
-        </TabsContent>
-      </Tabs>
+          <TabsContent value="all">
+            <TestsList tests={filteredTests} onSelectTest={setSelectedTest} />
+          </TabsContent>
+          <TabsContent value="pending">
+            <TestsList tests={getTestsByStatus('Pending')} onSelectTest={setSelectedTest} />
+          </TabsContent>
+          <TabsContent value="progress">
+            <TestsList 
+              tests={[...getTestsByStatus('In Progress'), ...getTestsByStatus('Sample Collected')]} 
+              onSelectTest={setSelectedTest} 
+            />
+          </TabsContent>
+          <TabsContent value="completed">
+            <TestsList 
+              tests={[...getTestsByStatus('Completed'), ...getTestsByStatus('Reported')]} 
+              onSelectTest={setSelectedTest} 
+            />
+          </TabsContent>
+        </Tabs>
+      )}
       </div>
 
       {/* Test Details Dialog */}
