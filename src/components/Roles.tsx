@@ -1,12 +1,12 @@
 // Role Management Component - Separated UI from logic
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Card, CardContent } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
-import { Plus, Trash2, Edit, Shield } from 'lucide-react';
+import { Plus, Trash2, Edit, Shield, Search } from 'lucide-react';
 import { useRoles } from '../hooks/useRoles';
 import { Role } from '../types/roles';
 
@@ -53,7 +53,7 @@ export function Roles() {
     }
   };
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to delete this role? This action cannot be undone.')) {
       try {
         await deleteRole(id);
@@ -65,16 +65,24 @@ export function Roles() {
 
   if (loading) {
     return (
-      <div className="p-8 bg-blue-100 min-h-full">
-        <div className="text-center py-12 text-blue-600">Loading roles...</div>
+      <div className="flex-1 bg-gray-50 flex flex-col overflow-hidden min-h-0">
+        <div className="overflow-y-auto overflow-x-hidden flex-1 flex flex-col min-h-0">
+          <div className="px-6 pt-6 pb-0 flex-shrink-0">
+            <div className="text-center py-12 text-gray-600">Loading roles...</div>
+          </div>
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="p-8 bg-blue-100 min-h-full">
-        <div className="text-center py-12 text-red-500">Error: {error}</div>
+      <div className="flex-1 bg-gray-50 flex flex-col overflow-hidden min-h-0">
+        <div className="overflow-y-auto overflow-x-hidden flex-1 flex flex-col min-h-0">
+          <div className="px-6 pt-6 pb-0 flex-shrink-0">
+            <div className="text-center py-12 text-red-600">Error: {error}</div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -98,12 +106,28 @@ function RolesView({
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState({
     RoleName: '',
     RoleDescription: '',
     permissions: [] as string[],
   });
   const [newPermission, setNewPermission] = useState('');
+
+  // Filter roles based on search term
+  const filteredRoles = useMemo(() => {
+    if (!searchTerm) return roles;
+    const searchLower = searchTerm.toLowerCase();
+    return roles.filter(role => {
+      const name = (role.name || '').toLowerCase();
+      const description = (role.description || '').toLowerCase();
+      const permissions = (role.permissions || []).join(' ').toLowerCase();
+      
+      return name.includes(searchLower) ||
+             description.includes(searchLower) ||
+             permissions.includes(searchLower);
+    });
+  }, [roles, searchTerm]);
 
   const handleAddSubmit = async () => {
     try {
@@ -175,233 +199,263 @@ function RolesView({
 
   return (
     <>
-      <div className="px-4 pt-4 pb-4 bg-blue-100 h-screen flex flex-col overflow-hidden">
-        <div className="flex items-center justify-between mb-4 flex-shrink-0">
-          <div>
-            <h1 className="text-gray-900 mb-0 text-xl">Role Management</h1>
-            <p className="text-gray-500 text-sm">Manage user roles and permissions</p>
-          </div>
-          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="gap-2">
-                <Plus className="size-4" />
-                Add Role
-              </Button>
-            </DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Add New Role</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4 py-4">
-          <div>
-            <Label htmlFor="name">Role Name</Label>
-            <Input
-              id="name"
-              placeholder="Enter role name (e.g., Superadmin, Doctor, Nurse)"
-              value={formData.RoleName}
-              onChange={(e) => setFormData({ ...formData, RoleName: e.target.value })}
-            />
-          </div>
-          <div>
-            <Label htmlFor="description">Description</Label>
-            <Textarea
-              id="description"
-              placeholder="Enter role description..."
-              value={formData.RoleDescription}
-              onChange={(e) => setFormData({ ...formData, RoleDescription: e.target.value })}
-              rows={3}
-            />
-          </div>
-          <div>
-            <Label htmlFor="permissions">Permissions</Label>
-            <div className="flex flex-wrap gap-2 mb-2">
-              {formData.permissions.map((permission, index) => (
-                <span
-                  key={index}
-                  className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm flex items-center gap-2"
-                >
-                  {permission}
-                  <button
-                    onClick={() => removePermission(permission)}
-                    className="text-blue-700 hover:text-blue-900"
-                  >
-                    ×
-                  </button>
-                </span>
-              ))}
+      <div className="flex-1 bg-gray-50 flex flex-col overflow-hidden min-h-0 dashboard-scrollable" style={{ maxHeight: '100vh', minHeight: 0 }}>
+        <div className="overflow-y-auto overflow-x-hidden flex-1 flex flex-col min-h-0">
+          <div className="px-6 pt-6 pb-0 flex-shrink-0">
+            <div className="flex items-center justify-between mb-4 flex-shrink-0">
+              <div>
+                <h1 className="text-gray-900 mb-2 text-2xl">Role Management</h1>
+                <p className="text-gray-500 text-base">Manage user roles and permissions</p>
+              </div>
+              <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button className="gap-2">
+                    <Plus className="size-4" />
+                    Add Role
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="p-0 gap-0 large-dialog bg-white">
+                  <DialogHeader className="px-6 pt-4 pb-3 flex-shrink-0 bg-white">
+                    <DialogTitle className="text-gray-700">Add New Role</DialogTitle>
+                  </DialogHeader>
+                  <div className="flex-1 overflow-y-auto px-6 pb-1 patient-list-scrollable min-h-0 bg-white">
+                    <div className="space-y-4 py-4">
+                      <div>
+                        <Label htmlFor="name" className="text-gray-600">Role Name</Label>
+                        <Input
+                          id="name"
+                          placeholder="Enter role name (e.g., Superadmin, Doctor, Nurse)"
+                          value={formData.RoleName}
+                          onChange={(e) => setFormData({ ...formData, RoleName: e.target.value })}
+                          className="bg-gray-50 text-gray-900"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="description" className="text-gray-600">Description</Label>
+                        <Textarea
+                          id="description"
+                          placeholder="Enter role description..."
+                          value={formData.RoleDescription}
+                          onChange={(e) => setFormData({ ...formData, RoleDescription: e.target.value })}
+                          rows={3}
+                          className="bg-gray-50 text-gray-900"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="permissions" className="text-gray-600">Permissions</Label>
+                        <div className="flex flex-wrap gap-2 mb-2">
+                          {formData.permissions.map((permission, index) => (
+                            <span
+                              key={index}
+                              className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm flex items-center gap-2"
+                            >
+                              {permission}
+                              <button
+                                onClick={() => removePermission(permission)}
+                                className="text-gray-700 hover:text-gray-900"
+                              >
+                                ×
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                        <div className="flex gap-2">
+                          <Input
+                            placeholder="Enter permission (e.g., 'patients', 'reports')"
+                            value={newPermission}
+                            onChange={(e) => setNewPermission(e.target.value)}
+                            onKeyPress={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                addPermission();
+                              }
+                            }}
+                            className="bg-gray-50 text-gray-900"
+                          />
+                          <Button type="button" onClick={addPermission}>Add</Button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-2 pt-4 border-t bg-white px-6 pb-4">
+                    <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>Cancel</Button>
+                    <Button onClick={handleAddSubmit}>Add Role</Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
             </div>
-            <div className="flex gap-2">
-              <Input
-                placeholder="Enter permission (e.g., 'patients', 'reports')"
-                value={newPermission}
-                onChange={(e) => setNewPermission(e.target.value)}
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    addPermission();
-                  }
-                }}
-              />
-              <Button type="button" onClick={addPermission}>Add</Button>
-            </div>
           </div>
-        </div>
-        <div className="flex justify-end gap-2">
-          <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>Cancel</Button>
-          <Button onClick={handleAddSubmit}>Add Role</Button>
-        </div>
-      </DialogContent>
-    </Dialog>
-        </div>
+          <div className="px-6 pt-4 pb-4 flex-1">
+            {/* Search */}
+            <Card className="mb-6 bg-white">
+              <CardContent className="p-6">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
+                  <Input
+                    placeholder="Search by role name, description, or permissions..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10 bg-gray-50"
+                  />
+                </div>
+              </CardContent>
+            </Card>
 
-        <Card className="flex-1 flex flex-col overflow-hidden min-h-0 mb-4">
-          <CardContent className="p-0 flex-1 overflow-hidden flex flex-col min-h-0">
-            <div className="overflow-x-auto overflow-y-scroll border border-gray-200 rounded flex-1 min-h-0 doctors-scrollable h-full">
-              <table className="w-full">
-                <thead className="sticky top-0 bg-white z-10 shadow-sm">
-                  <tr className="border-b border-gray-200">
-                    <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">Role Name</th>
-                    <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">Description</th>
-                    <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">Permissions</th>
-                    <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">Created</th>
-                    <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">Updated</th>
-                    <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {roles.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="text-center py-8 text-gray-500">
-                        No roles found
-                      </td>
-                    </tr>
-                  ) : (
-                    roles.map((role) => (
-                      <tr key={role.id} className="border-b border-gray-100 hover:bg-gray-50">
-                        <td className="py-1 px-4">
-                          <div className="flex items-center gap-2">
-                            <Shield className="size-4 text-blue-600" />
-                            <span className="text-gray-900 font-medium">{role.name}</span>
-                            {role.isSuperAdmin && (
-                              <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded text-xs font-semibold">
-                                Super Admin
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="py-1 px-4 text-gray-600">
-                          {role.description || (
-                            <span className="text-gray-400 italic">No description</span>
-                          )}
-                        </td>
-                        <td className="py-1 px-4">
-                          <div className="flex flex-wrap gap-1">
-                            {role.permissions && role.permissions.length > 0 ? (
-                              role.permissions.slice(0, 3).map((permission, index) => (
-                                <span
-                                  key={index}
-                                  className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-xs"
-                                >
-                                  {permission}
-                                </span>
-                              ))
-                            ) : (
-                              <span className="text-gray-400 text-xs">No permissions</span>
-                            )}
-                            {role.permissions && role.permissions.length > 3 && (
-                              <span className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-xs">
-                                +{role.permissions.length - 3} more
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="py-1 px-4 text-gray-600 text-sm">
-                          {role.createdAt ? new Date(role.createdAt).toLocaleDateString() : '-'}
-                        </td>
-                        <td className="py-1 px-4 text-gray-600 text-sm">
-                          {role.updatedAt ? new Date(role.updatedAt).toLocaleDateString() : '-'}
-                        </td>
-                        <td className="py-1 px-4">
-                          <div className="flex gap-2">
-                            <Button variant="ghost" size="sm" onClick={() => handleEdit(role)}>
-                              <Edit className="size-4" />
-                            </Button>
-                            <Button variant="ghost" size="sm" onClick={() => onDeleteRole(role.id)}>
-                              <Trash2 className="size-4 text-red-600" />
-                            </Button>
-                          </div>
-                        </td>
+            <Card className="bg-white border border-gray-200 shadow-sm rounded-lg mb-4">
+              <CardContent className="p-0 flex-1 overflow-hidden flex flex-col min-h-0">
+                <div className="overflow-x-auto overflow-y-scroll border border-gray-200 rounded flex-1 min-h-0 doctors-scrollable h-full">
+                  <table className="w-full">
+                    <thead className="sticky top-0 bg-white z-10 shadow-sm">
+                      <tr className="border-b border-gray-200">
+                        <th className="text-left py-4 px-6 text-gray-700 bg-white whitespace-nowrap">Role Name</th>
+                        <th className="text-left py-4 px-6 text-gray-700 bg-white whitespace-nowrap">Description</th>
+                        <th className="text-left py-4 px-6 text-gray-700 bg-white whitespace-nowrap">Permissions</th>
+                        <th className="text-left py-4 px-6 text-gray-700 bg-white whitespace-nowrap">Created</th>
+                        <th className="text-left py-4 px-6 text-gray-700 bg-white whitespace-nowrap">Updated</th>
+                        <th className="text-left py-4 px-6 text-gray-700 bg-white whitespace-nowrap">Actions</th>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
+                    </thead>
+                    <tbody>
+                      {filteredRoles.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="text-center py-8 text-gray-500">
+                            {searchTerm ? 'No roles found matching your search.' : 'No roles found.'}
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredRoles.map((role) => (
+                          <tr key={role.id} className="border-b border-gray-100 hover:bg-gray-50">
+                            <td className="py-4 px-6">
+                              <div className="flex items-center gap-2">
+                                <Shield className="size-4 text-blue-600" />
+                                <span className="text-gray-900 font-medium">{role.name}</span>
+                                {role.isSuperAdmin && (
+                                  <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded text-xs font-semibold">
+                                    Super Admin
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="py-4 px-6 text-gray-600">
+                              {role.description || (
+                                <span className="text-gray-400 italic">No description</span>
+                              )}
+                            </td>
+                            <td className="py-4 px-6">
+                              <div className="flex flex-wrap gap-1">
+                                {role.permissions && role.permissions.length > 0 ? (
+                                  role.permissions.slice(0, 3).map((permission, index) => (
+                                    <span
+                                      key={index}
+                                      className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-xs"
+                                    >
+                                      {permission}
+                                    </span>
+                                  ))
+                                ) : (
+                                  <span className="text-gray-400 text-xs">No permissions</span>
+                                )}
+                                {role.permissions && role.permissions.length > 3 && (
+                                  <span className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-xs">
+                                    +{role.permissions.length - 3} more
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="py-4 px-6 text-gray-600 text-sm">
+                              {role.createdAt ? new Date(role.createdAt).toLocaleDateString() : '-'}
+                            </td>
+                            <td className="py-4 px-6 text-gray-600 text-sm">
+                              {role.updatedAt ? new Date(role.updatedAt).toLocaleDateString() : '-'}
+                            </td>
+                            <td className="py-4 px-6">
+                              <div className="flex gap-2">
+                                <Button variant="ghost" size="sm" onClick={() => handleEdit(role)}>
+                                  <Edit className="size-4" />
+                                </Button>
+                                <Button variant="ghost" size="sm" onClick={() => onDeleteRole(role.id)}>
+                                  <Trash2 className="size-4 text-red-600" />
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       </div>
 
       {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Edit Role</DialogTitle>
+        <DialogContent className="p-0 gap-0 large-dialog bg-white">
+          <DialogHeader className="px-6 pt-4 pb-3 flex-shrink-0 bg-white">
+            <DialogTitle className="text-gray-700">Edit Role</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div>
-              <Label htmlFor="edit-name">Role Name</Label>
-              <Input
-                id="edit-name"
-                placeholder="Enter role name (e.g., Superadmin, Doctor, Nurse)"
-                value={formData.RoleName}
-                onChange={(e) => setFormData({ ...formData, RoleName: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label htmlFor="edit-description">Description</Label>
-              <Textarea
-                id="edit-description"
-                placeholder="Enter role description..."
-                value={formData.RoleDescription}
-                onChange={(e) => setFormData({ ...formData, RoleDescription: e.target.value })}
-                rows={3}
-              />
-            </div>
-            <div>
-              <Label htmlFor="edit-permissions">Permissions</Label>
-              <div className="flex flex-wrap gap-2 mb-2">
-                {formData.permissions.map((permission, index) => (
-                  <span
-                    key={index}
-                    className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm flex items-center gap-2"
-                  >
-                    {permission}
-                    <button
-                      onClick={() => removePermission(permission)}
-                      className="text-blue-700 hover:text-blue-900"
-                    >
-                      ×
-                    </button>
-                  </span>
-                ))}
-              </div>
-              <div className="flex gap-2">
+          <div className="flex-1 overflow-y-auto px-6 pb-1 patient-list-scrollable min-h-0 bg-white">
+            <div className="space-y-4 py-4">
+              <div>
+                <Label htmlFor="edit-name" className="text-gray-600">Role Name</Label>
                 <Input
-                  placeholder="Enter permission (e.g., 'patients', 'reports')"
-                  value={newPermission}
-                  onChange={(e) => setNewPermission(e.target.value)}
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      addPermission();
-                    }
-                  }}
+                  id="edit-name"
+                  placeholder="Enter role name (e.g., Superadmin, Doctor, Nurse)"
+                  value={formData.RoleName}
+                  onChange={(e) => setFormData({ ...formData, RoleName: e.target.value })}
+                  className="bg-gray-50 text-gray-900"
                 />
-                <Button type="button" onClick={addPermission}>Add</Button>
+              </div>
+              <div>
+                <Label htmlFor="edit-description" className="text-gray-600">Description</Label>
+                <Textarea
+                  id="edit-description"
+                  placeholder="Enter role description..."
+                  value={formData.RoleDescription}
+                  onChange={(e) => setFormData({ ...formData, RoleDescription: e.target.value })}
+                  rows={3}
+                  className="bg-gray-50 text-gray-900"
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-permissions" className="text-gray-600">Permissions</Label>
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {formData.permissions.map((permission, index) => (
+                    <span
+                      key={index}
+                      className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm flex items-center gap-2"
+                    >
+                      {permission}
+                      <button
+                        onClick={() => removePermission(permission)}
+                        className="text-gray-700 hover:text-gray-900"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Enter permission (e.g., 'patients', 'reports')"
+                    value={newPermission}
+                    onChange={(e) => setNewPermission(e.target.value)}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        addPermission();
+                      }
+                    }}
+                    className="bg-gray-50 text-gray-900"
+                  />
+                  <Button type="button" onClick={addPermission}>Add</Button>
+                </div>
               </div>
             </div>
           </div>
-          <div className="flex justify-end gap-2">
+          <div className="flex justify-end gap-2 pt-4 border-t bg-white px-6 pb-4">
             <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancel</Button>
             <Button onClick={handleEditSubmit}>Update Role</Button>
           </div>

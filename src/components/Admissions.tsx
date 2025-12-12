@@ -284,22 +284,23 @@ export function Admissions() {
   };
 
   return (
-    <div className="flex-1 bg-blue-100 flex flex-col overflow-hidden min-h-0">
-      <div className="px-4 pt-4 pb-0 flex-shrink-0">
-        <div className="flex items-center justify-between mb-4 flex-shrink-0">
-          <div>
-            <h1 className="text-gray-900 mb-0 text-xl">IPD Admissions Management</h1>
-            <p className="text-gray-500 text-sm">Manage in-patient admissions and bed allocation</p>
-          </div>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="gap-2">
-              <Plus className="size-4" />
-              New IPD Admission
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="p-0 gap-0 large-dialog max-h-[90vh]">
-            <DialogHeader className="px-6 pt-4 pb-3 flex-shrink-0">
+    <div className="flex-1 bg-gray-50 flex flex-col overflow-hidden min-h-0 dashboard-scrollable" style={{ maxHeight: '100vh', minHeight: 0 }}>
+      <div className="overflow-y-auto overflow-x-hidden flex-1 flex flex-col min-h-0">
+        <div className="px-6 pt-6 pb-0 flex-shrink-0">
+          <div className="flex items-center justify-between mb-4 flex-shrink-0">
+            <div>
+              <h1 className="text-gray-900 mb-2 text-2xl">IPD Admissions Management</h1>
+              <p className="text-gray-500 text-base">Manage in-patient admissions and bed allocation</p>
+            </div>
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="gap-2">
+                <Plus className="size-4" />
+                New Admission
+              </Button>
+            </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
               <DialogTitle>Register New Admission</DialogTitle>
             </DialogHeader>
             <div className="flex-1 overflow-y-auto px-6 pb-1 patient-list-scrollable min-h-0">
@@ -660,11 +661,11 @@ export function Admissions() {
             </div>
           </DialogContent>
         </Dialog>
+          </div>
         </div>
-      </div>
 
-      <div className="overflow-y-auto overflow-x-hidden px-4 pb-4 admissions-scrollable" style={{ maxHeight: 'calc(100vh - 60px)', minHeight: 0 }}>
-      {/* Stats Grid */}
+        <div className="px-6 pt-4 pb-4 flex-1">
+          {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <Card>
           <CardContent className="p-6">
@@ -840,6 +841,8 @@ export function Admissions() {
           </TabsContent>
         </Tabs>
       )}
+          </div>
+        </div>
 
       {/* Manage Patient Admission Dialog */}
       <Dialog open={isManageDialogOpen} onOpenChange={setIsManageDialogOpen}>
@@ -852,7 +855,6 @@ export function Admissions() {
           )}
         </DialogContent>
       </Dialog>
-      </div>
     </div>
   );
 }

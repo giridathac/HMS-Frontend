@@ -520,25 +520,26 @@ export function Laboratory() {
   const completedCount = tests.filter(t => t.status === 'Completed' || t.status === 'Reported').length;
 
   return (
-    <div className="flex-1 bg-blue-100 flex flex-col overflow-hidden min-h-0">
-      <div className="px-4 pt-4 pb-0 flex-shrink-0">
-        <div className="flex items-center justify-between mb-4 flex-shrink-0">
-          <div>
-            <h1 className="text-gray-900 mb-1 text-2xl">Laboratory Management</h1>
-            <p className="text-gray-500 text-sm">Manage lab tests, samples, and reports</p>
-          </div>
-          <div className="flex gap-2">
-          <Button variant="outline" className="gap-2" onClick={() => setShowReportsDialog(true)}>
-            <FileText className="size-4" />
-            View Reports
-          </Button>
-          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="gap-2">
-                <TestTube className="size-4" />
-                New Lab Order
-              </Button>
-            </DialogTrigger>
+    <div className="flex-1 bg-gray-50 flex flex-col overflow-hidden min-h-0 dashboard-scrollable" style={{ maxHeight: '100vh', minHeight: 0 }}>
+      <div className="overflow-y-auto overflow-x-hidden flex-1 flex flex-col min-h-0">
+        <div className="px-6 pt-6 pb-0 flex-shrink-0">
+          <div className="flex items-center justify-between mb-4 flex-shrink-0">
+            <div>
+              <h1 className="text-gray-900 mb-2 text-2xl">Laboratory Management</h1>
+              <p className="text-gray-500 text-base">Manage lab tests, samples, and reports</p>
+            </div>
+            <div className="flex gap-2">
+            <Button variant="outline" className="gap-2" onClick={() => setShowReportsDialog(true)}>
+              <FileText className="size-4" />
+              View Reports
+            </Button>
+            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+              <DialogTrigger asChild>
+                <Button className="gap-2">
+                  <TestTube className="size-4" />
+                  New Lab Order
+                </Button>
+              </DialogTrigger>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Create Lab Test Order</DialogTitle>
@@ -589,13 +590,13 @@ export function Laboratory() {
                 <Button onClick={() => setIsAddDialogOpen(false)}>Create Order</Button>
               </div>
             </DialogContent>
-          </Dialog>
+            </Dialog>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div className="overflow-y-auto overflow-x-hidden px-4 pt-4 pb-4 laboratory-scrollable" style={{ maxHeight: 'calc(100vh - 60px)', minHeight: 0 }}>
-        {/* Stats Grid */}
+        <div className="px-6 pt-4 pb-4 flex-1">
+          {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <Card>
           <CardContent className="p-6">
@@ -685,7 +686,8 @@ export function Laboratory() {
           />
         </TabsContent>
       </Tabs>
-      </div>
+          </div>
+        </div>
 
       {/* Test Details Dialog */}
       <Dialog open={!!selectedTest} onOpenChange={() => setSelectedTest(null)}>

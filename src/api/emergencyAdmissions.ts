@@ -1,6 +1,6 @@
 // Emergency Admissions API service
 import { apiRequest, ENABLE_STUB_DATA } from './base';
-import { EmergencyAdmission } from '../types';
+import { EmergencyAdmission, EmergencyAdmissionVitals } from '../types';
 
 // API Response types
 interface EmergencyAdmissionResponseItem {
@@ -405,6 +405,245 @@ export const emergencyAdmissionsApi = {
         throw new Error('Emergency admission not found');
       }
       stubEmergencyAdmissions.splice(index, 1);
+    }
+  },
+};
+
+// Vitals API Response types
+interface EmergencyAdmissionVitalsResponseItem {
+  EmergencyAdmissionVitalsId: number;
+  EmergencyAdmissionId: number;
+  NurseId: number;
+  RecordedDateTime: string | Date;
+  HeartRate?: number | null;
+  BloodPressure?: string | null;
+  Temperature?: number | null;
+  O2Saturation?: number | null;
+  RespiratoryRate?: number | null;
+  PulseRate?: number | null;
+  VitalsStatus: string; // "Critical" | "Stable"
+  VitalsRemarks?: string | null;
+  VitalsCreatedBy?: number | null;
+  VitalsCreatedAt?: string | Date;
+  Status?: string | null;
+  // Additional response fields
+  NurseName?: string | null;
+  CreatedByName?: string | null;
+}
+
+interface EmergencyAdmissionVitalsAPIResponse {
+  success: boolean;
+  count: number;
+  emergencyAdmissionId: number;
+  data: EmergencyAdmissionVitalsResponseItem[];
+}
+
+interface EmergencyAdmissionVitalsGetByIdResponse {
+  success: boolean;
+  data: EmergencyAdmissionVitalsResponseItem;
+}
+
+interface EmergencyAdmissionVitalsCreateResponse {
+  success: boolean;
+  message: string;
+  data: EmergencyAdmissionVitalsResponseItem;
+}
+
+// DTOs for Vitals
+export interface CreateEmergencyAdmissionVitalsDto {
+  emergencyAdmissionId: number;
+  nurseId: number;
+  recordedDateTime: string;
+  heartRate?: number;
+  bloodPressure?: string;
+  temperature?: number;
+  o2Saturation?: number;
+  respiratoryRate?: number;
+  pulseRate?: number;
+  vitalsStatus: 'Critical' | 'Stable';
+  vitalsRemarks?: string;
+  vitalsCreatedBy?: number;
+  status?: string;
+}
+
+export interface UpdateEmergencyAdmissionVitalsDto {
+  nurseId?: number;
+  recordedDateTime?: string;
+  heartRate?: number;
+  bloodPressure?: string;
+  temperature?: number;
+  o2Saturation?: number;
+  respiratoryRate?: number;
+  pulseRate?: number;
+  vitalsStatus?: 'Critical' | 'Stable';
+  vitalsRemarks?: string;
+  status?: string;
+}
+
+// Helper function to transform vitals API response to our type
+function transformVitalsResponse(item: EmergencyAdmissionVitalsResponseItem): EmergencyAdmissionVitals {
+  return {
+    emergencyAdmissionVitalsId: item.EmergencyAdmissionVitalsId,
+    emergencyAdmissionId: item.EmergencyAdmissionId,
+    nurseId: item.NurseId,
+    recordedDateTime: typeof item.RecordedDateTime === 'string' ? item.RecordedDateTime : item.RecordedDateTime.toISOString(),
+    heartRate: item.HeartRate ?? undefined,
+    bloodPressure: item.BloodPressure ?? undefined,
+    temperature: item.Temperature ?? undefined,
+    o2Saturation: item.O2Saturation ?? undefined,
+    respiratoryRate: item.RespiratoryRate ?? undefined,
+    pulseRate: item.PulseRate ?? undefined,
+    vitalsStatus: item.VitalsStatus as 'Critical' | 'Stable',
+    vitalsRemarks: item.VitalsRemarks ?? undefined,
+    vitalsCreatedBy: item.VitalsCreatedBy ?? undefined,
+    vitalsCreatedAt: item.VitalsCreatedAt ? (typeof item.VitalsCreatedAt === 'string' ? item.VitalsCreatedAt : item.VitalsCreatedAt.toISOString()) : undefined,
+    status: item.Status ?? undefined,
+    nurseName: item.NurseName ?? undefined,
+    createdByName: item.CreatedByName ?? undefined,
+  };
+}
+
+// Vitals API
+export const emergencyAdmissionVitalsApi = {
+  async getAll(emergencyAdmissionId: number): Promise<EmergencyAdmissionVitals[]> {
+    if (!ENABLE_STUB_DATA) {
+      try {
+        const response = await apiRequest<EmergencyAdmissionVitalsAPIResponse>(
+          `/emergency-admission-vitals/by-emergency-admission/${emergencyAdmissionId}`,
+          { method: 'GET' }
+        );
+        return response.data.map(transformVitalsResponse);
+      } catch (err) {
+        console.error('Error fetching emergency admission vitals:', err);
+        throw err;
+      }
+    } else {
+      // Stub implementation - return empty array for now
+      return [];
+    }
+  },
+
+  async getById(emergencyAdmissionId: number, vitalsId: number): Promise<EmergencyAdmissionVitals> {
+    if (!ENABLE_STUB_DATA) {
+      try {
+        const response = await apiRequest<EmergencyAdmissionVitalsGetByIdResponse>(
+          `/emergency-admissions/${emergencyAdmissionId}/vitals/${vitalsId}`,
+          { method: 'GET' }
+        );
+        return transformVitalsResponse(response.data);
+      } catch (err) {
+        console.error('Error fetching emergency admission vitals by ID:', err);
+        throw err;
+      }
+    } else {
+      // Stub implementation
+      throw new Error('Stub data not implemented for getById');
+    }
+  },
+
+  async create(emergencyAdmissionId: number, data: CreateEmergencyAdmissionVitalsDto): Promise<EmergencyAdmissionVitals> {
+    if (!ENABLE_STUB_DATA) {
+      try {
+        // Format RecordedDateTime to YYYY-MM-DD HH:MM:SS format
+        const formatDateTime = (dateTimeString: string): string => {
+          if (!dateTimeString) return '';
+          const date = new Date(dateTimeString);
+          if (isNaN(date.getTime())) return dateTimeString;
+          
+          const year = date.getFullYear();
+          const month = String(date.getMonth() + 1).padStart(2, '0');
+          const day = String(date.getDate()).padStart(2, '0');
+          const hours = String(date.getHours()).padStart(2, '0');
+          const minutes = String(date.getMinutes()).padStart(2, '0');
+          const seconds = String(date.getSeconds()).padStart(2, '0');
+          
+          return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+        };
+
+        const requestBody: any = {
+          EmergencyAdmissionId: emergencyAdmissionId,
+          NurseId: data.nurseId,
+          RecordedDateTime: formatDateTime(data.recordedDateTime),
+        };
+
+        // Add optional fields only if they are defined
+        if (data.heartRate !== undefined) requestBody.HeartRate = data.heartRate;
+        if (data.bloodPressure !== undefined) requestBody.BloodPressure = data.bloodPressure;
+        if (data.temperature !== undefined) requestBody.Temperature = data.temperature;
+        if (data.o2Saturation !== undefined) requestBody.O2Saturation = data.o2Saturation;
+        if (data.respiratoryRate !== undefined) requestBody.RespiratoryRate = data.respiratoryRate;
+        if (data.pulseRate !== undefined) requestBody.PulseRate = data.pulseRate;
+        if (data.vitalsStatus !== undefined) requestBody.VitalsStatus = data.vitalsStatus;
+        if (data.vitalsRemarks !== undefined) requestBody.VitalsRemarks = data.vitalsRemarks;
+        if (data.vitalsCreatedBy !== undefined) requestBody.VitalsCreatedBy = data.vitalsCreatedBy;
+        if (data.status !== undefined) requestBody.Status = data.status;
+
+        const response = await apiRequest<EmergencyAdmissionVitalsCreateResponse>(
+          `/emergency-admission-vitals`,
+          {
+            method: 'POST',
+            body: JSON.stringify(requestBody),
+          }
+        );
+        return transformVitalsResponse(response.data);
+      } catch (err) {
+        console.error('Error creating emergency admission vitals:', err);
+        throw err;
+      }
+    } else {
+      // Stub implementation
+      throw new Error('Stub data not implemented for create');
+    }
+  },
+
+  async update(emergencyAdmissionId: number, vitalsId: number, data: UpdateEmergencyAdmissionVitalsDto): Promise<EmergencyAdmissionVitals> {
+    if (!ENABLE_STUB_DATA) {
+      try {
+        const updateData: any = {};
+        if (data.nurseId !== undefined) updateData.NurseId = data.nurseId;
+        if (data.recordedDateTime !== undefined) updateData.RecordedDateTime = data.recordedDateTime;
+        if (data.heartRate !== undefined) updateData.HeartRate = data.heartRate;
+        if (data.bloodPressure !== undefined) updateData.BloodPressure = data.bloodPressure;
+        if (data.temperature !== undefined) updateData.Temperature = data.temperature;
+        if (data.o2Saturation !== undefined) updateData.O2Saturation = data.o2Saturation;
+        if (data.respiratoryRate !== undefined) updateData.RespiratoryRate = data.respiratoryRate;
+        if (data.pulseRate !== undefined) updateData.PulseRate = data.pulseRate;
+        if (data.vitalsStatus !== undefined) updateData.VitalsStatus = data.vitalsStatus;
+        if (data.vitalsRemarks !== undefined) updateData.VitalsRemarks = data.vitalsRemarks;
+        if (data.status !== undefined) updateData.Status = data.status;
+
+        const response = await apiRequest<EmergencyAdmissionVitalsGetByIdResponse>(
+          `/emergency-admissions/${emergencyAdmissionId}/vitals/${vitalsId}`,
+          {
+            method: 'PUT',
+            body: JSON.stringify(updateData),
+          }
+        );
+        return transformVitalsResponse(response.data);
+      } catch (err) {
+        console.error('Error updating emergency admission vitals:', err);
+        throw err;
+      }
+    } else {
+      // Stub implementation
+      throw new Error('Stub data not implemented for update');
+    }
+  },
+
+  async delete(emergencyAdmissionId: number, vitalsId: number): Promise<void> {
+    if (!ENABLE_STUB_DATA) {
+      try {
+        await apiRequest<void>(
+          `/emergency-admissions/${emergencyAdmissionId}/vitals/${vitalsId}`,
+          { method: 'DELETE' }
+        );
+      } catch (err) {
+        console.error('Error deleting emergency admission vitals:', err);
+        throw err;
+      }
+    } else {
+      // Stub implementation
+      throw new Error('Stub data not implemented for delete');
     }
   },
 };

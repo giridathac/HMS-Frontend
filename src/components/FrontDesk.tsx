@@ -1,49 +1,50 @@
-// FrontDesk Component - Separated UI from logic
-import React, { useState, useMemo, useEffect } from 'react';
+// Front Desk Component - Displays FrontDesk appointment data in PR table format
+import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
+import { Badge } from './ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Textarea } from './ui/textarea';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { Badge } from './ui/badge';
-import { Search, Plus, Printer, Users, Clock, Stethoscope, CheckCircle2, Hospital, Eye, Edit, Trash2 } from 'lucide-react';
-import { useTokens } from '../hooks';
+import { Search, Eye, Edit, Trash2, Clock, Stethoscope, CheckCircle2, Hospital, Plus, Users } from 'lucide-react';
 import { usePatientAppointments } from '../hooks/usePatientAppointments';
 import { useStaff } from '../hooks/useStaff';
 import { useRoles } from '../hooks/useRoles';
 import { useDepartments } from '../hooks/useDepartments';
 import { patientsApi } from '../api/patients';
-import { Token, PatientAppointment, Patient, Doctor } from '../types';
-
-interface FrontDeskViewProps {
-  tokens: Token[];
-  doctors: Array<{ id: number; name: string; specialty: string; type: 'inhouse' | 'consulting' }>;
-  searchTerm: string;
-  onSearchChange: (value: string) => void;
-  onCreateToken: (data: { patientName: string; patientPhone: string; doctorId: number; isFollowUp?: boolean; patientId?: number }) => Promise<Token>;
-  getTokensByStatus: (status: Token['status']) => Token[];
-  patientAppointments: PatientAppointment[];
-  appointmentDoctors: Doctor[];
-  patients: Patient[];
-  appointmentSearchTerm: string;
-  onAppointmentSearchChange: (value: string) => void;
-  getAppointmentsByStatus: (status: PatientAppointment['appointmentStatus']) => PatientAppointment[];
-  updatePatientAppointment: (data: { id: number; patientId?: string; doctorId?: string; appointmentDate?: string; appointmentTime?: string; appointmentStatus?: 'Waiting' | 'Consulting' | 'Completed'; consultationCharge?: number; diagnosis?: string; followUpDetails?: string; prescriptionsUrl?: string; toBeAdmitted?: boolean; referToAnotherDoctor?: boolean; referredDoctorId?: string; transferToIPDOTICU?: boolean; transferTo?: 'IPD Room Admission' | 'ICU' | 'OT'; transferDetails?: string; billId?: string }) => Promise<PatientAppointment>;
-  fetchPatientAppointments: () => Promise<void>;
-  createPatientAppointment: (data: { patientId: string; doctorId: string; appointmentDate: string; appointmentTime: string; appointmentStatus?: 'Waiting' | 'Consulting' | 'Completed'; consultationCharge: number; diagnosis?: string; followUpDetails?: string; prescriptionsUrl?: string; toBeAdmitted?: boolean; referToAnotherDoctor?: boolean; referredDoctorId?: string; transferToIPDOTICU?: boolean; transferTo?: 'IPD Room Admission' | 'ICU' | 'OT'; transferDetails?: string; billId?: string }, doctorName: string) => Promise<PatientAppointment>;
-}
+import { Patient, PatientAppointment, Doctor } from '../types';
 
 export function FrontDesk() {
-  const { tokens, doctors, loading, error, createToken, getTokensByStatus } = useTokens();
-  const { patientAppointments, loading: appointmentsLoading, error: appointmentsError, updatePatientAppointment, fetchPatientAppointments, createPatientAppointment, deletePatientAppointment } = usePatientAppointments();
+  const { patientAppointments, loading: appointmentsLoading, error: appointmentsError, fetchPatientAppointments, createPatientAppointment, updatePatientAppointment, deletePatientAppointment } = usePatientAppointments();
   const { staff } = useStaff();
   const { roles } = useRoles();
   const { departments } = useDepartments();
   const [searchTerm, setSearchTerm] = useState('');
-  const [appointmentSearchTerm, setAppointmentSearchTerm] = useState('');
   const [patients, setPatients] = useState<Patient[]>([]);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [selectedAppointment, setSelectedAppointment] = useState<PatientAppointment | null>(null);
+  const [editFormData, setEditFormData] = useState({
+    patientId: '',
+    doctorId: '',
+    appointmentDate: '',
+    appointmentTime: '',
+    appointmentStatus: 'Waiting' as PatientAppointment['appointmentStatus'],
+    consultationCharge: 0,
+    followUpDetails: '',
+  });
+  const [addFormData, setAddFormData] = useState({
+    patientId: '',
+    doctorId: '',
+    appointmentDate: '',
+    appointmentTime: '',
+    appointmentStatus: 'Waiting' as PatientAppointment['appointmentStatus'],
+    consultationCharge: 0,
+  });
+  const [patientSearchTerm, setPatientSearchTerm] = useState('');
+  const [doctorSearchTerm, setDoctorSearchTerm] = useState('');
 
   // Filter to show only doctors and surgeons from staff
   const appointmentDoctors = useMemo(() => {
@@ -85,216 +86,131 @@ export function FrontDesk() {
       }
     };
     fetchPatients();
-  }, []);
+    fetchPatientAppointments().catch((err) => {
+      console.error('Error fetching appointments:', err);
+    });
+  }, [fetchPatientAppointments]);
 
-  const filteredTokens = tokens.filter(token =>
-    token.patientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    token.tokenNumber.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const filteredAppointments = patientAppointments.filter(appointment => {
-    if (!appointmentSearchTerm) return true;
+  // Filter appointments based on search term (same logic as FrontDesk)
+  const filteredAppointments = useMemo(() => {
+    if (!patientAppointments || patientAppointments.length === 0) return [];
     
-    const patient = patients.find(p => 
-      (p as any).patientId === appointment.patientId || 
-      (p as any).PatientId === appointment.patientId
-    );
-    const patientName = patient 
-      ? `${(patient as any).patientName || (patient as any).PatientName || ''} ${(patient as any).lastName || (patient as any).LastName || ''}`.trim() 
-      : appointment.patientId === '00000000-0000-0000-0000-000000000001' 
-        ? 'Dummy Patient Name' 
-        : appointment.patientId;
-    const doctor = appointmentDoctors.find(d => d.id.toString() === appointment.doctorId);
-    const doctorName = doctor ? doctor.name : appointment.doctorId;
-    const patientPhone = patient 
-      ? (patient as any).PhoneNo || (patient as any).phoneNo || (patient as any).phone || ''
-      : '';
-    const patientId = patient 
-      ? (patient as any).PatientNo || (patient as any).patientNo || appointment.patientId.substring(0, 8)
-      : appointment.patientId.substring(0, 8);
-    
-    const searchLower = appointmentSearchTerm.toLowerCase();
-    return (
-                  appointment.tokenNo.toLowerCase().includes(searchLower) ||
-      patientName.toLowerCase().includes(searchLower) ||
-      doctorName.toLowerCase().includes(searchLower) ||
-      patientPhone.includes(appointmentSearchTerm) ||
-      patientId.toLowerCase().includes(searchLower) ||
-      appointment.patientId.toLowerCase().includes(searchLower)
-    );
-  });
+    return patientAppointments.filter(appointment => {
+      if (!searchTerm) return true;
+      
+      const patient = patients.find(p => 
+        (p as any).patientId === appointment.patientId || 
+        (p as any).PatientId === appointment.patientId
+      );
+      const patientName = patient 
+        ? `${(patient as any).patientName || (patient as any).PatientName || ''} ${(patient as any).lastName || (patient as any).LastName || ''}`.trim() 
+        : appointment.patientId === '00000000-0000-0000-0000-000000000001' 
+          ? 'Dummy Patient Name' 
+          : appointment.patientId;
+      const doctor = appointmentDoctors.find(d => d.id.toString() === appointment.doctorId);
+      const doctorName = doctor ? doctor.name : appointment.doctorId;
+      const patientPhone = patient 
+        ? (patient as any).PhoneNo || (patient as any).phoneNo || (patient as any).phone || ''
+        : '';
+      const patientId = patient 
+        ? (patient as any).PatientNo || (patient as any).patientNo || appointment.patientId.substring(0, 8)
+        : appointment.patientId.substring(0, 8);
+      
+      const searchLower = searchTerm.toLowerCase();
+      return (
+        appointment.tokenNo?.toLowerCase().includes(searchLower) ||
+        patientName.toLowerCase().includes(searchLower) ||
+        doctorName.toLowerCase().includes(searchLower) ||
+        patientPhone.includes(searchTerm) ||
+        patientId.toLowerCase().includes(searchLower) ||
+        appointment.patientId.toLowerCase().includes(searchLower)
+      );
+    });
+  }, [patientAppointments, searchTerm, patients, appointmentDoctors]);
 
   const getAppointmentsByStatus = (status: PatientAppointment['appointmentStatus']) => {
     return filteredAppointments.filter(a => a.appointmentStatus === status);
   };
 
-  const handleCreateToken = async (data: { patientName: string; patientPhone: string; doctorId: number; isFollowUp?: boolean; patientId?: number }) => {
-    try {
-      const newToken = await createToken(data);
-      
-      // If it's a follow-up visit, increment the patient's follow-up count
-      if (data.isFollowUp && data.patientId) {
-        try {
-          const { patientsApi } = await import('../api');
-          await patientsApi.incrementFollowUpCount(data.patientId);
-        } catch (err) {
-          console.error('Failed to increment follow-up count:', err);
-        }
-      }
-      
-      const followUpText = newToken.isFollowUp ? '\nType: Follow-up Visit' : '\nType: New Visit';
-      alert(`Token Generated!\n\nToken Number: ${newToken.tokenNumber}\nPatient: ${newToken.patientName}\nDoctor: ${newToken.doctorName}\nTime: ${newToken.issueTime}${followUpText}`);
-      return newToken;
-    } catch (err) {
-      console.error('Failed to create token:', err);
-      throw err;
+  const getStatusBadge = (status: PatientAppointment['appointmentStatus']) => {
+    switch (status) {
+      case 'Waiting':
+        return <Badge variant="outline" className="bg-yellow-100 text-yellow-700 border-yellow-300"><Clock className="size-3 mr-1" />Waiting</Badge>;
+      case 'Consulting':
+        return <Badge variant="outline" className="bg-gray-100 text-gray-700 border-gray-300"><Stethoscope className="size-3 mr-1" />Consulting</Badge>;
+      case 'Completed':
+        return <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300"><CheckCircle2 className="size-3 mr-1" />Completed</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
     }
   };
 
-  if (loading || appointmentsLoading) {
-    return (
-      <div className="p-8">
-        <div className="text-center py-12 text-gray-700">Loading...</div>
-      </div>
-    );
-  }
-
-  if (error || appointmentsError) {
-    return (
-      <div className="p-8">
-        <div className="text-center py-12 text-red-500">Error: {error || appointmentsError}</div>
-      </div>
-    );
-  }
-
-  return (
-    <FrontDeskView
-      tokens={filteredTokens}
-      doctors={doctors}
-      searchTerm={searchTerm}
-      onSearchChange={setSearchTerm}
-      onCreateToken={handleCreateToken}
-      getTokensByStatus={getTokensByStatus}
-      patientAppointments={filteredAppointments}
-      appointmentDoctors={appointmentDoctors}
-      patients={patients}
-      appointmentSearchTerm={appointmentSearchTerm}
-      onAppointmentSearchChange={setAppointmentSearchTerm}
-      getAppointmentsByStatus={getAppointmentsByStatus}
-      updatePatientAppointment={updatePatientAppointment}
-      fetchPatientAppointments={fetchPatientAppointments}
-      createPatientAppointment={createPatientAppointment}
-    />
-  );
-}
-
-function FrontDeskView({ 
-  tokens, 
-  doctors, 
-  searchTerm, 
-  onSearchChange, 
-  onCreateToken, 
-  getTokensByStatus,
-  patientAppointments,
-  appointmentDoctors,
-  patients,
-  appointmentSearchTerm,
-  onAppointmentSearchChange,
-  getAppointmentsByStatus,
-  updatePatientAppointment,
-  fetchPatientAppointments,
-  createPatientAppointment
-}: FrontDeskViewProps) {
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [selectedDoctor, setSelectedDoctor] = useState('');
-  const [patientName, setPatientName] = useState('');
-  const [patientPhone, setPatientPhone] = useState('');
-  const [isFollowUp, setIsFollowUp] = useState(false);
-  const [patientId, setPatientId] = useState<number | undefined>(undefined);
-  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [selectedAppointment, setSelectedAppointment] = useState<PatientAppointment | null>(null);
-  const [editFormData, setEditFormData] = useState({
-    patientId: '',
-    doctorId: '',
-    appointmentDate: '',
-    appointmentTime: '',
-    appointmentStatus: 'Waiting' as PatientAppointment['appointmentStatus'],
-    consultationCharge: 0,
-    followUpDetails: '',
-  });
-  const [addFormData, setAddFormData] = useState({
-    patientId: '',
-    doctorId: '',
-    appointmentDate: '',
-    appointmentTime: '',
-    appointmentStatus: 'Waiting' as PatientAppointment['appointmentStatus'],
-    consultationCharge: 0,
-  });
-  const [patientSearchTerm, setPatientSearchTerm] = useState('');
-  const [doctorSearchTerm, setDoctorSearchTerm] = useState('');
-
-  const handleGenerateToken = async () => {
-    if (!selectedDoctor || !patientName || !patientPhone) {
-      alert('Please fill all fields');
-      return;
-    }
-
-    try {
-      await onCreateToken({
-        patientName,
-        patientPhone,
-        doctorId: parseInt(selectedDoctor),
-        isFollowUp,
-        patientId,
-      });
-      setIsDialogOpen(false);
-      setPatientName('');
-      setPatientPhone('');
-      setSelectedDoctor('');
-      setIsFollowUp(false);
-      setPatientId(undefined);
-    } catch (err) {
-      // Error handling is done in the parent
-    }
+  const handleViewAppointment = (appointment: PatientAppointment) => {
+    setSelectedAppointment(appointment);
+    setIsViewDialogOpen(true);
   };
 
-  const handlePhoneChange = async (phone: string) => {
-    setPatientPhone(phone);
-    if (phone.length >= 10) {
-      // Check if patient exists
+  const handleEditAppointment = (appointment: PatientAppointment) => {
+    setSelectedAppointment(appointment);
+    setEditFormData({
+      patientId: appointment.patientId,
+      doctorId: appointment.doctorId,
+      appointmentDate: appointment.appointmentDate,
+      appointmentTime: appointment.appointmentTime,
+      appointmentStatus: appointment.appointmentStatus,
+      consultationCharge: appointment.consultationCharge,
+      followUpDetails: appointment.followUpDetails || '',
+    });
+    setIsEditDialogOpen(true);
+  };
+
+  const handleDeleteAppointment = async (appointment: PatientAppointment) => {
+    if (confirm('Are you sure you want to delete this appointment? This action cannot be undone.')) {
       try {
-        const { patientsApi } = await import('../api');
-        const patient = await patientsApi.findByPhone(phone);
-        if (patient) {
-          const patientName = (patient as any).patientName || (patient as any).PatientName || '';
-          const lastName = (patient as any).lastName || (patient as any).LastName || '';
-          const fullName = `${patientName} ${lastName}`.trim();
-          setPatientName(fullName || patientName || '');
-          setPatientId(patient.id);
-          setIsFollowUp(true); // Auto-check if patient exists (likely follow-up)
-        } else {
-          setPatientId(undefined);
-          setIsFollowUp(false);
-        }
+        await deletePatientAppointment(appointment.id);
+        await fetchPatientAppointments();
       } catch (err) {
-        // If patient not found, it's a new patient
-        setPatientId(undefined);
-        setIsFollowUp(false);
+        console.error('Failed to delete appointment:', err);
+        const errorMessage = err instanceof Error ? err.message : 'Failed to delete appointment';
+        alert(errorMessage);
       }
     }
   };
 
-  return (
-    <div className="px-4 pt-4 pb-4 bg-blue-100 h-screen flex flex-col overflow-hidden">
-      <div className="flex-shrink-0">
-        <div className="flex items-center justify-between mb-4 flex-shrink-0">
-          <div>
-            <h1 className="text-gray-900 mb-0 text-xl">Front Desk - Patient Appointments</h1>
-            <p className="text-gray-700 text-sm">Manage patient appointments</p>
+  if (appointmentsLoading) {
+    return (
+      <div className="flex-1 bg-gray-50 flex flex-col overflow-hidden min-h-0 dashboard-scrollable" style={{ maxHeight: '100vh', minHeight: 0 }}>
+        <div className="overflow-y-auto overflow-x-hidden flex-1 flex flex-col min-h-0">
+          <div className="px-6 pt-6 pb-0 flex-shrink-0">
+            <div className="text-center py-12 text-gray-600">Loading appointments...</div>
           </div>
-          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+        </div>
+      </div>
+    );
+  }
+
+  if (appointmentsError) {
+    return (
+      <div className="flex-1 bg-gray-50 flex flex-col overflow-hidden min-h-0 dashboard-scrollable" style={{ maxHeight: '100vh', minHeight: 0 }}>
+        <div className="overflow-y-auto overflow-x-hidden flex-1 flex flex-col min-h-0">
+          <div className="px-6 pt-6 pb-0 flex-shrink-0">
+            <div className="text-center py-12 text-red-600">Error: {appointmentsError}</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex-1 bg-gray-50 flex flex-col overflow-hidden min-h-0 dashboard-scrollable" style={{ maxHeight: '100vh', minHeight: 0 }}>
+      <div className="overflow-y-auto overflow-x-hidden flex-1 flex flex-col min-h-0">
+        <div className="px-6 pt-6 pb-0 flex-shrink-0">
+          <div className="flex items-center justify-between mb-4 flex-shrink-0">
+            <div>
+              <h1 className="text-gray-900 mb-2 text-2xl">Front Desk - Patient Appointments</h1>
+              <p className="text-gray-500 text-base">Manage patient appointments</p>
+            </div>
+            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
               <Button className="flex items-center gap-2">
                 <Plus className="size-4" />
@@ -362,7 +278,7 @@ function FrontDeskView({
                                       setAddFormData({ ...addFormData, patientId });
                                       setPatientSearchTerm(`${patientNo ? `${patientNo} - ` : ''}${fullName || 'Unknown'}`);
                                     }}
-                                    className={`border-b border-gray-100 cursor-pointer hover:bg-blue-50 ${isSelected ? 'bg-blue-100' : ''}`}
+                                    className={`border-b border-gray-100 cursor-pointer hover:bg-gray-50 ${isSelected ? 'bg-gray-100' : ''}`}
                                   >
                                     <td className="py-2 px-3 text-sm text-gray-900 font-mono">{patientNo || patientId.substring(0, 8)}</td>
                                     <td className="py-2 px-3 text-sm text-gray-600">{fullName || 'Unknown'}</td>
@@ -395,7 +311,7 @@ function FrontDeskView({
                       </div>
                     )}
                     {addFormData.patientId && (
-                      <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-sm text-gray-700">
+                      <div className="mt-2 p-2 bg-gray-50 border border-gray-200 rounded text-sm text-gray-700">
                         Selected: {(() => {
                           const selectedPatient = patients.find(p => {
                             const pid = (p as any).patientId || (p as any).PatientId || '';
@@ -455,14 +371,14 @@ function FrontDeskView({
                                       setAddFormData({ ...addFormData, doctorId: doctor.id.toString() });
                                       setDoctorSearchTerm(`${doctor.name} - ${doctor.specialty}`);
                                     }}
-                                    className={`border-b border-gray-100 cursor-pointer hover:bg-blue-50 ${isSelected ? 'bg-blue-100' : ''}`}
+                                    className={`border-b border-gray-100 cursor-pointer hover:bg-gray-50 ${isSelected ? 'bg-gray-100' : ''}`}
                                   >
                                     <td className="py-2 px-3 text-sm text-gray-900">{doctor.name}</td>
                                     <td className="py-2 px-3 text-sm text-gray-600">{doctor.specialty}</td>
                                     <td className="py-2 px-3 text-sm">
                                       <span className={`px-2 py-0.5 rounded text-xs ${
                                         doctor.type === 'inhouse' 
-                                          ? 'bg-blue-100 text-blue-700' 
+                                          ? 'bg-gray-100 text-gray-700' 
                                           : 'bg-purple-100 text-purple-700'
                                       }`}>
                                         {doctor.type === 'inhouse' ? 'Inhouse' : 'Consulting'}
@@ -488,7 +404,7 @@ function FrontDeskView({
                       </div>
                     )}
                     {addFormData.doctorId && (
-                      <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-sm text-gray-700">
+                      <div className="mt-2 p-2 bg-gray-50 border border-gray-200 rounded text-sm text-gray-700">
                         Selected: {(() => {
                           const selectedDoctor = appointmentDoctors.find(d => d.id.toString() === addFormData.doctorId);
                           if (selectedDoctor) {
@@ -605,233 +521,177 @@ function FrontDeskView({
               </div>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
-      </div>
-      <div className="flex-1 overflow-y-auto overflow-x-hidden frontdesk-scrollable min-h-0">
-        <div className="space-y-6">
-          {/* Patient Appointments Section */}
-          {/* Quick Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-              <Card>
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-gray-700 mb-1">Total Appointments</p>
-                      <h3 className="text-gray-900">{patientAppointments.length}</h3>
-                    </div>
-                    <Users className="size-8 text-blue-500" />
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-gray-700 mb-1">Waiting</p>
-                      <h3 className="text-gray-900">{getAppointmentsByStatus('Waiting').length}</h3>
-                    </div>
-                    <div className="size-8 bg-yellow-100 rounded-full flex items-center justify-center">
-                      <span className="text-yellow-700">⏳</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-gray-700 mb-1">Consulting</p>
-                      <h3 className="text-gray-900">{getAppointmentsByStatus('Consulting').length}</h3>
-                    </div>
-                    <div className="size-8 bg-blue-100 rounded-full flex items-center justify-center">
-                      <span className="text-blue-700">👨‍⚕️</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-gray-700 mb-1">Completed</p>
-                      <h3 className="text-gray-900">{getAppointmentsByStatus('Completed').length}</h3>
-                    </div>
-                    <div className="size-8 bg-green-100 rounded-full flex items-center justify-center">
-                      <span className="text-green-700">✓</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Search */}
-            <div className="mb-4">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
-                  <Input
-                    placeholder="Search by token no, patient, or doctor..."
-                    value={appointmentSearchTerm}
-                    onChange={(e) => onAppointmentSearchChange(e.target.value)}
-                    className="pl-10"
-                  />
+        <div className="px-6 pt-4 pb-4 flex-1">
+        {/* Quick Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <Card className="bg-white border border-gray-200 shadow-sm rounded-lg">
+            <CardContent className="p-8">
+              <div className="flex items-center justify-between mb-6">
+                <div className="bg-gray-500 p-4 rounded-lg shadow-sm flex items-center justify-center">
+                  <Users className="size-7 text-white" strokeWidth={2} />
                 </div>
-            </div>
-
-            {/* Appointments by Status */}
-            <Tabs defaultValue="all" className="space-y-6">
-              <TabsList>
-                <TabsTrigger value="all">All Appointments ({patientAppointments.length})</TabsTrigger>
-                <TabsTrigger value="waiting">Waiting ({getAppointmentsByStatus('Waiting').length})</TabsTrigger>
-                <TabsTrigger value="consulting">Consulting ({getAppointmentsByStatus('Consulting').length})</TabsTrigger>
-                <TabsTrigger value="completed">Completed ({getAppointmentsByStatus('Completed').length})</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="all">
-                <AppointmentList 
-                  appointments={patientAppointments} 
-                  doctors={appointmentDoctors} 
-                  patients={patients}
-                  onView={(appointment) => {
-                    setSelectedAppointment(appointment);
-                    setIsViewDialogOpen(true);
-                  }}
-                  onEdit={(appointment) => {
-                    setSelectedAppointment(appointment);
-                    setEditFormData({
-                      patientId: appointment.patientId,
-                      doctorId: appointment.doctorId,
-                      appointmentDate: appointment.appointmentDate,
-                      appointmentTime: appointment.appointmentTime,
-                      appointmentStatus: appointment.appointmentStatus,
-                      consultationCharge: appointment.consultationCharge,
-                      followUpDetails: appointment.followUpDetails || '',
-                    });
-                    setIsEditDialogOpen(true);
-                  }}
-                  onDelete={async (appointment) => {
-                    if (confirm('Are you sure you want to delete this appointment? This action cannot be undone.')) {
-                      try {
-                        await deletePatientAppointment(appointment.id);
-                        await fetchPatientAppointments();
-                      } catch (err) {
-                        console.error('Failed to delete appointment:', err);
-                        const errorMessage = err instanceof Error ? err.message : 'Failed to delete appointment';
-                        alert(errorMessage);
-                      }
-                    }
-                  }}
-                />
-              </TabsContent>
-              <TabsContent value="waiting">
-                <AppointmentList 
-                  appointments={getAppointmentsByStatus('Waiting')} 
-                  doctors={appointmentDoctors} 
-                  patients={patients}
-                  onView={(appointment) => {
-                    setSelectedAppointment(appointment);
-                    setIsViewDialogOpen(true);
-                  }}
-                  onEdit={(appointment) => {
-                    setSelectedAppointment(appointment);
-                    setEditFormData({
-                      patientId: appointment.patientId,
-                      doctorId: appointment.doctorId,
-                      appointmentDate: appointment.appointmentDate,
-                      appointmentTime: appointment.appointmentTime,
-                      appointmentStatus: appointment.appointmentStatus,
-                      consultationCharge: appointment.consultationCharge,
-                      followUpDetails: appointment.followUpDetails || '',
-                    });
-                    setIsEditDialogOpen(true);
-                  }}
-                  onDelete={async (appointment) => {
-                    if (confirm('Are you sure you want to delete this appointment? This action cannot be undone.')) {
-                      try {
-                        await deletePatientAppointment(appointment.id);
-                        await fetchPatientAppointments();
-                      } catch (err) {
-                        console.error('Failed to delete appointment:', err);
-                        const errorMessage = err instanceof Error ? err.message : 'Failed to delete appointment';
-                        alert(errorMessage);
-                      }
-                    }
-                  }}
-                />
-              </TabsContent>
-              <TabsContent value="consulting">
-                <AppointmentList 
-                  appointments={getAppointmentsByStatus('Consulting')} 
-                  doctors={appointmentDoctors} 
-                  patients={patients}
-                  onView={(appointment) => {
-                    setSelectedAppointment(appointment);
-                    setIsViewDialogOpen(true);
-                  }}
-                  onEdit={(appointment) => {
-                    setSelectedAppointment(appointment);
-                    setEditFormData({
-                      patientId: appointment.patientId,
-                      doctorId: appointment.doctorId,
-                      appointmentDate: appointment.appointmentDate,
-                      appointmentTime: appointment.appointmentTime,
-                      appointmentStatus: appointment.appointmentStatus,
-                      consultationCharge: appointment.consultationCharge,
-                      followUpDetails: appointment.followUpDetails || '',
-                    });
-                    setIsEditDialogOpen(true);
-                  }}
-                  onDelete={async (appointment) => {
-                    if (confirm('Are you sure you want to delete this appointment? This action cannot be undone.')) {
-                      try {
-                        await deletePatientAppointment(appointment.id);
-                        await fetchPatientAppointments();
-                      } catch (err) {
-                        console.error('Failed to delete appointment:', err);
-                        const errorMessage = err instanceof Error ? err.message : 'Failed to delete appointment';
-                        alert(errorMessage);
-                      }
-                    }
-                  }}
-                />
-              </TabsContent>
-              <TabsContent value="completed">
-                <AppointmentList 
-                  appointments={getAppointmentsByStatus('Completed')} 
-                  doctors={appointmentDoctors} 
-                  patients={patients}
-                  onView={(appointment) => {
-                    setSelectedAppointment(appointment);
-                    setIsViewDialogOpen(true);
-                  }}
-                  onEdit={(appointment) => {
-                    setSelectedAppointment(appointment);
-                    setEditFormData({
-                      patientId: appointment.patientId,
-                      doctorId: appointment.doctorId,
-                      appointmentDate: appointment.appointmentDate,
-                      appointmentTime: appointment.appointmentTime,
-                      appointmentStatus: appointment.appointmentStatus,
-                      consultationCharge: appointment.consultationCharge,
-                      followUpDetails: appointment.followUpDetails || '',
-                    });
-                    setIsEditDialogOpen(true);
-                  }}
-                  onDelete={async (appointment) => {
-                    if (confirm('Are you sure you want to delete this appointment? This action cannot be undone.')) {
-                      try {
-                        await deletePatientAppointment(appointment.id);
-                        await fetchPatientAppointments();
-                      } catch (err) {
-                        console.error('Failed to delete appointment:', err);
-                        const errorMessage = err instanceof Error ? err.message : 'Failed to delete appointment';
-                        alert(errorMessage);
-                      }
-                    }
-                  }}
-                />
-              </TabsContent>
-            </Tabs>
+                <span className="text-sm font-medium text-gray-500">Total</span>
+              </div>
+              <h3 className="text-4xl font-bold text-gray-900 mb-2">{patientAppointments.length}</h3>
+              <p className="text-base text-gray-500">Total Appointments</p>
+            </CardContent>
+          </Card>
+          <Card className="bg-white border border-gray-200 shadow-sm rounded-lg">
+            <CardContent className="p-8">
+              <div className="flex items-center justify-between mb-6">
+                <div className="bg-orange-500 p-4 rounded-lg shadow-sm flex items-center justify-center">
+                  <Clock className="size-7 text-white" strokeWidth={2} />
+                </div>
+                <span className="text-sm font-medium text-gray-500">Waiting</span>
+              </div>
+              <h3 className="text-4xl font-bold text-gray-900 mb-2">{getAppointmentsByStatus('Waiting').length}</h3>
+              <p className="text-base text-gray-500">Waiting</p>
+            </CardContent>
+          </Card>
+          <Card className="bg-white border border-gray-200 shadow-sm rounded-lg">
+            <CardContent className="p-8">
+              <div className="flex items-center justify-between mb-6">
+                <div className="bg-purple-500 p-4 rounded-lg shadow-sm flex items-center justify-center">
+                  <Stethoscope className="size-7 text-white" strokeWidth={2} />
+                </div>
+                <span className="text-sm font-medium text-gray-500">Consulting</span>
+              </div>
+              <h3 className="text-4xl font-bold text-gray-900 mb-2">{getAppointmentsByStatus('Consulting').length}</h3>
+              <p className="text-base text-gray-500">Consulting</p>
+            </CardContent>
+          </Card>
+          <Card className="bg-white border border-gray-200 shadow-sm rounded-lg">
+            <CardContent className="p-8">
+              <div className="flex items-center justify-between mb-6">
+                <div className="bg-green-500 p-4 rounded-lg shadow-sm flex items-center justify-center">
+                  <CheckCircle2 className="size-7 text-white" strokeWidth={2} />
+                </div>
+                <span className="text-sm font-medium text-gray-500">Completed</span>
+              </div>
+              <h3 className="text-4xl font-bold text-gray-900 mb-2">{getAppointmentsByStatus('Completed').length}</h3>
+              <p className="text-base text-gray-500">Completed</p>
+            </CardContent>
+          </Card>
         </div>
+
+        {/* Search */}
+        <Card className="mb-6 bg-white">
+          <CardContent className="p-6">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
+              <Input
+                placeholder="Search by token no, patient, or doctor..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 bg-gray-50"
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Appointments Table - Same structure as FrontDesk */}
+        <Card className="bg-white border border-gray-200 shadow-sm rounded-lg mb-4">
+          <CardContent className="p-6">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-gray-200">
+                    <th className="text-left py-4 px-6 text-gray-700">Token</th>
+                    <th className="text-left py-4 px-6 text-gray-700">Patient</th>
+                    <th className="text-left py-4 px-6 text-gray-700">Phone</th>
+                    <th className="text-left py-4 px-6 text-gray-700">Doctor</th>
+                    <th className="text-left py-4 px-6 text-gray-700">Time</th>
+                    <th className="text-left py-4 px-6 text-gray-700">Status</th>
+                    <th className="text-left py-4 px-6 text-gray-700">Admit</th>
+                    <th className="text-left py-4 px-6 text-gray-700">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredAppointments.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="text-center py-8 text-gray-500 text-sm">
+                        {searchTerm ? 'No appointments found matching your search.' : 'No appointments found.'}
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredAppointments.map((appointment) => {
+                      const patient = patients.find(p => 
+                        (p as any).patientId === appointment.patientId || 
+                        (p as any).PatientId === appointment.patientId
+                      );
+                      const doctor = appointmentDoctors.find(d => d.id.toString() === appointment.doctorId);
+                      const patientName = patient 
+                        ? `${(patient as any).patientName || (patient as any).PatientName || ''} ${(patient as any).lastName || (patient as any).LastName || ''}`.trim() 
+                        : appointment.patientId === '00000000-0000-0000-0000-000000000001' 
+                          ? 'Dummy Patient Name' 
+                          : appointment.patientId;
+                      const doctorName = doctor ? doctor.name : appointment.doctorId;
+                      const patientPhone = patient 
+                        ? (patient as any).PhoneNo || (patient as any).phoneNo || (patient as any).phone || '-'
+                        : '-';
+                      const patientId = patient 
+                        ? (patient as any).PatientNo || (patient as any).patientNo || appointment.patientId.substring(0, 8)
+                        : appointment.patientId.substring(0, 8);
+                      
+                      return (
+                        <tr key={appointment.id} className="border-b border-gray-100 hover:bg-gray-50">
+                          <td className="py-4 px-6 text-gray-900 font-mono font-medium whitespace-nowrap">{appointment.tokenNo}</td>
+                          <td className="py-4 px-6 text-gray-600 whitespace-nowrap min-w-[120px]">{patientName}</td>
+                          <td className="py-4 px-6 text-gray-600 whitespace-nowrap">{patientPhone}</td>
+                          <td className="py-4 px-6 text-gray-600 whitespace-nowrap min-w-[100px]">{doctorName}</td>
+                          <td className="py-4 px-6 text-gray-600 whitespace-nowrap">{appointment.appointmentTime}</td>
+                          <td className="py-4 px-6 whitespace-nowrap">{getStatusBadge(appointment.appointmentStatus)}</td>
+                          <td className="py-4 px-6 whitespace-nowrap">
+                            {appointment.toBeAdmitted ? (
+                              <Badge variant="outline" className="bg-red-100 text-red-700 border-red-300 text-xs">
+                                <Hospital className="size-2.5 mr-0.5" />Yes
+                              </Badge>
+                            ) : (
+                              <span className="text-gray-700 text-sm">No</span>
+                            )}
+                          </td>
+                          <td className="py-4 px-6 whitespace-nowrap">
+                            <div className="flex items-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleViewAppointment(appointment)}
+                                className="h-7 w-7 p-0"
+                                title="View Appointment"
+                              >
+                                <Eye className="size-3" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleEditAppointment(appointment)}
+                                className="h-7 w-7 p-0"
+                                title="Edit Appointment"
+                              >
+                                <Edit className="size-3" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDeleteAppointment(appointment)}
+                                className="h-7 w-7 p-0 text-red-600 hover:text-red-700"
+                                title="Delete Appointment"
+                              >
+                                <Trash2 className="size-3" />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* View Appointment Dialog */}
@@ -857,13 +717,13 @@ function FrontDeskView({
             return (
               <>
                 <div className="flex-1 overflow-y-auto px-6 pb-1 patient-list-scrollable min-h-0">
-              <div className="space-y-4 py-4">
-                <div>
-                  <Label>Token No</Label>
+                  <div className="space-y-4 py-4">
+                    <div>
+                      <Label>Token No</Label>
                       <Input value={selectedAppointment.tokenNo} disabled className="bg-gray-50 text-gray-700" />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
                         <Label>Patient *</Label>
                         <Input
                           value={(() => {
@@ -881,18 +741,18 @@ function FrontDeskView({
                           disabled
                           className="bg-gray-50 text-gray-700"
                         />
-                  </div>
-                  <div>
+                      </div>
+                      <div>
                         <Label>Doctor *</Label>
                         <Input
                           value={doctorName}
                           disabled
                           className="bg-gray-50 text-gray-700"
                         />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
                         <Label>Appointment Date *</Label>
                         <Input
                           type="date"
@@ -900,8 +760,8 @@ function FrontDeskView({
                           disabled
                           className="bg-gray-50 text-gray-700"
                         />
-                  </div>
-                  <div>
+                      </div>
+                      <div>
                         <Label>Appointment Time *</Label>
                         <Input
                           type="time"
@@ -909,18 +769,18 @@ function FrontDeskView({
                           disabled
                           className="bg-gray-50 text-gray-700"
                         />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
                         <Label>Appointment Status</Label>
                         <Input
                           value={selectedAppointment.appointmentStatus}
                           disabled
                           className="bg-gray-50 text-gray-700"
                         />
-                  </div>
-                  <div>
+                      </div>
+                      <div>
                         <Label>Consultation Charge (₹) *</Label>
                         <Input
                           type="number"
@@ -928,22 +788,22 @@ function FrontDeskView({
                           disabled
                           className="bg-gray-50 text-gray-700"
                         />
-                  </div>
-                </div>
-                  <div>
-                    <Label>Follow Up Details</Label>
+                      </div>
+                    </div>
+                    <div>
+                      <Label>Follow Up Details</Label>
                       <Textarea
                         value={selectedAppointment.followUpDetails || ''}
                         disabled
                         className="bg-gray-50 text-gray-700"
                         rows={2}
                       />
-                  </div>
                     </div>
                   </div>
+                </div>
                 <div className="flex justify-end gap-2 px-6 py-2 border-t bg-gray-50 flex-shrink-0">
                   <Button variant="outline" onClick={() => setIsViewDialogOpen(false)} className="py-1">Close</Button>
-                    </div>
+                </div>
               </>
             );
           })()}
@@ -1102,222 +962,7 @@ function FrontDeskView({
           )}
         </DialogContent>
       </Dialog>
+      </div>
     </div>
-  );
-}
-
-function TokenList({ tokens, doctors }: { tokens: Token[]; doctors: Array<{ id: number; name: string; specialty: string; type: 'inhouse' | 'consulting' }> }) {
-  return (
-    <Card className="mb-4">
-      <CardContent className="p-6">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-gray-200">
-                <th className="text-left py-3 px-4 text-gray-700">Token #</th>
-                <th className="text-left py-3 px-4 text-gray-700">Patient Name</th>
-                <th className="text-left py-3 px-4 text-gray-700">Phone</th>
-                <th className="text-left py-3 px-4 text-gray-700">Doctor</th>
-                <th className="text-left py-3 px-4 text-gray-700">Issue Time</th>
-                <th className="text-left py-3 px-4 text-gray-700">Status</th>
-                <th className="text-left py-3 px-4 text-gray-700">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {tokens.map((token) => (
-                <tr key={token.id} className="border-b border-gray-100 hover:bg-gray-50">
-                  <td className="py-3 px-4">
-                    <span className="px-3 py-1 bg-gray-100 text-gray-900 rounded">
-                      {token.tokenNumber}
-                    </span>
-                  </td>
-                  <td className="py-3 px-4 text-gray-900">
-                    {token.patientName}
-                    {token.isFollowUp && (
-                      <span className="ml-2 px-2 py-0.5 rounded text-xs bg-green-100 text-green-700">
-                        Follow-up
-                      </span>
-                    )}
-                  </td>
-                  <td className="py-3 px-4 text-gray-600">{token.patientPhone}</td>
-                  <td className="py-3 px-4 text-gray-600">
-                    {token.doctorName}
-                    {(() => {
-                      const doctor = doctors.find(d => d.id === token.doctorId);
-                      if (doctor) {
-                        return (
-                          <span className={`ml-2 px-2 py-0.5 rounded text-xs ${
-                            doctor.type === 'inhouse' 
-                              ? 'bg-blue-100 text-blue-700' 
-                              : 'bg-purple-100 text-purple-700'
-                          }`}>
-                            {doctor.type === 'inhouse' ? 'Inhouse' : 'Consulting'}
-                          </span>
-                        );
-                      }
-                      return null;
-                    })()}
-                  </td>
-                  <td className="py-3 px-4 text-gray-600">{token.issueTime}</td>
-                  <td className="py-3 px-4">
-                    <span className={`px-3 py-1 rounded-full text-xs ${
-                      token.status === 'Waiting' ? 'bg-yellow-100 text-yellow-700' :
-                      token.status === 'Consulting' ? 'bg-blue-100 text-blue-700' :
-                      token.status === 'Completed' ? 'bg-green-100 text-green-700' :
-                      'bg-red-100 text-red-700'
-                    }`}>
-                      {token.status}
-                    </span>
-                  </td>
-                  <td className="py-3 px-4">
-                    <Button variant="ghost" size="sm" className="gap-2">
-                      <Printer className="size-4" />
-                      Reprint
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        {tokens.length === 0 && (
-          <div className="text-center py-12 text-gray-700">
-            No tokens found
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-function AppointmentList({ 
-  appointments, 
-  doctors, 
-  patients,
-  onView,
-  onEdit,
-  onDelete
-}: { 
-  appointments: PatientAppointment[]; 
-  doctors: Doctor[]; 
-  patients: Patient[];
-  onView: (appointment: PatientAppointment) => void;
-  onEdit: (appointment: PatientAppointment) => void;
-  onDelete: (appointment: PatientAppointment) => void;
-}) {
-  const getStatusBadge = (status: PatientAppointment['appointmentStatus']) => {
-    switch (status) {
-      case 'Waiting':
-        return <Badge variant="outline" className="bg-yellow-100 text-yellow-700 border-yellow-300"><Clock className="size-3 mr-1" />Waiting</Badge>;
-      case 'Consulting':
-        return <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-300"><Stethoscope className="size-3 mr-1" />Consulting</Badge>;
-      case 'Completed':
-        return <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300"><CheckCircle2 className="size-3 mr-1" />Completed</Badge>;
-      default:
-        return <Badge variant="outline">{status}</Badge>;
-    }
-  };
-
-  return (
-    <Card className="mb-4">
-      <CardContent className="p-4">
-        <div className="overflow-x-auto">
-          <table className="w-full table-auto">
-            <thead>
-              <tr className="border-b border-gray-200">
-                <th className="text-left py-1.5 px-2 text-gray-700 font-bold text-xs">Token</th>
-                <th className="text-left py-1.5 px-2 text-gray-700 font-bold text-xs">Patient ID</th>
-                <th className="text-left py-1.5 px-2 text-gray-700 font-bold text-xs">Patient</th>
-                <th className="text-left py-1.5 px-2 text-gray-700 font-bold text-xs">Phone</th>
-                <th className="text-left py-1.5 px-2 text-gray-700 font-bold text-xs">Doctor</th>
-                <th className="text-left py-1.5 px-2 text-gray-700 font-bold text-xs">Time</th>
-                <th className="text-left py-1.5 px-2 text-gray-700 font-bold text-xs">Status</th>
-                <th className="text-left py-1.5 px-2 text-gray-700 font-bold text-xs">Charges</th>
-                <th className="text-left py-1.5 px-2 text-gray-700 font-bold text-xs">Admit</th>
-                <th className="text-left py-1.5 px-2 text-gray-700 font-bold text-xs">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {appointments.map((appointment) => {
-                const patient = patients.find(p => 
-                  (p as any).patientId === appointment.patientId || 
-                  (p as any).PatientId === appointment.patientId
-                );
-                const doctor = doctors.find(d => d.id.toString() === appointment.doctorId);
-                const patientName = patient 
-                  ? `${(patient as any).patientName || (patient as any).PatientName || ''} ${(patient as any).lastName || (patient as any).LastName || ''}`.trim() 
-                  : appointment.patientId === '00000000-0000-0000-0000-000000000001' 
-                    ? 'Dummy Patient Name' 
-                    : appointment.patientId;
-                const doctorName = doctor ? doctor.name : appointment.doctorId;
-                const patientPhone = patient 
-                  ? (patient as any).PhoneNo || (patient as any).phoneNo || (patient as any).phone || '-'
-                  : '-';
-                const patientId = patient 
-                  ? (patient as any).PatientNo || (patient as any).patientNo || appointment.patientId.substring(0, 8)
-                  : appointment.patientId.substring(0, 8);
-                
-                return (
-                  <tr key={appointment.id} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="py-1.5 px-2 text-gray-900 font-mono font-medium text-sm break-words">{appointment.tokenNo}</td>
-                    <td className="py-1.5 px-2 text-gray-600 text-sm font-mono break-words">{patientId}</td>
-                    <td className="py-1.5 px-2 text-gray-600 text-sm break-words min-w-[120px]">{patientName}</td>
-                    <td className="py-1.5 px-2 text-gray-600 text-sm break-words">{patientPhone}</td>
-                    <td className="py-1.5 px-2 text-gray-600 text-sm break-words min-w-[100px]">{doctorName}</td>
-                    <td className="py-1.5 px-2 text-gray-600 text-sm break-words">{appointment.appointmentTime}</td>
-                    <td className="py-1.5 px-2">{getStatusBadge(appointment.appointmentStatus)}</td>
-                    <td className="py-1.5 px-2 text-gray-900 font-semibold text-sm break-words">
-                      ₹{appointment.consultationCharge.toFixed(2)}
-                    </td>
-                    <td className="py-1.5 px-2">
-                      {appointment.toBeAdmitted ? (
-                        <Badge variant="outline" className="bg-red-100 text-red-700 border-red-300 text-xs">
-                          <Hospital className="size-2.5 mr-0.5" />Yes
-                        </Badge>
-                      ) : (
-                        <span className="text-gray-700 text-sm">No</span>
-                      )}
-                    </td>
-                    <td className="py-1.5 px-2">
-                      <div className="flex items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => onView(appointment)}
-                          className="h-6 w-6 p-0"
-                        >
-                          <Eye className="size-3" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => onEdit(appointment)}
-                          className="h-6 w-6 p-0"
-                        >
-                          <Edit className="size-3" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => onDelete(appointment)}
-                          className="h-6 w-6 p-0 text-red-600 hover:text-red-700"
-                        >
-                          <Trash2 className="size-3" />
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-        {appointments.length === 0 && (
-          <div className="text-center py-12 text-gray-700">
-            No appointments found
-          </div>
-        )}
-      </CardContent>
-    </Card>
   );
 }

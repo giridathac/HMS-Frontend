@@ -334,15 +334,15 @@ export function PatientRegistration() {
 
   if (loading) {
     return (
-      <div className="px-4 pt-4 pb-0 bg-blue-100 h-full flex flex-col overflow-hidden">
-        <div className="text-center py-12 text-blue-600">Loading patients...</div>
+      <div className="px-4 pt-4 pb-0 bg-gray-100 h-full flex flex-col overflow-hidden">
+        <div className="text-center py-12 text-gray-600">Loading patients...</div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="px-4 pt-4 pb-0 bg-blue-100 h-full flex flex-col overflow-hidden">
+      <div className="px-4 pt-4 pb-0 bg-gray-100 h-full flex flex-col overflow-hidden">
         <div className="text-center py-12 text-red-500">Error: {error}</div>
       </div>
     );
@@ -350,26 +350,27 @@ export function PatientRegistration() {
 
   return (
     <>
-      <div className="flex-1 bg-blue-100 flex flex-col overflow-hidden min-h-0">
-        <div className="px-4 pt-4 pb-0 flex-shrink-0">
-          <div className="flex items-center justify-between mb-4 flex-shrink-0">
-            <div>
-              <h1 className="text-gray-900 mb-1 text-2xl">Patient Registration</h1>
-              <p className="text-gray-500 text-sm">Register and manage patient information</p>
-            </div>
-            <Button 
-              className="gap-2"
-              onClick={() => setIsAddDialogOpen(true)}
-            >
-              <Plus className="size-4" />
-              Add New Patient
-            </Button>
-          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-            <DialogContent className="p-0 gap-0 large-dialog">
-              <DialogHeader className="px-6 pt-4 pb-3 flex-shrink-0">
-                <DialogTitle>Add New Patient</DialogTitle>
+      <div className="flex-1 bg-gray-50 flex flex-col overflow-hidden min-h-0 dashboard-scrollable" style={{ maxHeight: '100vh', minHeight: 0 }}>
+        <div className="overflow-y-auto overflow-x-hidden flex-1 flex flex-col min-h-0">
+          <div className="px-6 pt-6 pb-0 flex-shrink-0">
+            <div className="flex items-center justify-between mb-4 flex-shrink-0">
+              <div>
+                <h1 className="text-gray-900 mb-2 text-2xl">Patient Registration</h1>
+                <p className="text-gray-500 text-base">Register and manage patient information</p>
+              </div>
+              <Button 
+                className="gap-2"
+                onClick={() => setIsAddDialogOpen(true)}
+              >
+                <Plus className="size-4" />
+                Add New Patient
+              </Button>
+            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+            <DialogContent className="p-0 gap-0 large-dialog bg-white">
+              <DialogHeader className="px-6 pt-4 pb-3 flex-shrink-0 bg-white">
+                <DialogTitle className="text-gray-700">Add New Patient</DialogTitle>
               </DialogHeader>
-              <div className="flex-1 overflow-y-auto px-6 pb-1 patient-list-scrollable min-h-0">
+              <div className="flex-1 overflow-y-auto px-6 pb-1 patient-list-scrollable min-h-0 bg-white">
                 <form onSubmit={handleSubmit} className="space-y-4 py-4">
                   {error && (
                     <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
@@ -379,52 +380,59 @@ export function PatientRegistration() {
 
                   {/* Row 1: PatientName */}
                   <div>
-                    <Label htmlFor="patientName">Patient Name *</Label>
+                    <Label htmlFor="patientName" className="text-gray-600">Patient Name *</Label>
                     <Input
                       id="patientName"
                       required
                       value={formData.patientName}
                       onChange={(e) => setFormData({ ...formData, patientName: e.target.value })}
                       placeholder="Enter patient's first name"
+                      className="bg-gray-50 text-gray-900"
+                      
                     />
                   </div>
 
                   {/* Row 1.5: PatientNo */}
                   <div>
-                    <Label htmlFor="patientNo">Patient No (Optional)</Label>
+                    <Label htmlFor="patientNo" className="text-gray-600">Patient No (Optional)</Label>
                     <Input
                       id="patientNo"
                       value={formData.patientNo}
                       onChange={(e) => setFormData({ ...formData, patientNo: e.target.value })}
                       placeholder="Optional manual patient number"
+                      className="bg-gray-50 text-gray-900"
+                      
                     />
                   </div>
 
                   {/* Row 2: PatientType, LastName */}
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="patientType">Patient Type</Label>
+                      <Label htmlFor="patientType" className="text-gray-600">Patient Type</Label>
                       <select
                         id="patientType"
                         aria-label="Patient Type"
-                        className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                        className="w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-50 text-gray-900"
                         value={formData.patientType}
                         onChange={(e) => setFormData({ ...formData, patientType: e.target.value })}
+                        
                       >
-                        <option value="">Select type</option>
-                        <option value="OPD">OPD</option>
-                        <option value="IPD">IPD</option>
-                        <option value="Emergency">Emergency</option>
-                        <option value="Follow-up">Follow-up</option>
+                        <option value="" >Select type</option>
+                        <option value="OPD" >OPD</option>
+                        <option value="IPD" >IPD</option>
+                        <option value="Emergency" >Emergency</option>
+                        <option value="Follow-up" >Follow-up</option>
                       </select>
                     </div>
                     <div>
-                      <Label htmlFor="lastName">Last Name</Label>
+                      <Label htmlFor="lastName" className="text-gray-600">Last Name</Label>
                       <Input
                         id="lastName"
                         value={formData.lastName}
                         onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
                         placeholder="Enter patient's last name"
+                        className="bg-gray-50 text-gray-900"
+                        
                       />
                     </div>
                   </div>
@@ -432,7 +440,7 @@ export function PatientRegistration() {
                   {/* Row 3: AdhaarID (highlighted), PANCard */}
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="adhaarID" className="flex items-center gap-2">
+                      <Label htmlFor="adhaarID" className="flex items-center gap-2 text-gray-600">
                         Adhaar ID
                         <span className="text-xs text-orange-500">(Important)</span>
                       </Label>
@@ -445,20 +453,23 @@ export function PatientRegistration() {
                         onChange={(e) => handleAdhaarChange(e.target.value)}
                         placeholder="Enter 12-digit Aadhaar number"
                         maxLength={12}
-                        className={`bg-orange-50 border-orange-200 ${adhaarError ? 'border-red-300' : ''}`}
+                        className={`bg-gray-50 text-gray-900 ${adhaarError ? 'border-red-300' : ''}`}
+                        
                       />
                       {adhaarError && (
                         <p className="text-sm text-red-600 mt-1">{adhaarError}</p>
                       )}
                     </div>
                     <div>
-                      <Label htmlFor="panCard">PAN Card</Label>
+                      <Label htmlFor="panCard" className="text-gray-600">PAN Card</Label>
                       <Input
                         id="panCard"
                         value={formData.panCard}
                         onChange={(e) => setFormData({ ...formData, panCard: e.target.value.toUpperCase() })}
                         placeholder="Enter PAN number"
                         maxLength={10}
+                        className="bg-gray-50 text-gray-900"
+                        
                       />
                     </div>
                   </div>
@@ -466,7 +477,7 @@ export function PatientRegistration() {
                   {/* Row 4: PhoneNo, Gender */}
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="phoneNo">Phone No *</Label>
+                      <Label htmlFor="phoneNo" className="text-gray-600">Phone No *</Label>
                       <Input
                         id="phoneNo"
                         required
@@ -474,22 +485,25 @@ export function PatientRegistration() {
                         value={formData.phoneNo}
                         onChange={(e) => setFormData({ ...formData, phoneNo: e.target.value })}
                         placeholder="Enter phone number"
+                        className="bg-gray-50 text-gray-900"
+                        
                       />
                     </div>
                     <div>
-                      <Label htmlFor="gender">Gender *</Label>
+                      <Label htmlFor="gender" className="text-gray-600">Gender *</Label>
                       <select
                         id="gender"
                         aria-label="Gender"
                         required
-                        className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                        className="w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-50 text-gray-900"
                         value={formData.gender}
                         onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
+                        
                       >
-                        <option value="">Select gender</option>
-                        <option value="Male">Male</option>
-                        <option value="Female">Female</option>
-                        <option value="Other">Other</option>
+                        <option value="" >Select gender</option>
+                        <option value="Male" >Male</option>
+                        <option value="Female" >Female</option>
+                        <option value="Other" >Other</option>
                       </select>
                     </div>
                   </div>
@@ -497,7 +511,7 @@ export function PatientRegistration() {
                   {/* Row 5: Age, Address */}
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="age">Age *</Label>
+                      <Label htmlFor="age" className="text-gray-600">Age *</Label>
                       <Input
                         id="age"
                         required
@@ -507,80 +521,92 @@ export function PatientRegistration() {
                         value={formData.age}
                         onChange={(e) => setFormData({ ...formData, age: e.target.value })}
                         placeholder="Enter age"
+                        className="bg-gray-50 text-gray-900"
+                        
                       />
                     </div>
                     <div>
-                      <Label htmlFor="address">Address</Label>
+                      <Label htmlFor="address" className="text-gray-600">Address</Label>
                       <Input
                         id="address"
                         value={formData.address}
                         onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                         placeholder="Enter address"
+                        className="bg-gray-50 text-gray-900"
+                        
                       />
                     </div>
                   </div>
 
                   {/* Row 6: ChiefComplaint */}
                   <div>
-                    <Label htmlFor="chiefComplaint">Chief Complaint</Label>
+                    <Label htmlFor="chiefComplaint" className="text-gray-600">Chief Complaint</Label>
                     <Input
                       id="chiefComplaint"
                       value={formData.chiefComplaint}
                       onChange={(e) => setFormData({ ...formData, chiefComplaint: e.target.value })}
                       placeholder="Enter chief complaint"
+                      className="bg-gray-50 text-gray-900"
+                      
                     />
                   </div>
 
                   {/* Row 7: Description */}
                   <div>
-                    <Label htmlFor="description">Description</Label>
+                    <Label htmlFor="description" className="text-gray-600">Description</Label>
                     <textarea
                       id="description"
                       rows={4}
-                      className="w-full px-3 py-2 border border-gray-200 rounded-md resize-none"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-md resize-none bg-gray-50 text-gray-900"
                       value={formData.description}
                       onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                       placeholder="Enter additional description or notes"
+                      
                     />
                   </div>
 
                   {/* Row 8: Status, RegisteredBy, RegisteredDate */}
                   <div className="grid grid-cols-3 gap-4">
                     <div>
-                      <Label htmlFor="status">Status</Label>
+                      <Label htmlFor="status" className="text-gray-600">Status</Label>
                       <select
                         id="status"
                         aria-label="Status"
-                        className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                        className="w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-50 text-gray-900"
                         value={formData.status}
                         onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                        
                       >
-                        <option value="Active">Active</option>
-                        <option value="Inactive">Inactive</option>
-                        <option value="Discharged">Discharged</option>
+                        <option value="Active" >Active</option>
+                        <option value="Inactive" >Inactive</option>
+                        <option value="Discharged" >Discharged</option>
                       </select>
                     </div>
                     <div>
-                      <Label htmlFor="registeredBy">Registered By</Label>
+                      <Label htmlFor="registeredBy" className="text-gray-600">Registered By</Label>
                       <Input
                         id="registeredBy"
                         value={formData.registeredBy}
                         onChange={(e) => setFormData({ ...formData, registeredBy: e.target.value })}
                         placeholder="Registered by"
+                        className="bg-gray-50 text-gray-900"
+                        
                       />
                     </div>
                     <div>
-                      <Label htmlFor="registeredDate">Registered Date</Label>
+                      <Label htmlFor="registeredDate" className="text-gray-600">Registered Date</Label>
                       <Input
                         id="registeredDate"
                         type="date"
                         value={formData.registeredDate}
                         onChange={(e) => setFormData({ ...formData, registeredDate: e.target.value })}
+                        className="bg-gray-50 text-gray-900"
+                        
                       />
                     </div>
                   </div>
 
-                  <div className="flex justify-end gap-2 pt-4 border-t">
+                  <div className="flex justify-end gap-2 pt-4 border-t bg-white">
                     <Button 
                       type="button"
                       variant="outline" 
@@ -621,12 +647,12 @@ export function PatientRegistration() {
               </div>
             </DialogContent>
           </Dialog>
+            </div>
           </div>
-        </div>
 
-        <div className="overflow-y-auto overflow-x-hidden px-4 pt-4 pb-4 patient-registration-scrollable" style={{ maxHeight: 'calc(100vh - 100px)', minHeight: 0 }}>
-          {/* Search */}
-          <Card className="mb-6">
+          <div className="px-6 pt-4 pb-4 flex-1">
+            {/* Search */}
+          <Card className="mb-6 bg-white">
             <CardContent className="p-6">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
@@ -634,36 +660,33 @@ export function PatientRegistration() {
                   placeholder="Search by patient name, patient number, phone number, or patient ID..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
+                  className="pl-10 bg-gray-50"
                 />
               </div>
             </CardContent>
           </Card>
 
           {/* Patients Table */}
-          <Card className="mb-4">
+          <Card className="bg-white border border-gray-200 shadow-sm rounded-lg mb-4">
             <CardContent className="p-6">
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-gray-200">
-                      <th className="text-left py-3 px-4 text-gray-700">Patient No</th>
-                      <th className="text-left py-3 px-4 text-gray-700">Patient Name</th>
-                      <th className="text-left py-3 px-4 text-gray-700">Type</th>
-                      <th className="text-left py-3 px-4 text-gray-700">Age</th>
-                      <th className="text-left py-3 px-4 text-gray-700">Gender</th>
-                      <th className="text-left py-3 px-4 text-gray-700">Phone No</th>
-                      <th className="text-left py-3 px-4 text-gray-700">Aadhaar ID</th>
-                      <th className="text-left py-3 px-4 text-gray-700 break-words min-w-[120px]">Chief Complaint</th>
-                      <th className="text-left py-3 px-4 text-gray-700">Status</th>
-                      <th className="text-left py-3 px-4 text-gray-700">Registered Date</th>
-                      <th className="text-left py-3 px-4 text-gray-700">Actions</th>
+                      <th className="text-left py-4 px-6 text-gray-700">Patient No</th>
+                      <th className="text-left py-4 px-6 text-gray-700">Patient Name</th>
+                      <th className="text-left py-4 px-6 text-gray-700">Type</th>
+                      <th className="text-left py-4 px-6 text-gray-700">Age</th>
+                      <th className="text-left py-4 px-6 text-gray-700 break-words min-w-[120px]">Chief Complaint</th>
+                      <th className="text-left py-4 px-6 text-gray-700">Status</th>
+                      <th className="text-left py-4 px-6 text-gray-700">Registered Date</th>
+                      <th className="text-left py-4 px-6 text-gray-700">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredPatients.length === 0 ? (
                       <tr>
-                        <td colSpan={11} className="text-center py-8 text-gray-500 text-sm">
+                        <td colSpan={8} className="text-center py-8 text-gray-500 text-sm">
                           {searchTerm ? 'No patients found matching your search.' : 'No patients found. Click "Add New Patient" to register a new patient.'}
                         </td>
                       </tr>
@@ -673,23 +696,20 @@ export function PatientRegistration() {
                       const uniqueKey = patient.patientId || patient.PatientId || patient.id || `patient-${index}`;
                       return (
                       <tr key={uniqueKey} className="border-b border-gray-100 hover:bg-gray-50">
-                        <td className="py-3 px-4 text-gray-900 font-mono break-words">{patient.patientNo || '-'}</td>
-                        <td className="py-3 px-4 text-gray-900 break-words">
+                        <td className="py-4 px-6 text-gray-900 font-mono font-medium whitespace-nowrap">{patient.patientNo || '-'}</td>
+                        <td className="py-4 px-6 text-gray-600 whitespace-nowrap min-w-[120px]">
                           {patient.patientName} {patient.lastName || ''}
                         </td>
-                        <td className="py-3 px-4">
-                          <span className="px-1.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                        <td className="py-4 px-6 whitespace-nowrap">
+                          <span className="px-1.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
                             {patient.patientType || 'N/A'}
                           </span>
                         </td>
-                        <td className="py-3 px-4 text-gray-900 break-words">{patient.age}</td>
-                        <td className="py-3 px-4 text-gray-900 break-words">{patient.gender}</td>
-                        <td className="py-3 px-4 text-gray-900 break-words">{patient.phoneNo || patient.phone || '-'}</td>
-                        <td className="py-3 px-4 text-gray-900 font-mono break-words">{patient.adhaarID || '-'}</td>
-                        <td className="py-3 px-4 text-gray-900 break-words min-w-[120px]" title={patient.chiefComplaint || patient.condition}>
+                        <td className="py-4 px-6 text-gray-600 whitespace-nowrap">{patient.age}</td>
+                        <td className="py-4 px-6 text-gray-600 whitespace-nowrap min-w-[120px]" title={patient.chiefComplaint || patient.condition}>
                           {patient.chiefComplaint || patient.condition || '-'}
                         </td>
-                        <td className="py-3 px-4">
+                        <td className="py-4 px-6 whitespace-nowrap">
                           <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${
                             patient.status === 'Active' ? 'bg-green-100 text-green-700' :
                             patient.status === 'Inactive' ? 'bg-gray-100 text-gray-700' :
@@ -698,10 +718,10 @@ export function PatientRegistration() {
                             {patient.status || 'Active'}
                           </span>
                         </td>
-                        <td className="py-3 px-4 text-gray-900 break-words">
+                        <td className="py-4 px-6 text-gray-600 whitespace-nowrap">
                           {patient.registeredDate ? new Date(patient.registeredDate).toLocaleDateString() : '-'}
                         </td>
-                        <td className="py-3 px-4">
+                        <td className="py-4 px-6 whitespace-nowrap">
                           <div className="flex items-center gap-1">
                             <Button 
                               variant="ghost" 
@@ -753,6 +773,7 @@ export function PatientRegistration() {
             </div>
           </CardContent>
         </Card>
+          </div>
         </div>
       </div>
 
@@ -774,8 +795,8 @@ export function PatientRegistration() {
             {loadingPatientDetails ? (
               <div className="flex items-center justify-center py-12">
                 <div className="text-center">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                  <p className="text-blue-600">Loading patient details...</p>
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-600 mx-auto mb-4"></div>
+                  <p className="text-gray-600">Loading patient details...</p>
                 </div>
               </div>
             ) : selectedPatient ? (
@@ -808,7 +829,7 @@ export function PatientRegistration() {
               <div>
                 <Label className="text-xs text-gray-500">Patient Type</Label>
                 <p className="text-sm">
-                  <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                  <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
                     {selectedPatient.patientType || 'N/A'}
                   </span>
                 </p>

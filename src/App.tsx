@@ -24,7 +24,6 @@ import { Tooltip, TooltipTrigger, TooltipContent } from './components/ui/tooltip
 
 // Lazy load components for code splitting
 const Dashboard = lazy(() => import('./components/Dashboard').then(m => ({ default: m.Dashboard })));
-const FrontDesk = lazy(() => import('./components/FrontDesk').then(m => ({ default: m.FrontDesk })));
 const DoctorConsultation = lazy(() => import('./components/DoctorConsultation').then(m => ({ default: m.DoctorConsultation })));
 const Admissions = lazy(() => import('./components/Admissions').then(m => ({ default: m.Admissions })));
 const OTManagement = lazy(() => import('./components/OTManagement').then(m => ({ default: m.OTManagement })));
@@ -37,6 +36,7 @@ const StaffManagement = lazy(() => import('./components/Staff').then(m => ({ def
 const Roles = lazy(() => import('./components/Roles').then(m => ({ default: m.Roles })));
 const Departments = lazy(() => import('./components/Departments').then(m => ({ default: m.Departments })));
 const PatientRegistration = lazy(() => import('./components/PatientRegistration').then(m => ({ default: m.PatientRegistration })));
+const FrontDesk = lazy(() => import('./components/FrontDesk').then(m => ({ default: m.FrontDesk })));
 const RoomBeds = lazy(() => import('./components/RoomBeds').then(m => ({ default: m.RoomBeds })));
 const LabTests = lazy(() => import('./components/LabTests').then(m => ({ default: m.LabTests })));
 const BillManagement = lazy(() => import('./components/BillManagement').then(m => ({ default: m.BillManagement })));
@@ -50,8 +50,10 @@ const ManageICUCase = lazy(() => import('./components/ManageICUCase').then(m => 
 const ICUNurseVisitVitals = lazy(() => import('./components/ICUNurseVisitVitals').then(m => ({ default: m.ICUNurseVisitVitals })));
 const PatientOTAllocationManagement = lazy(() => import('./components/PatientOTAllocationManagement').then(m => ({ default: m.PatientOTAllocationManagement })));
 const EmergencyAdmissionManagement = lazy(() => import('./components/EmergencyAdmissionManagement').then(m => ({ default: m.EmergencyAdmissionManagement })));
+const ManageEmergencyAdmission = lazy(() => import('./components/ManageEmergencyAdmission').then(m => ({ default: m.ManageEmergencyAdmission })));
+const ManageEmergencyAdmissionVitals = lazy(() => import('./components/ManageEmergencyAdmissionVitals').then(m => ({ default: m.ManageEmergencyAdmissionVitals })));
 
-type View = 'dashboard' | 'frontdesk' | 'consultation' | 'admissions' | 'ot' | 'icu' | 'laboratory' | 'emergency' | 'reports' | 'doctors' | 'staff' | 'roles' | 'departments' | 'patientregistration' | 'roombeds' | 'labtests' | 'bills' | 'patientappointments' | 'otrooms' | 'icubeds' | 'emergencybeds' | 'surgerymanagement' | 'manageipdadmission' | 'manageicucase' | 'icunursevisitvitals' | 'patientotallocation' | 'emergencyadmission';
+type View = 'dashboard' | 'frontdesk' | 'consultation' | 'admissions' | 'ot' | 'icu' | 'laboratory' | 'emergency' | 'reports' | 'doctors' | 'staff' | 'roles' | 'departments' | 'patientregistration' | 'roombeds' | 'labtests' | 'bills' | 'patientappointments' | 'otrooms' | 'icubeds' | 'emergencybeds' | 'surgerymanagement' | 'manageipdadmission' | 'manageicucase' | 'icunursevisitvitals' | 'patientotallocation' | 'emergencyadmission' | 'manageemergencyadmission' | 'manageemergencyadmissionvitals';
 
 // Loading fallback component
 function LoadingFallback() {
@@ -75,7 +77,7 @@ export default function App() {
     const hash = window.location.hash.slice(1) || 'dashboard';
     // Extract view from hash (handle query parameters like #ot?otId=...)
     const viewName = hash.split('?')[0];
-    const validViews: View[] = ['dashboard', 'frontdesk', 'consultation', 'admissions', 'ot', 'icu', 'laboratory', 'emergency', 'reports', 'doctors', 'staff', 'roles', 'departments', 'patientregistration', 'roombeds', 'labtests', 'bills', 'patientappointments', 'otrooms', 'icubeds', 'emergencybeds', 'surgerymanagement', 'manageipdadmission', 'manageicucase', 'icunursevisitvitals', 'patientotallocation', 'emergencyadmission'];
+    const validViews: View[] = ['dashboard', 'frontdesk', 'consultation', 'admissions', 'ot', 'icu', 'laboratory', 'emergency', 'reports', 'doctors', 'staff', 'roles', 'departments', 'patientregistration', 'roombeds', 'labtests', 'bills', 'patientappointments', 'otrooms', 'icubeds', 'emergencybeds', 'surgerymanagement', 'manageipdadmission', 'manageicucase', 'icunursevisitvitals', 'patientotallocation', 'emergencyadmission', 'manageemergencyadmission', 'manageemergencyadmissionvitals'];
     const extractedView = validViews.includes(viewName as View) ? (viewName as View) : 'dashboard';
     console.log('getViewFromHash: hash=', hash, 'viewName=', viewName, 'extractedView=', extractedView);
     return extractedView;
@@ -88,18 +90,11 @@ export default function App() {
   // Sync URL hash with current view (preserve query parameters)
   useEffect(() => {
     const currentHash = window.location.hash.slice(1);
-    const hasQueryParams = currentHash.includes('?');
-    const viewFromHash = currentHash.split('?')[0];
-    
-    console.log('App: Sync effect triggered');
-    console.log('currentView:', currentView);
-    console.log('viewFromHash:', viewFromHash);
-    console.log('hasQueryParams:', hasQueryParams);
-    
-    // Only update hash if view doesn't match AND there are no query params
-    // If there are query params, let the hashchange handler manage the view update
-    if (!hasQueryParams && viewFromHash !== currentView) {
-      console.log('App: Updating hash to match currentView (no query params)');
+    const viewName = currentHash.split('?')[0];
+    // Only sync if the hash doesn't match the current view and has no query params
+    // This prevents overriding programmatic hash changes
+    // Also skip if we're navigating to a manage page (has query params)
+    if (!currentHash.includes('?') && viewName !== currentView && !currentView.includes('manage')) {
       window.location.hash = currentView;
     } else if (hasQueryParams && viewFromHash !== currentView) {
       // If hash has query params but view doesn't match, update view part only
@@ -117,7 +112,6 @@ export default function App() {
       console.log('App: Hash change detected');
       console.log('Current hash:', window.location.hash);
       const view = getViewFromHash();
-      console.log('Extracted view from hash:', view);
       setCurrentView(view);
       console.log('Updated currentView to:', view);
     };
@@ -129,32 +123,32 @@ export default function App() {
   }, []);
 
   const navItems = [
-    { id: 'dashboard' as View, label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'frontdesk' as View, label: 'Front Desk', icon: ClipboardList },
-    { id: 'patientregistration' as View, label: 'Patient Registration', icon: UserPlus },
-    { id: 'doctors' as View, label: 'Doctors', icon: Users },
+    { id: 'dashboard' as View, label: 'Dashboard', icon: LayoutDashboard, color: 'text-blue-600' },
+    { id: 'frontdesk' as View, label: 'Front Desk', icon: ClipboardList, color: 'text-gray-600' },
+    { id: 'patientregistration' as View, label: 'Patient Registration', icon: UserPlus, color: 'text-indigo-600' },
+    { id: 'doctors' as View, label: 'Doctors', icon: Users, color: 'text-purple-600' },
     // { id: 'patientappointments' as View, label: 'Appointments', icon: Calendar }, // Hidden - can be removed later
-    { id: 'consultation' as View, label: 'Doctor Consultation', icon: Stethoscope },
-    { id: 'laboratory' as View, label: 'Laboratory', icon: TestTube },    
-    { id: 'admissions' as View, label: 'Admissions (IPD)', icon: BedDouble },
-    { id: 'ot' as View, label: 'OT Management', icon: Scissors },
-    { id: 'otrooms' as View, label: 'OT Rooms Management', icon: Scissors },
-    { id: 'surgerymanagement' as View, label: 'Surgery Procedures Mgmt', icon: Activity },
-    { id: 'patientotallocation' as View, label: 'Patient OT Allocation', icon: Scissors },
-    { id: 'icu' as View, label: 'ICU Management', icon: HeartPulse },
-    { id: 'icubeds' as View, label: 'ICU Bed Management', icon: HeartPulse },
-    { id: 'emergencybeds' as View, label: 'Emergency Bed Management', icon: BedDouble },
-    { id: 'emergencyadmission' as View, label: 'Emergency Admission', icon: Siren },
-    { id: 'bills' as View, label: 'Bill Management', icon: Receipt },   
+    { id: 'consultation' as View, label: 'Doctor Consultation', icon: Stethoscope, color: 'text-green-600' },
+    { id: 'laboratory' as View, label: 'Laboratory', icon: TestTube, color: 'text-yellow-600' },    
+    { id: 'admissions' as View, label: 'Admissions (IPD)', icon: BedDouble, color: 'text-teal-600' },
+    { id: 'ot' as View, label: 'OT Management', icon: Scissors, color: 'text-pink-600' },
+    { id: 'otrooms' as View, label: 'OT Rooms Management', icon: Scissors, color: 'text-pink-600' },
+    { id: 'surgerymanagement' as View, label: 'Surgery Procedures Mgmt', icon: Activity, color: 'text-orange-600' },
+    { id: 'patientotallocation' as View, label: 'Patient OT Allocation', icon: Scissors, color: 'text-pink-600' },
+    { id: 'icu' as View, label: 'ICU Management', icon: HeartPulse, color: 'text-red-600' },
+    { id: 'icubeds' as View, label: 'ICU Bed Management', icon: HeartPulse, color: 'text-red-600' },
+    { id: 'emergencybeds' as View, label: 'Emergency Bed Management', icon: BedDouble, color: 'text-amber-600' },
+    { id: 'emergencyadmission' as View, label: 'Emergency Admission', icon: Siren, color: 'text-red-700' },
+    { id: 'bills' as View, label: 'Bill Management', icon: Receipt, color: 'text-emerald-600' },   
     
-    { id: 'roles' as View, label: 'Roles', icon: Shield },
-    { id: 'departments' as View, label: 'Departments', icon: Building2 },  
-    { id: 'staff' as View, label: 'Staff', icon: UserCog },   
-    { id: 'roombeds' as View, label: 'Room & Beds', icon: BedDouble },
-    { id: 'labtests' as View, label: 'Lab Tests', icon: FlaskConical },    
-    { id: 'emergency' as View, label: 'Emergency', icon: Siren },
+    { id: 'roles' as View, label: 'Roles', icon: Shield, color: 'text-slate-600' },
+    { id: 'departments' as View, label: 'Departments', icon: Building2, color: 'text-cyan-600' },  
+    { id: 'staff' as View, label: 'Staff', icon: UserCog, color: 'text-violet-600' },   
+    { id: 'roombeds' as View, label: 'Room & Beds', icon: BedDouble, color: 'text-teal-600' },
+    { id: 'labtests' as View, label: 'Lab Tests', icon: FlaskConical, color: 'text-yellow-600' },    
+    { id: 'emergency' as View, label: 'Emergency', icon: Siren, color: 'text-red-700' },
      
-    { id: 'reports' as View, label: 'Reports', icon: FileBarChart },
+    { id: 'reports' as View, label: 'Reports', icon: FileBarChart, color: 'text-blue-700' },
   ];
 
 
@@ -213,15 +207,15 @@ export default function App() {
                                   }}
                                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
                                     isActive
-                                      ? 'bg-blue-50 text-blue-600 shadow-sm'
+                                      ? 'bg-gray-50 text-gray-900 shadow-sm'
                                       : 'text-gray-900 hover:bg-gray-50'
                                   }`}
                                 >
                                   <Icon className={`size-6 flex-shrink-0 ${
-                                    isActive ? 'text-blue-600' : 'text-gray-700'
+                                    isActive ? item.color || 'text-gray-700' : item.color || 'text-gray-500'
                                   }`} strokeWidth={isActive ? 2.5 : 2} />
                                   <span className={`text-base font-normal truncate ${
-                                    isActive ? 'text-blue-600' : 'text-gray-900'
+                                    isActive ? 'text-gray-900' : 'text-gray-900'
                                   }`}>{item.label}</span>
                                 </a>
                               </TooltipTrigger>
@@ -260,14 +254,14 @@ export default function App() {
         <ResizablePanel defaultSize={isStandalone ? 100 : 84} minSize={70}>
 
           <main className={`h-full bg-white transition-all duration-300 flex flex-col ${
-            currentView === 'dashboard' || currentView === 'frontdesk' || currentView === 'icu' || currentView === 'otrooms' || currentView === 'icubeds' || currentView === 'emergencybeds' || currentView === 'patientregistration' || currentView === 'surgerymanagement' || currentView === 'manageipdadmission' || currentView === 'manageicucase' || currentView === 'icunursevisitvitals' || currentView === 'emergencyadmission'
+            currentView === 'dashboard' || currentView === 'frontdesk' || currentView === 'icu' || currentView === 'otrooms' || currentView === 'icubeds' || currentView === 'emergencybeds' || currentView === 'patientregistration' || currentView === 'surgerymanagement' || currentView === 'manageipdadmission' || currentView === 'manageicucase' || currentView === 'icunursevisitvitals' || currentView === 'emergencyadmission' || currentView === 'manageemergencyadmission' || currentView === 'manageemergencyadmissionvitals' || currentView === 'labtests'
               ? 'overflow-hidden' 
               : 'overflow-auto overflow-x-hidden'
           }`}>
             <Suspense fallback={<LoadingFallback />}>
               {currentView === 'dashboard' && <Dashboard />}
-              {currentView === 'frontdesk' && <FrontDesk />}
               {currentView === 'patientregistration' && <PatientRegistration />}
+              {currentView === 'frontdesk' && <FrontDesk />}
               {currentView === 'doctors' && <Doctors />}
               {currentView === 'staff' && <StaffManagement />}
               {currentView === 'roles' && <Roles />}
@@ -291,7 +285,15 @@ export default function App() {
               {currentView === 'manageipdadmission' && <ManageIPDAdmission />}
               {currentView === 'manageicucase' && <ManageICUCase />}
               {currentView === 'icunursevisitvitals' && <ICUNurseVisitVitals />}
-              {currentView === 'emergencyadmission' && <EmergencyAdmissionManagement />}
+              {currentView === 'emergencyadmission' && (() => {
+                console.log('App.tsx: Rendering EmergencyAdmissionManagement, currentView:', currentView);
+                return <EmergencyAdmissionManagement />;
+              })()}
+              {currentView === 'manageemergencyadmission' && (() => {
+                console.log('Rendering ManageEmergencyAdmission component');
+                return <ManageEmergencyAdmission />;
+              })()}
+              {currentView === 'manageemergencyadmissionvitals' && <ManageEmergencyAdmissionVitals />}
             </Suspense>
           </main>
         </ResizablePanel>
