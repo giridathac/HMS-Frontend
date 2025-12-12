@@ -84,16 +84,24 @@ export function Departments() {
 
   if (loading) {
     return (
-      <div className="p-8">
-        <div className="text-center py-12 text-gray-500">Loading departments...</div>
+      <div className="flex-1 bg-gray-50 flex flex-col overflow-hidden min-h-0">
+        <div className="overflow-y-auto overflow-x-hidden flex-1 flex flex-col min-h-0">
+          <div className="px-6 pt-6 pb-0 flex-shrink-0">
+            <div className="text-center py-12 text-gray-600">Loading departments...</div>
+          </div>
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="p-8">
-        <div className="text-center py-12 text-red-500">Error: {error}</div>
+      <div className="flex-1 bg-gray-50 flex flex-col overflow-hidden min-h-0">
+        <div className="overflow-y-auto overflow-x-hidden flex-1 flex flex-col min-h-0">
+          <div className="px-6 pt-6 pb-0 flex-shrink-0">
+            <div className="text-center py-12 text-red-600">Error: {error}</div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -216,14 +224,15 @@ function DepartmentsView({
     : departments;
 
   return (
-    <>
-      <div className="px-4 pt-4 pb-4 bg-blue-100 h-screen flex flex-col overflow-hidden">
-        <div className="flex items-center justify-between mb-4 flex-shrink-0">
-          <div>
-            <h1 className="text-gray-900 mb-0 text-xl">Departments Management</h1>
-            <p className="text-gray-500 text-sm">Manage hospital departments by category</p>
-          </div>
-          <div className="flex items-center gap-4">
+    <div className="flex-1 bg-gray-50 flex flex-col overflow-hidden min-h-0">
+      <div className="overflow-y-auto overflow-x-hidden flex-1 flex flex-col min-h-0">
+        <div className="px-6 pt-6 pb-0 flex-shrink-0">
+          <div className="flex items-center justify-between mb-4 flex-shrink-0">
+            <div className="pl-[2px]">
+              <h1 className="text-gray-900 mb-2 text-2xl">Departments Management</h1>
+              <p className="text-gray-500 text-base">Manage hospital departments by category</p>
+            </div>
+            <div className="flex items-center gap-4">
             <select
               id="categoryFilter"
               aria-label="Filter by Category"
@@ -246,82 +255,88 @@ function DepartmentsView({
                   Add Department
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>Add New Department</DialogTitle>
+              <DialogContent className="p-0 gap-0 large-dialog bg-white">
+                <DialogHeader className="px-6 pt-4 pb-3 flex-shrink-0 bg-white">
+                  <DialogTitle className="text-gray-700">Add New Department</DialogTitle>
                 </DialogHeader>
-                <div className="space-y-4 py-4">
-                  <div className="grid grid-cols-2 gap-4">
+                <div className="flex-1 overflow-y-auto px-6 pb-1 patient-list-scrollable min-h-0 bg-white">
+                  <div className="space-y-4 py-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="name" className="text-gray-600">Department Name</Label>
+                        <Input
+                          id="name"
+                          placeholder="e.g., Medicine"
+                          value={formData.name}
+                          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                          className="bg-gray-50 text-gray-900"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="category" className="text-gray-600">Category</Label>
+                        <select
+                          id="category"
+                          aria-label="Category"
+                          className="w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-50 text-gray-900"
+                          value={formData.category}
+                          onChange={(e) => setFormData({ ...formData, category: e.target.value as DepartmentCategory })}
+                        >
+                          {categoryOptions.map(cat => (
+                            <option key={cat} value={cat}>{cat}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
                     <div>
-                      <Label htmlFor="name">Department Name</Label>
-                      <Input
-                        id="name"
-                        placeholder="e.g., Medicine"
-                        value={formData.name}
-                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      <Label htmlFor="description" className="text-gray-600">Description</Label>
+                      <Textarea
+                        id="description"
+                        placeholder="Enter department description..."
+                        value={formData.description}
+                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                        rows={3}
+                        className="bg-gray-50 text-gray-900"
                       />
                     </div>
                     <div>
-                      <Label htmlFor="category">Category</Label>
+                      <Label htmlFor="specialisationDetails" className="text-gray-600">Specialisation Details</Label>
+                      <Textarea
+                        id="specialisationDetails"
+                        placeholder="e.g., Cardiology, Interventional Cardiology, Cardiac Rehabilitation"
+                        value={formData.specialisationDetails}
+                        onChange={(e) => setFormData({ ...formData, specialisationDetails: e.target.value })}
+                        rows={3}
+                        className="bg-gray-50 text-gray-900"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="noOfDoctors" className="text-gray-600">Number of Doctors</Label>
+                      <Input
+                        id="noOfDoctors"
+                        type="number"
+                        min="0"
+                        placeholder="Enter number of doctors"
+                        value={formData.noOfDoctors}
+                        onChange={(e) => setFormData({ ...formData, noOfDoctors: parseInt(e.target.value) || 0 })}
+                        className="bg-gray-50 text-gray-900"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="status" className="text-gray-600">Status</Label>
                       <select
-                        id="category"
-                        aria-label="Category"
-                        className="w-full px-3 py-2 border border-gray-200 rounded-md"
-                        value={formData.category}
-                        onChange={(e) => setFormData({ ...formData, category: e.target.value as DepartmentCategory })}
+                        id="status"
+                        aria-label="Status"
+                        className="w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-50 text-gray-900"
+                        value={formData.status}
+                        onChange={(e) => setFormData({ ...formData, status: e.target.value as 'active' | 'inactive' })}
                       >
-                        {categoryOptions.map(cat => (
-                          <option key={cat} value={cat}>{cat}</option>
-                        ))}
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
                       </select>
                     </div>
                   </div>
-                  <div>
-                    <Label htmlFor="description">Description</Label>
-                    <Textarea
-                      id="description"
-                      placeholder="Enter department description..."
-                      value={formData.description}
-                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                      rows={3}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="specialisationDetails">Specialisation Details</Label>
-                    <Textarea
-                      id="specialisationDetails"
-                      placeholder="e.g., Cardiology, Interventional Cardiology, Cardiac Rehabilitation"
-                      value={formData.specialisationDetails}
-                      onChange={(e) => setFormData({ ...formData, specialisationDetails: e.target.value })}
-                      rows={3}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="noOfDoctors">Number of Doctors</Label>
-                    <Input
-                      id="noOfDoctors"
-                      type="number"
-                      min="0"
-                      placeholder="Enter number of doctors"
-                      value={formData.noOfDoctors}
-                      onChange={(e) => setFormData({ ...formData, noOfDoctors: parseInt(e.target.value) || 0 })}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="status">Status</Label>
-                    <select
-                      id="status"
-                      aria-label="Status"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-md"
-                      value={formData.status}
-                      onChange={(e) => setFormData({ ...formData, status: e.target.value as 'active' | 'inactive' })}
-                    >
-                      <option value="active">Active</option>
-                      <option value="inactive">Inactive</option>
-                    </select>
-                  </div>
                 </div>
-                <div className="flex justify-end gap-2">
+                <div className="flex justify-end gap-2 pt-4 border-t bg-white px-6 pb-4">
                   <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>Cancel</Button>
                   <Button onClick={handleAddSubmit}>Add Department</Button>
                 </div>
@@ -329,20 +344,20 @@ function DepartmentsView({
             </Dialog>
           </div>
         </div>
-
-        <Card className="flex-1 flex flex-col overflow-hidden min-h-0 mb-4">
+        <div className="px-6 pt-4 pb-4 flex-1">
+          <Card className="bg-white border border-gray-200 shadow-sm rounded-lg mb-4">
           <CardContent className="p-0 flex-1 overflow-hidden flex flex-col min-h-0">
             <div className="overflow-x-auto overflow-y-scroll border border-gray-200 rounded flex-1 min-h-0 doctors-scrollable h-full">
               <table className="w-full">
                 <thead className="sticky top-0 bg-white z-10 shadow-sm">
                   <tr className="border-b border-gray-200">
-                    <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">Department Name</th>
-                    <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">Category</th>
-                    <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">Description</th>
-                    <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">Specialisation</th>
-                    <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">No. of Doctors</th>
-                    <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">Status</th>
-                    <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">Actions</th>
+                    <th className="text-left py-4 px-6 text-gray-700 bg-white whitespace-nowrap">Department Name</th>
+                    <th className="text-left py-4 px-6 text-gray-700 bg-white whitespace-nowrap">Category</th>
+                    <th className="text-left py-4 px-6 text-gray-700 bg-white whitespace-nowrap">Description</th>
+                    <th className="text-left py-4 px-6 text-gray-700 bg-white whitespace-nowrap">Specialisation</th>
+                    <th className="text-left py-4 px-6 text-gray-700 bg-white whitespace-nowrap">No. of Doctors</th>
+                    <th className="text-left py-4 px-6 text-gray-700 bg-white whitespace-nowrap">Status</th>
+                    <th className="text-left py-4 px-6 text-gray-700 bg-white whitespace-nowrap">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -358,23 +373,23 @@ function DepartmentsView({
                   ) : (
                     filteredDepartments.map((dept) => (
                       <tr key={dept.id} className="border-b border-gray-100 hover:bg-gray-50">
-                        <td className="py-1 px-4">
+                        <td className="py-4 px-6">
                           <div className="flex items-center gap-2">
                             <Building2 className="size-4 text-blue-600" />
                             <span className="text-gray-900 font-medium">{dept.name}</span>
                           </div>
                         </td>
-                        <td className="py-1 px-4">
+                        <td className="py-4 px-6">
                           <span className={`px-2 py-1 rounded text-xs ${getCategoryColor(dept.category)}`}>
                             {dept.category}
                           </span>
                         </td>
-                        <td className="py-1 px-4 text-gray-600">
+                        <td className="py-4 px-6 text-gray-600">
                           {dept.description || (
                             <span className="text-gray-400 italic">No description</span>
                           )}
                         </td>
-                        <td className="py-1 px-4 text-gray-600 text-sm">
+                        <td className="py-4 px-6 text-gray-600 text-sm">
                           {dept.specialisationDetails ? (
                             <div className="flex items-start gap-2">
                               <Stethoscope className="size-4 mt-0.5 flex-shrink-0" />
@@ -384,13 +399,13 @@ function DepartmentsView({
                             <span className="text-gray-400 text-xs">Not specified</span>
                           )}
                         </td>
-                        <td className="py-1 px-4">
+                        <td className="py-4 px-6">
                           <div className="flex items-center gap-2 text-gray-600">
                             <Users className="size-4" />
                             <span>{dept.noOfDoctors !== undefined ? dept.noOfDoctors : 0}</span>
                           </div>
                         </td>
-                        <td className="py-1 px-4">
+                        <td className="py-4 px-6">
                           <span className={`px-2 py-1 rounded text-xs ${
                             dept.status === 'active' 
                               ? 'bg-green-100 text-green-700' 
@@ -399,7 +414,7 @@ function DepartmentsView({
                             {dept.status === 'active' ? 'Active' : 'Inactive'}
                           </span>
                         </td>
-                        <td className="py-1 px-4">
+                        <td className="py-4 px-6">
                           <div className="flex gap-2">
                             <Button variant="ghost" size="sm" onClick={() => handleEdit(dept)}>
                               <Edit className="size-4" />
@@ -417,91 +432,99 @@ function DepartmentsView({
             </div>
           </CardContent>
         </Card>
+        </div>
+      </div>
       </div>
 
       {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Edit Department</DialogTitle>
+        <DialogContent className="p-0 gap-0 large-dialog bg-white">
+          <DialogHeader className="px-6 pt-4 pb-3 flex-shrink-0 bg-white">
+            <DialogTitle className="text-gray-700">Edit Department</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
+          <div className="flex-1 overflow-y-auto px-6 pb-1 patient-list-scrollable min-h-0 bg-white">
+            <div className="space-y-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="edit-name" className="text-gray-600">Department Name</Label>
+                  <Input
+                    id="edit-name"
+                    placeholder="e.g., Medicine"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className="bg-gray-50 text-gray-900"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit-category" className="text-gray-600">Category</Label>
+                  <select
+                    id="edit-category"
+                    aria-label="Category"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-50 text-gray-900"
+                    value={formData.category}
+                    onChange={(e) => setFormData({ ...formData, category: e.target.value as DepartmentCategory })}
+                  >
+                    {categoryOptions.map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
               <div>
-                <Label htmlFor="edit-name">Department Name</Label>
-                <Input
-                  id="edit-name"
-                  placeholder="e.g., Medicine"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                <Label htmlFor="edit-description" className="text-gray-600">Description</Label>
+                <Textarea
+                  id="edit-description"
+                  placeholder="Enter department description..."
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  rows={3}
+                  className="bg-gray-50 text-gray-900"
                 />
               </div>
               <div>
-                <Label htmlFor="edit-category">Category</Label>
+                <Label htmlFor="edit-specialisationDetails" className="text-gray-600">Specialisation Details</Label>
+                <Textarea
+                  id="edit-specialisationDetails"
+                  placeholder="e.g., Cardiology, Interventional Cardiology, Cardiac Rehabilitation"
+                  value={formData.specialisationDetails}
+                  onChange={(e) => setFormData({ ...formData, specialisationDetails: e.target.value })}
+                  rows={3}
+                  className="bg-gray-50 text-gray-900"
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-noOfDoctors" className="text-gray-600">Number of Doctors</Label>
+                <Input
+                  id="edit-noOfDoctors"
+                  type="number"
+                  min="0"
+                  placeholder="Enter number of doctors"
+                  value={formData.noOfDoctors}
+                  onChange={(e) => setFormData({ ...formData, noOfDoctors: parseInt(e.target.value) || 0 })}
+                  className="bg-gray-50 text-gray-900"
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-status" className="text-gray-600">Status</Label>
                 <select
-                  id="edit-category"
-                  aria-label="Category"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-md"
-                  value={formData.category}
-                  onChange={(e) => setFormData({ ...formData, category: e.target.value as DepartmentCategory })}
+                  id="edit-status"
+                  aria-label="Status"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-50 text-gray-900"
+                  value={formData.status}
+                  onChange={(e) => setFormData({ ...formData, status: e.target.value as 'active' | 'inactive' })}
                 >
-                  {categoryOptions.map(cat => (
-                    <option key={cat} value={cat}>{cat}</option>
-                  ))}
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
                 </select>
               </div>
             </div>
-            <div>
-              <Label htmlFor="edit-description">Description</Label>
-              <Textarea
-                id="edit-description"
-                placeholder="Enter department description..."
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                rows={3}
-              />
-            </div>
-            <div>
-              <Label htmlFor="edit-specialisationDetails">Specialisation Details</Label>
-              <Textarea
-                id="edit-specialisationDetails"
-                placeholder="e.g., Cardiology, Interventional Cardiology, Cardiac Rehabilitation"
-                value={formData.specialisationDetails}
-                onChange={(e) => setFormData({ ...formData, specialisationDetails: e.target.value })}
-                rows={3}
-              />
-            </div>
-            <div>
-              <Label htmlFor="edit-noOfDoctors">Number of Doctors</Label>
-              <Input
-                id="edit-noOfDoctors"
-                type="number"
-                min="0"
-                placeholder="Enter number of doctors"
-                value={formData.noOfDoctors}
-                onChange={(e) => setFormData({ ...formData, noOfDoctors: parseInt(e.target.value) || 0 })}
-              />
-            </div>
-            <div>
-              <Label htmlFor="edit-status">Status</Label>
-              <select
-                id="edit-status"
-                aria-label="Status"
-                className="w-full px-3 py-2 border border-gray-200 rounded-md"
-                value={formData.status}
-                onChange={(e) => setFormData({ ...formData, status: e.target.value as 'active' | 'inactive' })}
-              >
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-              </select>
-            </div>
           </div>
-          <div className="flex justify-end gap-2">
+          <div className="flex justify-end gap-2 pt-4 border-t bg-white px-6 pb-4">
             <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancel</Button>
             <Button onClick={handleEditSubmit}>Update Department</Button>
           </div>
         </DialogContent>
-      </Dialog>
-    </>
+        </Dialog>
+    </div>
   );
 }

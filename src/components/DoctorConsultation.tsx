@@ -7,7 +7,7 @@ import { Textarea } from './ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Badge } from './ui/badge';
-import { Search, Clock, Stethoscope, CheckCircle2, Hospital, Eye, Edit } from 'lucide-react';
+import { Search, Clock, Stethoscope, CheckCircle2, Hospital, Eye, Edit, Users } from 'lucide-react';
 import { usePatientAppointments } from '../hooks/usePatientAppointments';
 import { useStaff } from '../hooks/useStaff';
 import { useRoles } from '../hooks/useRoles';
@@ -124,97 +124,122 @@ export function DoctorConsultation() {
 
   if (loading) {
     return (
-      <div className="p-8">
-        <div className="text-center py-12 text-gray-700">Loading appointments...</div>
+      <div className="flex-1 bg-gray-50 flex flex-col overflow-hidden min-h-0 dashboard-scrollable" style={{ maxHeight: '100vh', minHeight: 0 }}>
+        <div className="overflow-y-auto overflow-x-hidden flex-1 flex flex-col min-h-0">
+          <div className="px-6 pt-6 pb-0 flex-shrink-0">
+            <div className="flex items-center justify-between mb-4 flex-shrink-0">
+              <div>
+                <h1 className="text-gray-900 mb-2 text-2xl">Doctor Consultation</h1>
+                <p className="text-gray-500 text-base">Manage patient consultations</p>
+              </div>
+            </div>
+          </div>
+          <div className="px-6 pt-4 pb-4 flex-1">
+            <div className="text-center py-12 text-gray-700">Loading appointments...</div>
+          </div>
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="p-8">
-        <div className="text-center py-12 text-red-500">Error: {error}</div>
+      <div className="flex-1 bg-gray-50 flex flex-col overflow-hidden min-h-0 dashboard-scrollable" style={{ maxHeight: '100vh', minHeight: 0 }}>
+        <div className="overflow-y-auto overflow-x-hidden flex-1 flex flex-col min-h-0">
+          <div className="px-6 pt-6 pb-0 flex-shrink-0">
+            <div className="flex items-center justify-between mb-4 flex-shrink-0">
+              <div>
+                <h1 className="text-gray-900 mb-2 text-2xl">Doctor Consultation</h1>
+                <p className="text-gray-500 text-base">Manage patient consultations</p>
+              </div>
+            </div>
+          </div>
+          <div className="px-6 pt-4 pb-4 flex-1">
+            <div className="text-center py-12 text-red-500">Error: {error}</div>
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="px-4 pt-4 pb-4 bg-blue-100 h-screen flex flex-col overflow-hidden">
-      <div className="flex-shrink-0">
-        <div className="flex items-center justify-between mb-4 flex-shrink-0">
-          <div>
-            <h1 className="text-gray-900 mb-0 text-xl">Doctor Consultation</h1>
-            <p className="text-gray-700 text-sm">Manage patient consultations</p>
+    <div className="flex-1 bg-gray-50 flex flex-col overflow-hidden min-h-0 dashboard-scrollable" style={{ maxHeight: '100vh', minHeight: 0 }}>
+      <div className="overflow-y-auto overflow-x-hidden flex-1 flex flex-col min-h-0">
+        <div className="px-6 pt-6 pb-0 flex-shrink-0">
+          <div className="flex items-center justify-between mb-4 flex-shrink-0">
+            <div>
+              <h1 className="text-gray-900 mb-2 text-2xl">Doctor Consultation</h1>
+              <p className="text-gray-500 text-base">Manage patient consultations</p>
+            </div>
           </div>
         </div>
-      </div>
-      <div className="flex-1 overflow-y-auto overflow-x-hidden doctorconsultation-scrollable min-h-0">
-        <div className="space-y-6">
+        <div className="px-6 pt-4 pb-4 flex-1">
           {/* Quick Stats */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-700 mb-1">Total Appointments</p>
-                    <h3 className="text-gray-900">{patientAppointments.length}</h3>
+            <Card className="bg-white border border-gray-200 shadow-sm rounded-lg">
+              <CardContent className="p-8">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="bg-gray-500 p-4 rounded-lg shadow-sm flex items-center justify-center">
+                    <Users className="size-7 text-white" strokeWidth={2} />
                   </div>
+                  <span className="text-sm font-medium text-gray-500">Total</span>
                 </div>
+                <h3 className="text-4xl font-bold text-gray-900 mb-2">{patientAppointments.length}</h3>
+                <p className="text-base text-gray-500">Total Appointments</p>
               </CardContent>
             </Card>
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-700 mb-1">Waiting</p>
-                    <h3 className="text-gray-900">{getAppointmentsByStatus('Waiting').length}</h3>
+            <Card className="bg-white border border-gray-200 shadow-sm rounded-lg">
+              <CardContent className="p-8">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="bg-orange-500 p-4 rounded-lg shadow-sm flex items-center justify-center">
+                    <Clock className="size-7 text-white" strokeWidth={2} />
                   </div>
-                  <div className="size-8 bg-yellow-100 rounded-full flex items-center justify-center">
-                    <span className="text-yellow-700">⏳</span>
-                  </div>
+                  <span className="text-sm font-medium text-gray-500">Waiting</span>
                 </div>
+                <h3 className="text-4xl font-bold text-gray-900 mb-2">{getAppointmentsByStatus('Waiting').length}</h3>
+                <p className="text-base text-gray-500">Waiting</p>
               </CardContent>
             </Card>
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-700 mb-1">Consulting</p>
-                    <h3 className="text-gray-900">{getAppointmentsByStatus('Consulting').length}</h3>
+            <Card className="bg-white border border-gray-200 shadow-sm rounded-lg">
+              <CardContent className="p-8">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="bg-purple-500 p-4 rounded-lg shadow-sm flex items-center justify-center">
+                    <Stethoscope className="size-7 text-white" strokeWidth={2} />
                   </div>
-                  <div className="size-8 bg-blue-100 rounded-full flex items-center justify-center">
-                    <span className="text-blue-700">👨‍⚕️</span>
-                  </div>
+                  <span className="text-sm font-medium text-gray-500">Consulting</span>
                 </div>
+                <h3 className="text-4xl font-bold text-gray-900 mb-2">{getAppointmentsByStatus('Consulting').length}</h3>
+                <p className="text-base text-gray-500">Consulting</p>
               </CardContent>
             </Card>
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-700 mb-1">Completed</p>
-                    <h3 className="text-gray-900">{getAppointmentsByStatus('Completed').length}</h3>
+            <Card className="bg-white border border-gray-200 shadow-sm rounded-lg">
+              <CardContent className="p-8">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="bg-green-500 p-4 rounded-lg shadow-sm flex items-center justify-center">
+                    <CheckCircle2 className="size-7 text-white" strokeWidth={2} />
                   </div>
-                  <div className="size-8 bg-green-100 rounded-full flex items-center justify-center">
-                    <span className="text-green-700">✓</span>
-                  </div>
+                  <span className="text-sm font-medium text-gray-500">Completed</span>
                 </div>
+                <h3 className="text-4xl font-bold text-gray-900 mb-2">{getAppointmentsByStatus('Completed').length}</h3>
+                <p className="text-base text-gray-500">Completed</p>
               </CardContent>
             </Card>
           </div>
 
           {/* Search */}
-          <div className="mb-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
-              <Input
-                placeholder="Search by token no, patient, or doctor..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-          </div>
+          <Card className="mb-6 bg-white">
+            <CardContent className="p-6">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
+                <Input
+                  placeholder="Search by token no, patient, or doctor..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 bg-gray-50"
+                />
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Appointments by Status */}
           <Tabs defaultValue="all" className="space-y-6">
@@ -885,92 +910,94 @@ function AppointmentList({
   };
 
   return (
-    <Card className="mb-4">
-      <CardContent className="p-6">
-        <div className="overflow-x-auto">
+    <Card className="mb-4 bg-white border border-gray-200 shadow-sm rounded-lg">
+      <CardContent className="p-0">
+        <div className="overflow-x-auto border border-gray-200 rounded">
           <table className="w-full">
-            <thead>
+            <thead className="sticky top-0 bg-white z-10 shadow-sm">
               <tr className="border-b border-gray-200">
-                <th className="text-left py-2 px-2 text-gray-700 font-bold text-sm">Patient ID</th>
-                <th className="text-left py-2 px-2 text-gray-700 font-bold text-sm">Patient</th>
-                <th className="text-left py-2 px-2 text-gray-700 font-bold text-sm">Phone</th>
-                <th className="text-left py-2 px-2 text-gray-700 font-bold text-sm">Doctor</th>
-                <th className="text-left py-2 px-2 text-gray-700 font-bold text-sm">Status</th>
-                <th className="text-left py-2 px-2 text-gray-700 font-bold text-sm">Charges(₹)</th>
-                <th className="text-left py-2 px-2 text-gray-700 font-bold text-sm">To Be Admitted</th>
-                <th className="text-left py-2 px-2 text-gray-700 font-bold text-sm">Actions</th>
+                <th className="text-left py-4 px-6 text-gray-700 bg-white whitespace-nowrap">Patient ID</th>
+                <th className="text-left py-4 px-6 text-gray-700 bg-white whitespace-nowrap">Patient</th>
+                <th className="text-left py-4 px-6 text-gray-700 bg-white whitespace-nowrap">Phone</th>
+                <th className="text-left py-4 px-6 text-gray-700 bg-white whitespace-nowrap">Doctor</th>
+                <th className="text-left py-4 px-6 text-gray-700 bg-white whitespace-nowrap">Status</th>
+                <th className="text-left py-4 px-6 text-gray-700 bg-white whitespace-nowrap">To Be Admitted</th>
+                <th className="text-left py-4 px-6 text-gray-700 bg-white whitespace-nowrap">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {appointments.map((appointment) => {
-                const patient = patients.find(p => 
-                  (p as any).patientId === appointment.patientId || 
-                  (p as any).PatientId === appointment.patientId
-                );
-                const doctor = doctors.find(d => d.id.toString() === appointment.doctorId);
-                const patientName = patient 
-                  ? `${(patient as any).patientName || (patient as any).PatientName || ''} ${(patient as any).lastName || (patient as any).LastName || ''}`.trim() 
-                  : appointment.patientId === '00000000-0000-0000-0000-000000000001' 
-                    ? 'Dummy Patient Name' 
-                    : appointment.patientId;
-                const doctorName = doctor ? doctor.name : appointment.doctorId;
-                const patientPhone = patient 
-                  ? (patient as any).PhoneNo || (patient as any).phoneNo || (patient as any).phone || '-'
-                  : '-';
-                const patientId = patient 
-                  ? (patient as any).PatientNo || (patient as any).patientNo || appointment.patientId.substring(0, 8)
-                  : appointment.patientId.substring(0, 8);
-                
-                return (
-                  <tr key={appointment.id} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="py-1 px-2 text-gray-600 whitespace-nowrap text-sm font-mono">{patientId}</td>
-                    <td className="py-1 px-2 text-gray-600 whitespace-nowrap text-sm">{patientName}</td>
-                    <td className="py-1 px-2 text-gray-600 whitespace-nowrap text-sm">{patientPhone}</td>
-                    <td className="py-1 px-2 text-gray-600 whitespace-nowrap text-sm">{doctorName}</td>
-                    <td className="py-1 px-2">{getStatusBadge(appointment.appointmentStatus)}</td>
-                    <td className="py-1 px-2 text-gray-900 font-semibold text-sm">
-                      ₹{appointment.consultationCharge.toFixed(2)}
-                    </td>
-                    <td className="py-1 px-2">
-                      {appointment.toBeAdmitted ? (
-                        <Badge variant="outline" className="bg-red-100 text-red-700 border-red-300 text-xs">
-                          <Hospital className="size-3 mr-1" />Yes
-                        </Badge>
-                      ) : (
-                        <span className="text-gray-700 text-sm">No</span>
-                      )}
-                    </td>
-                    <td className="py-1 px-2">
-                      <div className="flex items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => onView(appointment)}
-                          className="h-7 w-7 p-0"
-                        >
-                          <Eye className="size-3" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => onEdit(appointment)}
-                          className="h-7 w-7 p-0"
-                        >
-                          <Edit className="size-3" />
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
+              {appointments.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="text-center py-8 text-gray-500">
+                    No appointments found
+                  </td>
+                </tr>
+              ) : (
+                appointments.map((appointment) => {
+                  const patient = patients.find(p => 
+                    (p as any).patientId === appointment.patientId || 
+                    (p as any).PatientId === appointment.patientId
+                  );
+                  const doctor = doctors.find(d => d.id.toString() === appointment.doctorId);
+                  const patientName = patient 
+                    ? `${(patient as any).patientName || (patient as any).PatientName || ''} ${(patient as any).lastName || (patient as any).LastName || ''}`.trim() 
+                    : appointment.patientId === '00000000-0000-0000-0000-000000000001' 
+                      ? 'Dummy Patient Name' 
+                      : appointment.patientId;
+                  const doctorName = doctor ? doctor.name : appointment.doctorId;
+                  const patientPhone = patient 
+                    ? (patient as any).PhoneNo || (patient as any).phoneNo || (patient as any).phone || '-'
+                    : '-';
+                  const patientId = patient 
+                    ? (patient as any).PatientNo || (patient as any).patientNo || appointment.patientId.substring(0, 8)
+                    : appointment.patientId.substring(0, 8);
+                  
+                  return (
+                    <tr key={appointment.id} className="border-b border-gray-100 hover:bg-gray-50">
+                      <td className="py-4 px-6 text-gray-900 font-mono font-medium whitespace-nowrap">{patientId}</td>
+                      <td className="py-4 px-6 text-gray-600 whitespace-nowrap">{patientName}</td>
+                      <td className="py-4 px-6 text-gray-600 whitespace-nowrap">{patientPhone}</td>
+                      <td className="py-4 px-6 text-gray-600 whitespace-nowrap">{doctorName}</td>
+                      <td className="py-4 px-6">{getStatusBadge(appointment.appointmentStatus)}</td>
+                      <td className="py-4 px-6">
+                        {appointment.toBeAdmitted ? (
+                          <Badge variant="outline" className="bg-red-100 text-red-700 border-red-300 text-xs">
+                            <Hospital className="size-3 mr-1" />Yes
+                          </Badge>
+                        ) : (
+                          <span className="text-gray-600">No</span>
+                        )}
+                      </td>
+                      <td className="py-4 px-6 whitespace-nowrap">
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => onView(appointment)}
+                            className="h-7 w-7 p-0"
+                          >
+                            <Eye className="size-3" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => onEdit(appointment)}
+                            className="h-7 w-7 p-0"
+                          >
+                            <Edit className="size-3" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+              <tr>
+                <td className="py-1 px-4" colSpan={7}></td>
+              </tr>
             </tbody>
           </table>
         </div>
-        {appointments.length === 0 && (
-          <div className="text-center py-12 text-gray-700">
-            No appointments found
-          </div>
-        )}
       </CardContent>
     </Card>
   );

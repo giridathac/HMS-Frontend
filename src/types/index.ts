@@ -270,3 +270,24 @@ export interface EmergencyAdmission {
   createdByName?: string;
 }
 
+export interface EmergencyAdmissionVitals {
+  emergencyAdmissionVitalsId: number;
+  emergencyAdmissionId: number;
+  nurseId: number;
+  recordedDateTime: string;
+  heartRate?: number;
+  bloodPressure?: string;
+  temperature?: number;
+  o2Saturation?: number;
+  respiratoryRate?: number;
+  pulseRate?: number;
+  vitalsStatus: 'Critical' | 'Stable';
+  vitalsRemarks?: string;
+  vitalsCreatedBy?: number;
+  vitalsCreatedAt?: string;
+  status?: string;
+  // Additional response fields
+  nurseName?: string;
+  createdByName?: string;
+}
+

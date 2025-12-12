@@ -77,16 +77,24 @@ export function LabTests() {
 
   if (loading) {
     return (
-      <div className="p-8">
-        <div className="text-center py-12 text-blue-600">Loading lab tests...</div>
+      <div className="flex-1 bg-gray-50 flex flex-col overflow-hidden min-h-0">
+        <div className="overflow-y-auto overflow-x-hidden flex-1 flex flex-col min-h-0">
+          <div className="px-6 pt-6 pb-0 flex-shrink-0">
+            <div className="text-center py-12 text-gray-600">Loading lab tests...</div>
+          </div>
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="p-8">
-        <div className="text-center py-12 text-red-500">Error: {error}</div>
+      <div className="flex-1 bg-gray-50 flex flex-col overflow-hidden min-h-0">
+        <div className="overflow-y-auto overflow-x-hidden flex-1 flex flex-col min-h-0">
+          <div className="px-6 pt-6 pb-0 flex-shrink-0">
+            <div className="text-center py-12 text-red-600">Error: {error}</div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -237,13 +245,14 @@ function LabTestsView({
   });
 
   return (
-    <div className="flex-1 bg-blue-100 flex flex-col overflow-hidden min-h-0">
-      <div className="px-4 pt-4 pb-0 flex-shrink-0">
-        <div className="flex items-center justify-between mb-4 flex-shrink-0">
-          <div>
-            <h1 className="text-gray-900 mb-0 text-xl">Lab Tests</h1>
-            <p className="text-gray-500 text-sm">Manage laboratory test catalog</p>
-          </div>
+    <div className="flex-1 bg-gray-50 flex flex-col overflow-hidden min-h-0 dashboard-scrollable" style={{ maxHeight: '100vh', minHeight: 0 }}>
+      <div className="overflow-y-auto overflow-x-hidden flex-1 flex flex-col min-h-0">
+        <div className="px-6 pt-6 pb-0 flex-shrink-0">
+          <div className="flex items-center justify-between mb-4 flex-shrink-0">
+            <div>
+              <h1 className="text-gray-900 mb-2 text-2xl">Lab Tests</h1>
+              <p className="text-gray-500 text-base">Manage laboratory test catalog</p>
+            </div>
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
             <Button className="gap-2">
@@ -359,13 +368,13 @@ function LabTestsView({
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-gray-200">
-                    <th className="text-left py-3 px-4 text-sm font-medium text-blue-700">Display Test ID</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-blue-700">Test Name</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-blue-700">Category</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-blue-700">Description</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-blue-700">Charges</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-blue-700">Status</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-blue-700">Actions</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Display Test ID</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Test Name</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Category</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Description</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Charges</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Status</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -378,11 +387,11 @@ function LabTestsView({
                   ) : (
                     filteredLabTests.map((labTest) => (
                       <tr key={labTest.id} className="border-b border-gray-100 hover:bg-gray-50">
-                        <td className="py-3 px-4 text-sm text-blue-900 font-mono font-medium">{labTest.displayTestId}</td>
-                        <td className="py-3 px-4 text-sm text-blue-900 font-medium">{labTest.testName}</td>
+                        <td className="py-3 px-4 text-sm text-gray-900 font-mono font-medium">{labTest.displayTestId}</td>
+                        <td className="py-3 px-4 text-sm text-gray-900 font-medium">{labTest.testName}</td>
                         <td className="py-3 px-4 text-sm">{getCategoryBadge(labTest.testCategory)}</td>
-                        <td className="py-3 px-4 text-sm text-blue-700 max-w-xs truncate" title={labTest.description}>{labTest.description || '-'}</td>
-                        <td className="py-3 px-4 text-sm text-blue-700">₹{labTest.charges.toLocaleString()}</td>
+                        <td className="py-3 px-4 text-sm text-gray-600 max-w-xs truncate" title={labTest.description}>{labTest.description || '-'}</td>
+                        <td className="py-3 px-4 text-sm text-gray-600">₹{labTest.charges.toLocaleString()}</td>
                         <td className="py-3 px-4 text-sm">{getStatusBadge(labTest.status)}</td>
                         <td className="py-3 px-4">
                           <div className="flex items-center gap-2">

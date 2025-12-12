@@ -6,7 +6,7 @@ import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Badge } from './ui/badge';
-import { BedDouble, Plus, Edit, Trash2, CheckCircle2, XCircle, ArrowLeft, Clock } from 'lucide-react';
+import { BedDouble, Plus, Edit, Trash2, CheckCircle2, XCircle, ArrowLeft, Clock, Search, Users } from 'lucide-react';
 import { useEmergencyBeds } from '../hooks/useEmergencyBeds';
 import { useEmergencyBedSlots } from '../hooks/useEmergencyBedSlots';
 import { EmergencyBed, EmergencyBedSlot } from '../types';
@@ -17,6 +17,7 @@ export function EmergencyBedManagement() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedEmergencyBed, setSelectedEmergencyBed] = useState<EmergencyBed | null>(null);
   const [selectedEmergencyBedId, setSelectedEmergencyBedId] = useState<number | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState({
     emergencyBedNo: '',
     emergencyRoomNameNo: '',
@@ -150,17 +151,39 @@ export function EmergencyBedManagement() {
     }
   };
 
+  // Filter emergency beds based on search term
+  const filteredEmergencyBeds = emergencyBeds.filter(bed => {
+    if (!searchTerm) return true;
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      bed.emergencyBedNo?.toLowerCase().includes(searchLower) ||
+      bed.emergencyRoomNameNo?.toLowerCase().includes(searchLower) ||
+      bed.emergencyRoomDescription?.toLowerCase().includes(searchLower) ||
+      bed.emergencyBedId?.toString().includes(searchTerm) ||
+      bed.createdBy?.toString().includes(searchTerm)
+    );
+  });
+
+  // Calculate stats
+  const totalBeds = emergencyBeds.length;
+  const activeBeds = emergencyBeds.filter(bed => bed.status === 'active').length;
+  const inactiveBeds = emergencyBeds.filter(bed => bed.status === 'inactive').length;
+
   if (loading) {
     return (
-      <div className="px-4 pt-4 pb-0 bg-blue-100 h-full flex flex-col overflow-hidden">
-        <div className="flex items-center justify-between mb-4 flex-shrink-0">
-          <div>
-            <h1 className="text-gray-900 mb-0 text-xl">Emergency Bed Management</h1>
-            <p className="text-gray-500 text-sm">Manage emergency beds and their configurations</p>
+      <div className="flex-1 bg-gray-50 flex flex-col overflow-hidden min-h-0 dashboard-scrollable" style={{ maxHeight: '100vh', minHeight: 0 }}>
+        <div className="overflow-y-auto overflow-x-hidden flex-1 flex flex-col min-h-0">
+          <div className="px-6 pt-6 pb-0 flex-shrink-0">
+            <div className="flex items-center justify-between mb-4 flex-shrink-0">
+              <div>
+                <h1 className="text-gray-900 mb-2 text-2xl">Emergency Bed Management</h1>
+                <p className="text-gray-500 text-base">Manage emergency beds and their configurations</p>
+              </div>
+            </div>
           </div>
-        </div>
-        <div className="p-8">
-          <div className="text-center py-12 text-blue-600">Loading Emergency beds...</div>
+          <div className="px-6 pt-4 pb-4 flex-1">
+            <div className="text-center py-12 text-gray-600">Loading Emergency beds...</div>
+          </div>
         </div>
       </div>
     );
@@ -168,28 +191,33 @@ export function EmergencyBedManagement() {
 
   if (error) {
     return (
-      <div className="px-4 pt-4 pb-0 bg-blue-100 h-full flex flex-col overflow-hidden">
-        <div className="flex items-center justify-between mb-4 flex-shrink-0">
-          <div>
-            <h1 className="text-gray-900 mb-0 text-xl">Emergency Bed Management</h1>
-            <p className="text-gray-500 text-sm">Manage emergency beds and their configurations</p>
+      <div className="flex-1 bg-gray-50 flex flex-col overflow-hidden min-h-0 dashboard-scrollable" style={{ maxHeight: '100vh', minHeight: 0 }}>
+        <div className="overflow-y-auto overflow-x-hidden flex-1 flex flex-col min-h-0">
+          <div className="px-6 pt-6 pb-0 flex-shrink-0">
+            <div className="flex items-center justify-between mb-4 flex-shrink-0">
+              <div>
+                <h1 className="text-gray-900 mb-2 text-2xl">Emergency Bed Management</h1>
+                <p className="text-gray-500 text-base">Manage emergency beds and their configurations</p>
+              </div>
+            </div>
           </div>
-        </div>
-        <div className="p-8">
-          <div className="text-center py-12 text-red-500">Error: {error}</div>
+          <div className="px-6 pt-4 pb-4 flex-1">
+            <div className="text-center py-12 text-red-500">Error: {error}</div>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="px-4 pt-4 pb-4 bg-blue-100 h-screen flex flex-col overflow-hidden">
-      <div className="flex-shrink-0">
-        <div className="flex items-center justify-between mb-4 flex-shrink-0">
-          <div>
-            <h1 className="text-gray-900 mb-0 text-xl">Emergency Bed Management</h1>
-            <p className="text-gray-500 text-sm">Manage emergency beds and their configurations</p>
-          </div>
+    <div className="flex-1 bg-gray-50 flex flex-col overflow-hidden min-h-0 dashboard-scrollable" style={{ maxHeight: '100vh', minHeight: 0 }}>
+      <div className="overflow-y-auto overflow-x-hidden flex-1 flex flex-col min-h-0">
+        <div className="px-6 pt-6 pb-0 flex-shrink-0">
+          <div className="flex items-center justify-between mb-4 flex-shrink-0">
+            <div>
+              <h1 className="text-gray-900 mb-2 text-2xl">Emergency Bed Management</h1>
+              <p className="text-gray-500 text-base">Manage emergency beds and their configurations</p>
+            </div>
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
               <Button className="gap-2">
@@ -197,43 +225,46 @@ export function EmergencyBedManagement() {
                 Add Emergency Bed
               </Button>
             </DialogTrigger>
-          <DialogContent className="p-0 gap-0 large-dialog">
-            <DialogHeader className="px-6 pt-4 pb-3 flex-shrink-0">
-              <DialogTitle>Add New Emergency Bed</DialogTitle>
+          <DialogContent className="p-0 gap-0 large-dialog bg-white">
+            <DialogHeader className="px-6 pt-4 pb-3 flex-shrink-0 bg-white">
+              <DialogTitle className="text-gray-700">Add New Emergency Bed</DialogTitle>
             </DialogHeader>
-            <div className="flex-1 overflow-y-auto px-6 pb-1 patient-list-scrollable min-h-0">
+            <div className="flex-1 overflow-y-auto px-6 pb-1 patient-list-scrollable min-h-0 bg-white">
             <div className="space-y-4 py-4">
               <div>
-                <Label htmlFor="emergencyBedNo">Emergency Bed No *</Label>
+                <Label htmlFor="emergencyBedNo" className="text-gray-600">Emergency Bed No *</Label>
                 <Input
                   id="emergencyBedNo"
                   placeholder="e.g., ER-001"
                   value={formData.emergencyBedNo}
                   onChange={(e) => setFormData({ ...formData, emergencyBedNo: e.target.value })}
                   required
+                  className="text-gray-700"
                 />
               </div>
               <div>
-                <Label htmlFor="emergencyRoomNameNo">Emergency Room Name/No</Label>
+                <Label htmlFor="emergencyRoomNameNo" className="text-gray-600">Emergency Room Name/No</Label>
                 <Input
                   id="emergencyRoomNameNo"
                   placeholder="e.g., ER-Room-101"
                   value={formData.emergencyRoomNameNo}
                   onChange={(e) => setFormData({ ...formData, emergencyRoomNameNo: e.target.value })}
+                  className="text-gray-700"
                 />
               </div>
               <div>
-                <Label htmlFor="emergencyRoomDescription">Emergency Room Description</Label>
+                <Label htmlFor="emergencyRoomDescription" className="text-gray-600">Emergency Room Description</Label>
                 <Textarea
                   id="emergencyRoomDescription"
                   placeholder="Enter emergency room description..."
                   value={formData.emergencyRoomDescription}
                   onChange={(e) => setFormData({ ...formData, emergencyRoomDescription: e.target.value })}
                   rows={3}
+                  className="text-gray-700"
                 />
               </div>
               <div>
-                <Label htmlFor="chargesPerDay">
+                <Label htmlFor="chargesPerDay" className="text-gray-600">
                   Charges Per Day (₹) *
                 </Label>
                 <Input
@@ -243,26 +274,28 @@ export function EmergencyBedManagement() {
                   placeholder="e.g., 2500"
                   value={formData.chargesPerDay}
                   onChange={(e) => setFormData({ ...formData, chargesPerDay: e.target.value })}
+                  className="text-gray-700"
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="createdBy">Created By (User ID) *</Label>
+                  <Label htmlFor="createdBy" className="text-gray-600">Created By (User ID) *</Label>
                   <Input
                     id="createdBy"
                     type="text"
                     placeholder="e.g., 1"
                     value={formData.createdBy}
                     onChange={(e) => setFormData({ ...formData, createdBy: e.target.value })}
+                    className="text-gray-700"
                   />
                   <p className="text-xs text-gray-500 mt-1">Foreign Key to UserId</p>
                 </div>
                 <div>
-                  <Label htmlFor="status">Status</Label>
+                  <Label htmlFor="status" className="text-gray-600">Status</Label>
                   <select
                     id="status"
                     aria-label="Status"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-md text-gray-700"
                     value={formData.status}
                     onChange={(e) => setFormData({ ...formData, status: e.target.value as EmergencyBed['status'] })}
                   >
@@ -273,102 +306,148 @@ export function EmergencyBedManagement() {
               </div>
             </div>
             </div>
-            <div className="flex justify-end gap-2 px-6 py-2 border-t bg-gray-50 flex-shrink-0">
+            <div className="flex justify-end gap-2 px-6 py-2 border-t bg-white flex-shrink-0">
               <Button variant="outline" onClick={() => setIsAddDialogOpen(false)} className="py-1">Cancel</Button>
               <Button onClick={handleAddSubmit} className="py-1">Add Emergency Bed</Button>
             </div>
           </DialogContent>
-        </Dialog>
-        </div>
-      </div>
+          </Dialog>
+            </div>
+          </div>
+        <div className="px-6 pt-4 pb-4 flex-1">
+          {/* Quick Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <Card className="bg-white border border-gray-200 shadow-sm rounded-lg">
+              <CardContent className="p-8">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="bg-gray-500 p-4 rounded-lg shadow-sm flex items-center justify-center">
+                    <BedDouble className="size-7 text-white" strokeWidth={2} />
+                  </div>
+                  <span className="text-sm font-medium text-gray-500">Total</span>
+                </div>
+                <h3 className="text-4xl font-bold text-gray-900 mb-2">{totalBeds}</h3>
+                <p className="text-base text-gray-500">Total Beds</p>
+              </CardContent>
+            </Card>
+            <Card className="bg-white border border-gray-200 shadow-sm rounded-lg">
+              <CardContent className="p-8">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="bg-green-500 p-4 rounded-lg shadow-sm flex items-center justify-center">
+                    <CheckCircle2 className="size-7 text-white" strokeWidth={2} />
+                  </div>
+                  <span className="text-sm font-medium text-gray-500">Active</span>
+                </div>
+                <h3 className="text-4xl font-bold text-gray-900 mb-2">{activeBeds}</h3>
+                <p className="text-base text-gray-500">Active Beds</p>
+              </CardContent>
+            </Card>
+            <Card className="bg-white border border-gray-200 shadow-sm rounded-lg">
+              <CardContent className="p-8">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="bg-gray-500 p-4 rounded-lg shadow-sm flex items-center justify-center">
+                    <XCircle className="size-7 text-white" strokeWidth={2} />
+                  </div>
+                  <span className="text-sm font-medium text-gray-500">Inactive</span>
+                </div>
+                <h3 className="text-4xl font-bold text-gray-900 mb-2">{inactiveBeds}</h3>
+                <p className="text-base text-gray-500">Inactive Beds</p>
+              </CardContent>
+            </Card>
+          </div>
 
-      <div className="flex-1 flex flex-col overflow-hidden min-h-0">
-        {/* Emergency Beds Table */}
-        <Card className="flex-1 flex flex-col overflow-hidden min-h-0 mb-4">
-          <CardContent className="p-0 flex-1 overflow-hidden flex flex-col min-h-0">
-            <div className="overflow-x-auto overflow-y-scroll border border-gray-200 rounded flex-1 min-h-0 emergency-beds-scrollable doctors-scrollable" style={{ maxHeight: 'calc(100vh - 160px)' }}>
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-gray-200 bg-gray-50">
-                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-700" colSpan={9}>
-                      <div className="flex items-center gap-2">
-                        <BedDouble className="size-5" />
-                        <span>Emergency Beds List ({emergencyBeds.length})</span>
-                      </div>
-                    </th>
-                  </tr>
-                  <tr className="border-b border-gray-200">
-                    <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">Emergency Bed ID</th>
-                    <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">Emergency Bed No</th>
-                    <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">Room Name/No</th>
-                    <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">Room Description</th>
-                    <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">Charges Per Day (₹)</th>
-                    <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">Created By</th>
-                    <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">Created At</th>
-                    <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">Status</th>
-                    <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {emergencyBeds.length === 0 ? (
-                    <tr>
-                      <td colSpan={9} className="text-center py-8 text-gray-500">
-                        No Emergency beds found. Add a new Emergency bed to get started.
-                      </td>
+          {/* Search */}
+          <Card className="mb-6 bg-white">
+            <CardContent className="p-6">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
+                <Input
+                  placeholder="Search by bed no, room no, room description, bed ID, or created by..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 bg-gray-50"
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Emergency Beds Table */}
+          <Card className="bg-white border border-gray-200 shadow-sm rounded-lg mb-4">
+            <CardContent className="p-0">
+              <div className="overflow-x-auto border border-gray-200 rounded">
+                <table className="w-full">
+                  <thead className="sticky top-0 bg-white z-10 shadow-sm">
+                    <tr className="border-b border-gray-200">
+                      <th className="text-left py-4 px-6 text-gray-700 bg-white whitespace-nowrap">Bed ID</th>
+                      <th className="text-left py-4 px-6 text-gray-700 bg-white whitespace-nowrap">Bed No</th>
+                      <th className="text-left py-4 px-6 text-gray-700 bg-white whitespace-nowrap">Room No</th>
+                      <th className="text-left py-4 px-6 text-gray-700 bg-white whitespace-nowrap">Room Description</th>
+                      <th className="text-left py-4 px-6 text-gray-700 bg-white whitespace-nowrap">Created By</th>
+                      <th className="text-left py-4 px-6 text-gray-700 bg-white whitespace-nowrap">Created At</th>
+                      <th className="text-left py-4 px-6 text-gray-700 bg-white whitespace-nowrap">Status</th>
+                      <th className="text-left py-4 px-6 text-gray-700 bg-white whitespace-nowrap">Actions</th>
                     </tr>
-                  ) : (
-                    emergencyBeds.map((emergencyBed) => (
-                      <tr key={emergencyBed.id} className="border-b border-gray-100 hover:bg-gray-50">
-                        <td className="py-3 px-4 text-sm text-gray-900 font-mono font-medium">{emergencyBed.emergencyBedId}</td>
-                        <td className="py-3 px-4 text-sm font-medium">
-                          <a
-                            href={`#emergencybeds?emergencyBedId=${emergencyBed.id}`}
-                            onClick={(e) => {
-                              e.preventDefault();
-                              setSelectedEmergencyBedId(emergencyBed.id);
-                            }}
-                            className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
-                          >
-                            {emergencyBed.emergencyBedNo}
-                          </a>
-                        </td>
-                        <td className="py-3 px-4 text-sm text-gray-700">{emergencyBed.emergencyRoomNameNo || '-'}</td>
-                        <td className="py-3 px-4 text-sm text-gray-700 max-w-xs break-words whitespace-normal">{emergencyBed.emergencyRoomDescription || '-'}</td>
-                        <td className="py-3 px-4 text-sm text-gray-900 font-semibold">
-                          ₹{emergencyBed.chargesPerDay.toFixed(2)}
-                        </td>
-                        <td className="py-3 px-4 text-sm text-gray-700">{emergencyBed.createdBy}</td>
-                        <td className="py-3 px-4 text-sm text-gray-500">{new Date(emergencyBed.createdAt).toLocaleDateString()}</td>
-                        <td className="py-3 px-4 text-sm">{getStatusBadge(emergencyBed.status)}</td>
-                        <td className="py-3 px-4">
-                          <div className="flex items-center gap-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleEdit(emergencyBed)}
-                              className="h-8 w-8 p-0"
-                            >
-                              <Edit className="size-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDelete(emergencyBed.id)}
-                              className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                              title={`Delete Emergency Bed ID: ${emergencyBed.emergencyBedId}`}
-                            >
-                              <Trash2 className="size-4" />
-                            </Button>
-                          </div>
+                  </thead>
+                  <tbody>
+                    {filteredEmergencyBeds.length === 0 ? (
+                      <tr>
+                        <td colSpan={8} className="text-center py-8 text-gray-500">
+                          {searchTerm ? 'No emergency beds found matching your search.' : 'No Emergency beds found. Add a new Emergency bed to get started.'}
                         </td>
                       </tr>
-                    ))
+                    ) : (
+                      filteredEmergencyBeds.map((emergencyBed) => (
+                        <tr key={emergencyBed.id} className="border-b border-gray-100 hover:bg-gray-50">
+                          <td className="py-4 px-6 text-gray-900 font-mono font-medium whitespace-nowrap">{emergencyBed.emergencyBedId}</td>
+                          <td className="py-4 px-6 text-gray-600 whitespace-nowrap">
+                            <a
+                              href={`#emergencybeds?emergencyBedId=${emergencyBed.id}`}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                setSelectedEmergencyBedId(emergencyBed.id);
+                              }}
+                              className="text-gray-600 hover:text-gray-800 hover:underline cursor-pointer"
+                            >
+                              {emergencyBed.emergencyBedNo}
+                            </a>
+                          </td>
+                          <td className="py-4 px-6 text-gray-600 whitespace-nowrap">{emergencyBed.emergencyRoomNameNo || '-'}</td>
+                          <td className="py-4 px-6 text-gray-600 whitespace-nowrap">{emergencyBed.emergencyRoomDescription || '-'}</td>
+                          <td className="py-4 px-6 text-gray-600 whitespace-nowrap">{emergencyBed.createdBy}</td>
+                          <td className="py-4 px-6 text-gray-600 whitespace-nowrap">{new Date(emergencyBed.createdAt).toLocaleDateString()}</td>
+                          <td className="py-4 px-6 whitespace-nowrap">{getStatusBadge(emergencyBed.status)}</td>
+                          <td className="py-4 px-6 whitespace-nowrap">
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleEdit(emergencyBed)}
+                                className="h-8 w-8 p-0"
+                              >
+                                <Edit className="size-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDelete(emergencyBed.id)}
+                                className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                title={`Delete Emergency Bed ID: ${emergencyBed.emergencyBedId}`}
+                              >
+                                <Trash2 className="size-4" />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
                   )}
+                  <tr>
+                    <td className="py-1 px-4" colSpan={8}></td>
+                  </tr>
                 </tbody>
               </table>
             </div>
           </CardContent>
         </Card>
+        </div>
       </div>
 
       {/* Edit Dialog */}
@@ -623,7 +702,7 @@ function EmergencyBedSlotsManagement({ emergencyBedId, emergencyBed, onClose }: 
             </div>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto px-6 pb-1 patient-list-scrollable min-h-0">
-            <div className="text-center py-12 text-blue-600">Loading emergency bed slots...</div>
+            <div className="text-center py-12 text-gray-600">Loading emergency bed slots...</div>
           </div>
         </DialogContent>
       </Dialog>

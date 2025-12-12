@@ -64,16 +64,20 @@ export function StaffManagement() {
 
   if (loading) {
     return (
-      <div className="p-8 bg-blue-100 min-h-full">
-        <div className="text-center py-12 text-blue-600">Loading staff...</div>
+      <div className="flex-1 bg-gray-50 flex flex-col overflow-hidden min-h-0">
+        <div className="px-6 pt-6 pb-0 flex-shrink-0">
+          <div className="text-center py-12 text-gray-600">Loading staff...</div>
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="p-8 bg-blue-100 min-h-full">
-        <div className="text-center py-12 text-red-500">Error: {error}</div>
+      <div className="flex-1 bg-gray-50 flex flex-col overflow-hidden min-h-0">
+        <div className="px-6 pt-6 pb-0 flex-shrink-0">
+          <div className="text-center py-12 text-red-500">Error: {error}</div>
+        </div>
       </div>
     );
   }
@@ -541,51 +545,51 @@ function StaffView({
   );
 
   return (
-    <>
-      <div className="px-4 pt-4 pb-4 bg-blue-100 h-screen flex flex-col overflow-hidden">
-        <div className="flex items-center justify-between mb-4 flex-shrink-0">
-          <div>
-            <h1 className="text-gray-900 mb-0 text-xl">Staff Management</h1>
-            <p className="text-gray-500 text-sm">Manage hospital staff members</p>
+    <div className="flex-1 bg-gray-50 flex flex-col overflow-hidden min-h-0">
+      <div className="overflow-y-auto overflow-x-hidden flex-1 flex flex-col min-h-0">
+        <div className="px-6 pt-6 pb-0 flex-shrink-0">
+          <div className="flex items-center justify-between mb-4 flex-shrink-0">
+            <div>
+              <h1 className="text-gray-900 mb-2 text-2xl">Staff Management</h1>
+              <p className="text-gray-500 text-base">Manage hospital staff members</p>
+            </div>
+            {headerActions && <div className="flex-shrink-0">{headerActions}</div>}
           </div>
-          {headerActions && <div className="flex-shrink-0">{headerActions}</div>}
-        </div>
 
-        {/* Status Filter Tabs */}
-        <div className="mb-4 flex-shrink-0">
-          <Tabs 
-            value={selectedStatus} 
-            onValueChange={(value) => onStatusFilterChange(value as 'Active' | 'InActive' | 'all')}
-            className="w-full"
-          >
-            <TabsList className="grid w-full max-w-md grid-cols-3">
-              <TabsTrigger value="all">
-                All ({allStaff.length})
-              </TabsTrigger>
-              <TabsTrigger value="Active">
-                Active ({allStaff.filter(s => s.Status === 'Active').length})
-              </TabsTrigger>
-              <TabsTrigger value="InActive">
-                InActive ({allStaff.filter(s => s.Status === 'InActive').length})
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
+          {/* Status Filter Tabs */}
+          <div className="mb-4 flex-shrink-0">
+            <Tabs 
+              value={selectedStatus} 
+              onValueChange={(value) => onStatusFilterChange(value as 'Active' | 'InActive' | 'all')}
+              className="w-full"
+            >
+              <TabsList className="grid w-full max-w-md grid-cols-3">
+                <TabsTrigger value="all">
+                  All ({allStaff.length})
+                </TabsTrigger>
+                <TabsTrigger value="Active">
+                  Active ({allStaff.filter(s => s.Status === 'Active').length})
+                </TabsTrigger>
+                <TabsTrigger value="InActive">
+                  InActive ({allStaff.filter(s => s.Status === 'InActive').length})
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
         </div>
-
-        <Card className="flex-1 flex flex-col overflow-hidden min-h-0 mb-4">
+        <div className="px-6 pt-4 pb-4 flex-1">
+            <Card className="bg-white border border-gray-200 shadow-sm rounded-lg mb-4">
           <CardContent className="p-0 flex-1 overflow-hidden flex flex-col min-h-0">
             <div className="overflow-x-auto overflow-y-scroll border border-gray-200 rounded flex-1 min-h-0 doctors-scrollable h-full">
               <table className="w-full">
           <thead className="sticky top-0 bg-white z-10 shadow-sm">
             <tr className="border-b border-gray-200">
-              <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">User Name</th>
-              <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">Role</th>
-              <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">Phone</th>
-              <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">Email</th>
-              <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">Department</th>
-              <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">Qualification</th>
-              <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">Status</th>
-              <th className="text-left py-0.5 px-4 text-gray-700 bg-white whitespace-nowrap">Actions</th>
+              <th className="text-left py-4 px-6 text-gray-700 bg-white whitespace-nowrap">User Name</th>
+              <th className="text-left py-4 px-6 text-gray-700 bg-white whitespace-nowrap">Role</th>
+              <th className="text-left py-4 px-6 text-gray-700 bg-white whitespace-nowrap">Phone</th>
+              <th className="text-left py-4 px-6 text-gray-700 bg-white whitespace-nowrap">Department</th>
+              <th className="text-left py-4 px-6 text-gray-700 bg-white whitespace-nowrap">Status</th>
+              <th className="text-left py-4 px-6 text-gray-700 bg-white whitespace-nowrap">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -601,23 +605,21 @@ function StaffView({
                 : null;
               return (
                 <tr key={member.UserId || `staff-${member.UserName}`} className="border-b border-gray-100 hover:bg-gray-50">
-                  <td className="py-1 px-4">
+                  <td className="py-4 px-6">
                     <div className="flex items-center gap-2">
-                      <Users className="size-4 text-blue-600" />
+                      <Users className="size-4 text-gray-600" />
                       <span className="text-gray-900 font-medium">{member.UserName || '-'}</span>
                     </div>
                   </td>
-                  <td className="py-1 px-4 text-gray-600">{role?.name || '-'}</td>
-                  <td className="py-1 px-4 text-gray-600">{member.PhoneNo || '-'}</td>
-                  <td className="py-1 px-4 text-gray-600">{member.EmailId || '-'}</td>
-                  <td className="py-1 px-4 text-gray-600">{department?.name || '-'}</td>
-                  <td className="py-1 px-4 text-gray-600">{member.DoctorQualification || '-'}</td>
-                  <td className="py-1 px-4">
+                  <td className="py-4 px-6 text-gray-600">{role?.name || '-'}</td>
+                  <td className="py-4 px-6 text-gray-600">{member.PhoneNo || '-'}</td>
+                  <td className="py-4 px-6 text-gray-600">{department?.name || '-'}</td>
+                  <td className="py-4 px-6">
                     <span className={`px-2 py-1 rounded text-xs ${getStatusBadgeColor(member.Status)}`}>
                       {member.Status || 'Active'}
                     </span>
                   </td>
-                  <td className="py-1 px-4">
+                  <td className="py-4 px-6">
                     <div className="flex gap-2">
                       <Button variant="ghost" size="sm" onClick={() => handleEdit(member)}>
                         <Edit className="size-4" />
@@ -642,7 +644,8 @@ function StaffView({
             </div>
           </CardContent>
         </Card>
-      </div>
+          </div>
+        </div>
 
       {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
@@ -881,7 +884,7 @@ function StaffView({
           </div>
         </DialogContent>
       </Dialog>
-    </>
+    </div>
   );
 }
 
