@@ -44,7 +44,7 @@ const PatientAppointmentManagement = lazy(() => import('./components/PatientAppo
 const OTRoomsManagement = lazy(() => import('./components/OTRoomsManagement').then(m => ({ default: m.OTRoomsManagement })));
 const ICUBedsManagement = lazy(() => import('./components/ICUBedsManagement').then(m => ({ default: m.ICUBedsManagement })));
 const EmergencyBedManagement = lazy(() => import('./components/EmergencyBedManagement').then(m => ({ default: m.EmergencyBedManagement })));
-const SurgeryManagement = lazy(() => import('./components/SurgeryManagement').then(m => ({ default: m.SurgeryManagement })));
+//const SurgeryManagement = lazy(() => import('./components/SurgeryManagement').then(m => ({ default: m.SurgeryManagement })));
 const ManageIPDAdmission = lazy(() => import('./components/ManageIPDAdmission').then(m => ({ default: m.ManageIPDAdmission })));
 const ManageICUCase = lazy(() => import('./components/ManageICUCase').then(m => ({ default: m.ManageICUCase })));
 const ICUNurseVisitVitals = lazy(() => import('./components/ICUNurseVisitVitals').then(m => ({ default: m.ICUNurseVisitVitals })));
@@ -91,10 +91,12 @@ export default function App() {
   useEffect(() => {
     const currentHash = window.location.hash.slice(1);
     const viewName = currentHash.split('?')[0];
+    const hasQueryParams = currentHash.includes('?');
+    const viewFromHash = viewName;
     // Only sync if the hash doesn't match the current view and has no query params
     // This prevents overriding programmatic hash changes
     // Also skip if we're navigating to a manage page (has query params)
-    if (!currentHash.includes('?') && viewName !== currentView && !currentView.includes('manage')) {
+    if (!hasQueryParams && viewName !== currentView && !currentView.includes('manage')) {
       window.location.hash = currentView;
     } else if (hasQueryParams && viewFromHash !== currentView) {
       // If hash has query params but view doesn't match, update view part only
@@ -133,7 +135,7 @@ export default function App() {
     { id: 'admissions' as View, label: 'Admissions (IPD)', icon: BedDouble, color: 'text-teal-600' },
     { id: 'ot' as View, label: 'OT Management', icon: Scissors, color: 'text-pink-600' },
     { id: 'otrooms' as View, label: 'OT Rooms Management', icon: Scissors, color: 'text-pink-600' },
-    { id: 'surgerymanagement' as View, label: 'Surgery Procedures Mgmt', icon: Activity, color: 'text-orange-600' },
+    //{ id: 'surgerymanagement' as View, label: 'Surgery Procedures Mgmt', icon: Activity, color: 'text-orange-600' },
     { id: 'patientotallocation' as View, label: 'Patient OT Allocation', icon: Scissors, color: 'text-pink-600' },
     { id: 'icu' as View, label: 'ICU Management', icon: HeartPulse, color: 'text-red-600' },
     { id: 'icubeds' as View, label: 'ICU Bed Management', icon: HeartPulse, color: 'text-red-600' },
