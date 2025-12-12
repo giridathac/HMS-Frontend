@@ -560,7 +560,7 @@ export function ICUManagement() {
         ICUAllocationFromDate: addICUAdmissionForm.icuAllocationFromDate,
         ICUAllocationToDate: addICUAdmissionForm.icuAllocationToDate,
         Diagnosis: addICUAdmissionForm.diagnosis,
-        TreatmentDetails: addICUAdmissionForm.treatmentDetails,
+        TreatementDetails: addICUAdmissionForm.treatmentDetails,
         PatientCondition: addICUAdmissionForm.patientCondition,
         OnVentilator: addICUAdmissionForm.onVentilator,
         ICUAdmissionStatus: addICUAdmissionForm.icuAdmissionStatus,
