@@ -6,7 +6,7 @@ import { Label } from './ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Badge } from './ui/badge';
-import { TestTube, Search, FileText, Clock, CheckCircle, AlertCircle, Download } from 'lucide-react';
+import { TestTube, Search, FileText, Clock, CheckCircle, AlertCircle, Download, Eye, Edit } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { apiRequest } from '../api/base';
 import { PatientLabTest } from '../api/admissions';
@@ -42,394 +42,7 @@ interface LabTest {
 }
 
 const mockLabTests: LabTest[] = [
-  {
-    id: 1,
-    testId: 'LAB-2025-001',
-    patientName: 'John Smith',
-    patientId: 'P-12345',
-    age: 45,
-    gender: 'Male',
-    testName: 'Complete Blood Count (CBC)',
-    category: 'Blood Test',
-    orderedBy: 'Dr. Sarah Johnson',
-    orderedDate: '2025-11-14',
-    orderedTime: '09:30 AM',
-    priority: 'Routine',
-    status: 'Completed',
-    sampleCollectedBy: 'Nurse Jane',
-    technician: 'Lab Tech Mike',
-    result: 'Normal - All parameters within range',
-    reportedDate: '2025-11-14',
-    reportedTime: '02:30 PM',
-  },
-  {
-    id: 2,
-    testId: 'LAB-2025-002',
-    patientName: 'Emma Wilson',
-    patientId: 'P-12346',
-    age: 32,
-    gender: 'Female',
-    testName: 'ECG',
-    category: 'Imaging',
-    orderedBy: 'Dr. Sarah Johnson',
-    orderedDate: '2025-11-14',
-    orderedTime: '10:00 AM',
-    priority: 'Urgent',
-    status: 'In Progress',
-    sampleCollectedBy: 'Nurse Mary',
-    technician: 'Cardio Tech Sarah',
-  },
-  {
-    id: 3,
-    testId: 'LAB-2025-003',
-    patientName: 'Robert Brown',
-    patientId: 'P-12347',
-    age: 58,
-    gender: 'Male',
-    testName: 'X-Ray Chest',
-    category: 'Radiology',
-    orderedBy: 'Dr. Michael Chen',
-    orderedDate: '2025-11-14',
-    orderedTime: '11:15 AM',
-    priority: 'Routine',
-    status: 'Sample Collected',
-    sampleCollectedBy: 'Radio Tech John',
-  },
-  {
-    id: 4,
-    testId: 'LAB-2025-004',
-    patientName: 'Lisa Anderson',
-    patientId: 'P-12348',
-    age: 41,
-    gender: 'Female',
-    testName: 'Blood Sugar (Fasting)',
-    category: 'Blood Test',
-    orderedBy: 'Dr. James Miller',
-    orderedDate: '2025-11-14',
-    orderedTime: '08:00 AM',
-    priority: 'Routine',
-    status: 'Completed',
-    sampleCollectedBy: 'Nurse Jane',
-    technician: 'Lab Tech Mike',
-    result: '95 mg/dL - Normal',
-    reportedDate: '2025-11-14',
-    reportedTime: '11:00 AM',
-  },
-  {
-    id: 5,
-    testId: 'LAB-2025-005',
-    patientName: 'David Martinez',
-    patientId: 'P-12349',
-    age: 54,
-    gender: 'Male',
-    testName: 'CT Scan - Chest',
-    category: 'Imaging',
-    orderedBy: 'Dr. Emily Davis',
-    orderedDate: '2025-11-14',
-    orderedTime: '01:00 PM',
-    priority: 'Emergency',
-    status: 'Pending',
-  },
-  {
-    id: 6,
-    testId: 'LAB-2025-006',
-    patientName: 'Sarah Thompson',
-    patientId: 'P-12350',
-    age: 38,
-    gender: 'Female',
-    testName: 'Lipid Profile',
-    category: 'Blood Test',
-    orderedBy: 'Dr. Sarah Johnson',
-    orderedDate: '2025-11-14',
-    orderedTime: '09:00 AM',
-    priority: 'Routine',
-    status: 'Completed',
-    sampleCollectedBy: 'Nurse Jane',
-    technician: 'Lab Tech Mike',
-    result: 'Total Cholesterol: 180 mg/dL - Normal',
-    reportedDate: '2025-11-14',
-    reportedTime: '12:00 PM',
-  },
-  {
-    id: 7,
-    testId: 'LAB-2025-007',
-    patientName: 'Michael Chen',
-    patientId: 'P-12351',
-    age: 62,
-    gender: 'Male',
-    testName: 'MRI Brain',
-    category: 'Imaging',
-    orderedBy: 'Dr. Michael Chen',
-    orderedDate: '2025-11-14',
-    orderedTime: '10:30 AM',
-    priority: 'Urgent',
-    status: 'In Progress',
-    sampleCollectedBy: 'Radio Tech John',
-    technician: 'MRI Tech Lisa',
-  },
-  {
-    id: 8,
-    testId: 'LAB-2025-008',
-    patientName: 'Jennifer Lee',
-    patientId: 'P-12352',
-    age: 29,
-    gender: 'Female',
-    testName: 'Urine Culture',
-    category: 'Urine Test',
-    orderedBy: 'Dr. James Miller',
-    orderedDate: '2025-11-14',
-    orderedTime: '08:30 AM',
-    priority: 'Routine',
-    status: 'Sample Collected',
-    sampleCollectedBy: 'Nurse Mary',
-  },
-  {
-    id: 9,
-    testId: 'LAB-2025-009',
-    patientName: 'Christopher White',
-    patientId: 'P-12353',
-    age: 47,
-    gender: 'Male',
-    testName: 'Liver Function Test',
-    category: 'Blood Test',
-    orderedBy: 'Dr. Emily Davis',
-    orderedDate: '2025-11-14',
-    orderedTime: '11:00 AM',
-    priority: 'Routine',
-    status: 'Completed',
-    sampleCollectedBy: 'Nurse Jane',
-    technician: 'Lab Tech Mike',
-    result: 'All parameters within normal range',
-    reportedDate: '2025-11-14',
-    reportedTime: '03:00 PM',
-  },
-  {
-    id: 10,
-    testId: 'LAB-2025-010',
-    patientName: 'Amanda Garcia',
-    patientId: 'P-12354',
-    age: 35,
-    gender: 'Female',
-    testName: 'Ultrasound Abdomen',
-    category: 'Imaging',
-    orderedBy: 'Dr. Sarah Johnson',
-    orderedDate: '2025-11-14',
-    orderedTime: '02:00 PM',
-    priority: 'Urgent',
-    status: 'Pending',
-  },
-  {
-    id: 11,
-    testId: 'LAB-2025-011',
-    patientName: 'Daniel Kim',
-    patientId: 'P-12355',
-    age: 56,
-    gender: 'Male',
-    testName: 'Thyroid Function Test',
-    category: 'Blood Test',
-    orderedBy: 'Dr. Michael Chen',
-    orderedDate: '2025-11-14',
-    orderedTime: '09:15 AM',
-    priority: 'Routine',
-    status: 'Completed',
-    sampleCollectedBy: 'Nurse Jane',
-    technician: 'Lab Tech Mike',
-    result: 'TSH: 2.5 mIU/L - Normal',
-    reportedDate: '2025-11-14',
-    reportedTime: '01:30 PM',
-  },
-  {
-    id: 12,
-    testId: 'LAB-2025-012',
-    patientName: 'Maria Rodriguez',
-    patientId: 'P-12356',
-    age: 43,
-    gender: 'Female',
-    testName: 'Mammography',
-    category: 'Radiology',
-    orderedBy: 'Dr. Emily Davis',
-    orderedDate: '2025-11-14',
-    orderedTime: '10:00 AM',
-    priority: 'Routine',
-    status: 'Sample Collected',
-    sampleCollectedBy: 'Radio Tech John',
-  },
-  {
-    id: 13,
-    testId: 'LAB-2025-013',
-    patientName: 'James Wilson',
-    patientId: 'P-12357',
-    age: 51,
-    gender: 'Male',
-    testName: 'Kidney Function Test',
-    category: 'Blood Test',
-    orderedBy: 'Dr. James Miller',
-    orderedDate: '2025-11-14',
-    orderedTime: '08:45 AM',
-    priority: 'Routine',
-    status: 'In Progress',
-    sampleCollectedBy: 'Nurse Mary',
-    technician: 'Lab Tech Mike',
-  },
-  {
-    id: 14,
-    testId: 'LAB-2025-014',
-    patientName: 'Patricia Brown',
-    patientId: 'P-12358',
-    age: 39,
-    gender: 'Female',
-    testName: 'Echocardiogram',
-    category: 'Imaging',
-    orderedBy: 'Dr. Sarah Johnson',
-    orderedDate: '2025-11-14',
-    orderedTime: '11:30 AM',
-    priority: 'Urgent',
-    status: 'Completed',
-    sampleCollectedBy: 'Cardio Tech Sarah',
-    technician: 'Cardio Tech Sarah',
-    result: 'Normal cardiac function',
-    reportedDate: '2025-11-14',
-    reportedTime: '02:00 PM',
-  },
-  {
-    id: 15,
-    testId: 'LAB-2025-015',
-    patientName: 'Richard Davis',
-    patientId: 'P-12359',
-    age: 64,
-    gender: 'Male',
-    testName: 'Prostate Specific Antigen',
-    category: 'Blood Test',
-    orderedBy: 'Dr. Michael Chen',
-    orderedDate: '2025-11-14',
-    orderedTime: '09:30 AM',
-    priority: 'Routine',
-    status: 'Completed',
-    sampleCollectedBy: 'Nurse Jane',
-    technician: 'Lab Tech Mike',
-    result: 'PSA: 2.1 ng/mL - Normal',
-    reportedDate: '2025-11-14',
-    reportedTime: '12:30 PM',
-  },
-  {
-    id: 16,
-    testId: 'LAB-2025-016',
-    patientName: 'Linda Martinez',
-    patientId: 'P-12360',
-    age: 48,
-    gender: 'Female',
-    testName: 'Pap Smear',
-    category: 'Pathology',
-    orderedBy: 'Dr. Emily Davis',
-    orderedDate: '2025-11-14',
-    orderedTime: '10:15 AM',
-    priority: 'Routine',
-    status: 'Sample Collected',
-    sampleCollectedBy: 'Nurse Mary',
-  },
-  {
-    id: 17,
-    testId: 'LAB-2025-017',
-    patientName: 'Thomas Anderson',
-    patientId: 'P-12361',
-    age: 55,
-    gender: 'Male',
-    testName: 'Bone Density Scan',
-    category: 'Radiology',
-    orderedBy: 'Dr. James Miller',
-    orderedDate: '2025-11-14',
-    orderedTime: '01:30 PM',
-    priority: 'Routine',
-    status: 'Pending',
-  },
-  {
-    id: 18,
-    testId: 'LAB-2025-018',
-    patientName: 'Nancy Taylor',
-    patientId: 'P-12362',
-    age: 42,
-    gender: 'Female',
-    testName: 'Hemoglobin A1C',
-    category: 'Blood Test',
-    orderedBy: 'Dr. Sarah Johnson',
-    orderedDate: '2025-11-14',
-    orderedTime: '08:00 AM',
-    priority: 'Routine',
-    status: 'Completed',
-    sampleCollectedBy: 'Nurse Jane',
-    technician: 'Lab Tech Mike',
-    result: 'HbA1c: 5.8% - Normal',
-    reportedDate: '2025-11-14',
-    reportedTime: '11:00 AM',
-  },
-  {
-    id: 19,
-    testId: 'LAB-2025-019',
-    patientName: 'William Jackson',
-    patientId: 'P-12363',
-    age: 60,
-    gender: 'Male',
-    testName: 'Stress Test',
-    category: 'Imaging',
-    orderedBy: 'Dr. Michael Chen',
-    orderedDate: '2025-11-14',
-    orderedTime: '10:45 AM',
-    priority: 'Urgent',
-    status: 'In Progress',
-    sampleCollectedBy: 'Cardio Tech Sarah',
-    technician: 'Cardio Tech Sarah',
-  },
-  {
-    id: 20,
-    testId: 'LAB-2025-020',
-    patientName: 'Susan Harris',
-    patientId: 'P-12364',
-    age: 36,
-    gender: 'Female',
-    testName: 'Vitamin D Level',
-    category: 'Blood Test',
-    orderedBy: 'Dr. Emily Davis',
-    orderedDate: '2025-11-14',
-    orderedTime: '09:00 AM',
-    priority: 'Routine',
-    status: 'Completed',
-    sampleCollectedBy: 'Nurse Jane',
-    technician: 'Lab Tech Mike',
-    result: 'Vitamin D: 32 ng/mL - Normal',
-    reportedDate: '2025-11-14',
-    reportedTime: '01:00 PM',
-  },
-  {
-    id: 21,
-    testId: 'LAB-2025-021',
-    patientName: 'Charles Moore',
-    patientId: 'P-12365',
-    age: 59,
-    gender: 'Male',
-    testName: 'Colonoscopy',
-    category: 'Pathology',
-    orderedBy: 'Dr. James Miller',
-    orderedDate: '2025-11-14',
-    orderedTime: '08:30 AM',
-    priority: 'Routine',
-    status: 'Sample Collected',
-    sampleCollectedBy: 'Nurse Mary',
-  },
-  {
-    id: 22,
-    testId: 'LAB-2025-022',
-    patientName: 'Karen Lewis',
-    patientId: 'P-12366',
-    age: 44,
-    gender: 'Female',
-    testName: 'Bone Scan',
-    category: 'Radiology',
-    orderedBy: 'Dr. Sarah Johnson',
-    orderedDate: '2025-11-14',
-    orderedTime: '11:00 AM',
-    priority: 'Urgent',
-    status: 'Pending',
-  },
+  
   {
     id: 23,
     testId: 'LAB-2025-023',
@@ -450,43 +63,7 @@ const mockLabTests: LabTest[] = [
     reportedDate: '2025-11-14',
     reportedTime: '12:00 PM',
   },
-  {
-    id: 24,
-    testId: 'LAB-2025-024',
-    patientName: 'Betty Hall',
-    patientId: 'P-12368',
-    age: 37,
-    gender: 'Female',
-    testName: 'Pregnancy Test',
-    category: 'Urine Test',
-    orderedBy: 'Dr. Emily Davis',
-    orderedDate: '2025-11-14',
-    orderedTime: '10:00 AM',
-    priority: 'Routine',
-    status: 'Completed',
-    sampleCollectedBy: 'Nurse Mary',
-    technician: 'Lab Tech Mike',
-    result: 'Positive',
-    reportedDate: '2025-11-14',
-    reportedTime: '11:30 AM',
-  },
-  {
-    id: 25,
-    testId: 'LAB-2025-025',
-    patientName: 'Robert Allen',
-    patientId: 'P-12369',
-    age: 61,
-    gender: 'Male',
-    testName: 'Chest X-Ray',
-    category: 'Radiology',
-    orderedBy: 'Dr. James Miller',
-    orderedDate: '2025-11-14',
-    orderedTime: '01:00 PM',
-    priority: 'Emergency',
-    status: 'In Progress',
-    sampleCollectedBy: 'Radio Tech John',
-    technician: 'Radio Tech John',
-  },
+ 
 ];
 
 // Doctor-wise daily report data
@@ -532,6 +109,15 @@ export function Laboratory() {
   const [countsError, setCountsError] = useState<string | null>(null);
   const [testsLoading, setTestsLoading] = useState(true);
   const [testsError, setTestsError] = useState<string | null>(null);
+  
+  // View and Edit PatientLabTest state
+  const [viewingPatientLabTest, setViewingPatientLabTest] = useState<any>(null);
+  const [isViewPatientLabTestDialogOpen, setIsViewPatientLabTestDialogOpen] = useState(false);
+  const [editingPatientLabTest, setEditingPatientLabTest] = useState<any>(null);
+  const [isEditPatientLabTestDialogOpen, setIsEditPatientLabTestDialogOpen] = useState(false);
+  const [editPatientLabTestFormData, setEditPatientLabTestFormData] = useState<any>(null);
+  const [editPatientLabTestSubmitting, setEditPatientLabTestSubmitting] = useState(false);
+  const [editPatientLabTestSubmitError, setEditPatientLabTestSubmitError] = useState<string | null>(null);
 
   // New Lab Order Dialog State
   const [newLabOrderFormData, setNewLabOrderFormData] = useState({
@@ -668,16 +254,66 @@ export function Laboratory() {
           return;
         }
         
-        // Helper function to extract field with multiple variations
+        // Helper function to extract field with multiple variations and nested objects
         const extractField = (data: any, fieldVariations: string[], defaultValue: any = '') => {
+          if (!data) return defaultValue;
+          
           for (const field of fieldVariations) {
-            const value = data?.[field];
-            if (value !== undefined && value !== null && value !== '') {
-              return value;
+            // Handle nested objects (e.g., Patient.PatientName, LabTest.TestName)
+            if (field.includes('.')) {
+              const parts = field.split('.');
+              let value = data;
+              for (const part of parts) {
+                if (value && typeof value === 'object') {
+                  value = value[part];
+                } else {
+                  value = undefined;
+                  break;
+                }
+              }
+              if (value !== undefined && value !== null && value !== '') {
+                return value;
+              }
+            } else {
+              // Direct field access
+              const value = data[field];
+              if (value !== undefined && value !== null && value !== '') {
+                return value;
+              }
             }
           }
+          
+          // Try nested object access (e.g., Patient.PatientName)
+          for (const field of fieldVariations) {
+            if (data.Patient && data.Patient[field]) {
+              const value = data.Patient[field];
+              if (value !== undefined && value !== null && value !== '') {
+                return value;
+              }
+            }
+            if (data.LabTest && data.LabTest[field]) {
+              const value = data.LabTest[field];
+              if (value !== undefined && value !== null && value !== '') {
+                return value;
+              }
+            }
+            if (data.patient && data.patient[field]) {
+              const value = data.patient[field];
+              if (value !== undefined && value !== null && value !== '') {
+                return value;
+              }
+            }
+            if (data.labTest && data.labTest[field]) {
+              const value = data.labTest[field];
+              if (value !== undefined && value !== null && value !== '') {
+                return value;
+              }
+            }
+          }
+          
           return defaultValue;
         };
+        
         
         // Map API response to LabTest interface
         const mappedTests: LabTest[] = labTestsData.map((labTest: any, index: number) => {
@@ -694,23 +330,27 @@ export function Laboratory() {
           
           const patientName = extractField(labTest, [
             'patientName', 'PatientName', 'patient_name', 'Patient_Name',
-            'patientFullName', 'PatientFullName', 'name', 'Name'
+            'patientFullName', 'PatientFullName', 'Patient.PatientName', 'Patient.patientName',
+            'Patient.Name', 'Patient.name', 'name', 'Name'
           ], 'Unknown Patient');
           
           const patientId = extractField(labTest, [
             'patientId', 'PatientId', 'patient_id', 'Patient_ID',
-            'patientID', 'PatientID'
+            'patientID', 'PatientID', 'Patient.PatientId', 'Patient.patientId',
+            'Patient.Id', 'Patient.id'
           ], 'N/A');
           
           const testName = extractField(labTest, [
             'testName', 'TestName', 'test_name', 'Test_Name',
             'labTestName', 'LabTestName', 'lab_test_name', 'Lab_Test_Name',
+            'LabTest.TestName', 'LabTest.testName', 'LabTest.Name', 'LabTest.name',
             'name', 'Name'
           ], 'Unknown Test');
           
           const category = extractField(labTest, [
             'testCategory', 'TestCategory', 'test_category', 'Test_Category',
-            'category', 'Category', 'labTestCategory', 'LabTestCategory'
+            'category', 'Category', 'labTestCategory', 'LabTestCategory',
+            'LabTest.TestCategory', 'LabTest.testCategory', 'LabTest.Category', 'LabTest.category'
           ], 'Other');
           
           const orderedBy = extractField(labTest, [
@@ -790,15 +430,78 @@ export function Laboratory() {
             'resultTime', 'ResultTime', 'result_time', 'Result_Time'
           ], undefined);
           
+          // Extract all PatientLabTest fields
+          const patientType = extractField(labTest, [
+            'patientType', 'PatientType', 'patient_type', 'Patient_Type'
+          ], undefined);
+          
+          const labTestId = extractField(labTest, [
+            'labTestId', 'LabTestId', 'lab_test_id', 'Lab_Test_Id',
+            'LabTest.LabTestId', 'LabTest.labTestId', 'LabTest.Id', 'LabTest.id'
+          ], undefined);
+          
+          const displayTestId = extractField(labTest, [
+            'displayTestId', 'DisplayTestId', 'display_test_id', 'Display_Test_Id',
+            'LabTest.DisplayTestId', 'LabTest.displayTestId', 'LabTest.DisplayTestID', 'LabTest.displayTestID'
+          ], testId);
+          
+          const testCategory = extractField(labTest, [
+            'testCategory', 'TestCategory', 'test_category', 'Test_Category',
+            'category', 'Category', 'labTestCategory', 'LabTestCategory',
+            'LabTest.TestCategory', 'LabTest.testCategory', 'LabTest.Category', 'LabTest.category'
+          ], category);
+          
+          const roomAdmissionId = extractField(labTest, [
+            'roomAdmissionId', 'RoomAdmissionId', 'room_admission_id', 'Room_Admission_Id'
+          ], undefined);
+          
+          const emergencyBedSlotId = extractField(labTest, [
+            'emergencyBedSlotId', 'EmergencyBedSlotId', 'emergency_bed_slot_id', 'Emergency_Bed_Slot_Id'
+          ], undefined);
+          
+          const billId = extractField(labTest, [
+            'billId', 'BillId', 'bill_id', 'Bill_Id'
+          ], undefined);
+          
+          const labTestDone = extractField(labTest, [
+            'labTestDone', 'LabTestDone', 'lab_test_done', 'Lab_Test_Done'
+          ], false);
+          
+          const reportsUrl = extractField(labTest, [
+            'reportsUrl', 'ReportsUrl', 'reports_url', 'Reports_Url'
+          ], undefined);
+          
+          const testDoneDateTime = extractField(labTest, [
+            'testDoneDateTime', 'TestDoneDateTime', 'test_done_date_time', 'Test_Done_Date_Time'
+          ], undefined);
+          
+          const statusValue = extractField(labTest, [
+            'status', 'Status'
+          ], status);
+          
+          const charges = extractField(labTest, [
+            'charges', 'Charges', 'testCharges', 'TestCharges'
+          ], 0);
+          
+          const createdBy = extractField(labTest, [
+            'createdBy', 'CreatedBy', 'created_by', 'Created_By'
+          ], undefined);
+          
+          const createdDate = extractField(labTest, [
+            'createdDate', 'CreatedDate', 'created_date', 'Created_Date'
+          ], orderedDate);
+          
           return {
             id: Number(patientLabTestsId) || index + 1,
+            patientLabTestsId: Number(patientLabTestsId) || index + 1,
             testId: String(testId),
             patientName: String(patientName),
             patientId: String(patientId),
             age: Number(age) || 0,
             gender: String(gender),
             testName: String(testName),
-            category: (category as 'Blood Test' | 'Urine Test' | 'Imaging' | 'Pathology' | 'Radiology' | 'Other') || 'Other',
+            category: (testCategory as 'Blood Test' | 'Urine Test' | 'Imaging' | 'Pathology' | 'Radiology' | 'Other') || 'Other',
+            testCategory: String(testCategory),
             orderedBy: String(orderedBy),
             orderedDate: String(orderedDate),
             orderedTime: String(orderedTime),
@@ -808,11 +511,27 @@ export function Laboratory() {
             technician: technician ? String(technician) : undefined,
             result: result ? String(result) : undefined,
             reportedDate: reportedDate ? String(reportedDate) : undefined,
-            reportedTime: reportedTime ? String(reportedTime) : undefined
-          };
+            reportedTime: reportedTime ? String(reportedTime) : undefined,
+            // Additional PatientLabTest fields
+            patientType: patientType ? String(patientType) : undefined,
+            labTestId: labTestId ? Number(labTestId) : undefined,
+            displayTestId: String(displayTestId),
+            roomAdmissionId: roomAdmissionId ? Number(roomAdmissionId) : undefined,
+            emergencyBedSlotId: emergencyBedSlotId ? (typeof emergencyBedSlotId === 'number' ? emergencyBedSlotId : String(emergencyBedSlotId)) : undefined,
+            billId: billId ? (typeof billId === 'number' ? billId : String(billId)) : undefined,
+            labTestDone: labTestDone === true || labTestDone === 'Yes' || labTestDone === 'yes' ? 'Yes' : 'No',
+            reportsUrl: reportsUrl ? String(reportsUrl) : undefined,
+            testStatus: String(testStatus),
+            testDoneDateTime: testDoneDateTime ? String(testDoneDateTime) : undefined,
+            statusValue: String(statusValue),
+            charges: Number(charges) || 0,
+            createdBy: createdBy ? (typeof createdBy === 'number' ? createdBy : String(createdBy)) : undefined,
+            createdDate: createdDate ? String(createdDate) : undefined
+          } as any;
         });
         
         console.log('Mapped patient lab tests:', mappedTests);
+        console.log('First mapped test:', mappedTests.length > 0 ? JSON.stringify(mappedTests[0], null, 2) : 'No mapped tests');
         setTests(mappedTests);
       } catch (err) {
         console.error('Error fetching patient lab tests:', err);
@@ -826,6 +545,228 @@ export function Laboratory() {
 
     fetchPatientLabTests();
   }, []); // Empty dependency array - fetch once on mount
+
+  // Handle viewing PatientLabTest
+  const handleViewPatientLabTest = (test: any) => {
+    setViewingPatientLabTest(test);
+    setIsViewPatientLabTestDialogOpen(true);
+  };
+
+  // Handle editing PatientLabTest
+  const handleEditPatientLabTest = (test: any) => {
+    setEditingPatientLabTest(test);
+    setEditPatientLabTestFormData({
+      patientLabTestsId: test.patientLabTestsId || test.id,
+      patientId: test.patientId || '',
+      labTestId: test.labTestId || '',
+      patientType: test.patientType || 'OPD',
+      priority: test.priority || 'Normal',
+      testStatus: test.testStatus || test.status || 'Pending',
+      labTestDone: test.labTestDone === 'Yes' || test.labTestDone === true ? 'Yes' : 'No',
+      reportsUrl: test.reportsUrl || '',
+      testDoneDateTime: test.testDoneDateTime || '',
+      roomAdmissionId: test.roomAdmissionId || '',
+      emergencyBedSlotId: test.emergencyBedSlotId || '',
+      billId: test.billId || '',
+      status: (test as any).statusValue || test.status || 'Active',
+      charges: test.charges || 0
+    });
+    setIsEditPatientLabTestDialogOpen(true);
+  };
+
+  // Handle saving edited PatientLabTest
+  const handleSaveEditPatientLabTest = async () => {
+    if (!editPatientLabTestFormData || !editingPatientLabTest) {
+      return;
+    }
+
+    try {
+      setEditPatientLabTestSubmitting(true);
+      setEditPatientLabTestSubmitError(null);
+
+      const patientLabTestsId = editPatientLabTestFormData.patientLabTestsId;
+      if (!patientLabTestsId) {
+        throw new Error('Patient Lab Test ID is required');
+      }
+
+      const payload: any = {
+        PatientLabTestsId: patientLabTestsId,
+        PatientId: editPatientLabTestFormData.patientId,
+        LabTestId: Number(editPatientLabTestFormData.labTestId),
+        PatientType: editPatientLabTestFormData.patientType,
+        Priority: editPatientLabTestFormData.priority,
+        TestStatus: editPatientLabTestFormData.testStatus,
+        LabTestDone: editPatientLabTestFormData.labTestDone,
+        Status: editPatientLabTestFormData.status
+      };
+
+      if (editPatientLabTestFormData.reportsUrl) {
+        payload.ReportsUrl = editPatientLabTestFormData.reportsUrl;
+      }
+      if (editPatientLabTestFormData.testDoneDateTime) {
+        payload.TestDoneDateTime = editPatientLabTestFormData.testDoneDateTime;
+      }
+      if (editPatientLabTestFormData.roomAdmissionId) {
+        payload.RoomAdmissionId = Number(editPatientLabTestFormData.roomAdmissionId);
+      }
+      if (editPatientLabTestFormData.emergencyBedSlotId) {
+        payload.EmergencyBedSlotId = Number(editPatientLabTestFormData.emergencyBedSlotId);
+      }
+      if (editPatientLabTestFormData.billId) {
+        payload.BillId = Number(editPatientLabTestFormData.billId);
+      }
+      if (editPatientLabTestFormData.charges) {
+        payload.Charges = Number(editPatientLabTestFormData.charges);
+      }
+
+      console.log('Updating PatientLabTest with payload:', payload);
+      await apiRequest<any>(`/patient-lab-tests/${patientLabTestsId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      // Refresh the tests list by re-fetching (reuse existing fetch logic)
+      const response = await apiRequest<any>('/patient-lab-tests/with-details');
+      const labTestsData = response?.data || response || [];
+      
+      if (Array.isArray(labTestsData) && labTestsData.length > 0) {
+        // Reuse the same mapping logic from useEffect
+        const extractField = (data: any, fieldVariations: string[], defaultValue: any = '') => {
+          for (const field of fieldVariations) {
+            const value = data?.[field];
+            if (value !== undefined && value !== null && value !== '') {
+              return value;
+            }
+          }
+          return defaultValue;
+        };
+        
+        const mappedTests: LabTest[] = labTestsData.map((labTest: any, index: number) => {
+          const patientLabTestsId = extractField(labTest, [
+            'patientLabTestsId', 'PatientLabTestsId', 'patient_lab_tests_id', 'Patient_Lab_Tests_Id',
+            'patientLabTestId', 'PatientLabTestId', 'id', 'Id', 'ID'
+          ], index + 1);
+          
+          const testId = extractField(labTest, [
+            'displayTestId', 'DisplayTestId', 'display_test_id', 'Display_Test_Id',
+            'testId', 'TestId', 'test_id', 'Test_ID',
+            'patientLabTestsId', 'PatientLabTestsId', 'id', 'Id', 'ID'
+          ], `LAB-${patientLabTestsId}`);
+          
+          const patientName = extractField(labTest, [
+            'patientName', 'PatientName', 'patient_name', 'Patient_Name',
+            'patientFullName', 'PatientFullName', 'name', 'Name'
+          ], 'Unknown Patient');
+          
+          const patientId = extractField(labTest, [
+            'patientId', 'PatientId', 'patient_id', 'Patient_ID',
+            'patientID', 'PatientID'
+          ], 'N/A');
+          
+          const testName = extractField(labTest, [
+            'testName', 'TestName', 'test_name', 'Test_Name',
+            'labTestName', 'LabTestName', 'lab_test_name', 'Lab_Test_Name',
+            'name', 'Name'
+          ], 'Unknown Test');
+          
+          const category = extractField(labTest, [
+            'testCategory', 'TestCategory', 'test_category', 'Test_Category',
+            'category', 'Category', 'labTestCategory', 'LabTestCategory'
+          ], 'Other');
+          
+          const priority = extractField(labTest, [
+            'priority', 'Priority', 'testPriority', 'TestPriority'
+          ], 'Routine');
+          
+          const testStatus = extractField(labTest, [
+            'testStatus', 'TestStatus', 'test_status', 'Test_Status',
+            'status', 'Status'
+          ], 'Pending');
+          
+          let status: 'Pending' | 'Sample Collected' | 'In Progress' | 'Completed' | 'Reported' = 'Pending';
+          if (testStatus) {
+            const statusLower = String(testStatus).toLowerCase();
+            if (statusLower === 'pending') {
+              status = 'Pending';
+            } else if (statusLower === 'sample collected' || statusLower === 'samplecollected') {
+              status = 'Sample Collected';
+            } else if (statusLower === 'in progress' || statusLower === 'inprogress' || statusLower === 'in_progress') {
+              status = 'In Progress';
+            } else if (statusLower === 'completed' || statusLower === 'done') {
+              status = 'Completed';
+            } else if (statusLower === 'reported') {
+              status = 'Reported';
+            }
+          }
+          
+          // Extract all other fields (simplified - you can add more if needed)
+          const patientType = extractField(labTest, ['patientType', 'PatientType'], undefined);
+          const labTestId = extractField(labTest, ['labTestId', 'LabTestId'], undefined);
+          const displayTestId = extractField(labTest, ['displayTestId', 'DisplayTestId'], testId);
+          const testCategory = extractField(labTest, ['testCategory', 'TestCategory'], category);
+          const roomAdmissionId = extractField(labTest, ['roomAdmissionId', 'RoomAdmissionId'], undefined);
+          const emergencyBedSlotId = extractField(labTest, ['emergencyBedSlotId', 'EmergencyBedSlotId'], undefined);
+          const billId = extractField(labTest, ['billId', 'BillId'], undefined);
+          const labTestDone = extractField(labTest, ['labTestDone', 'LabTestDone'], false);
+          const reportsUrl = extractField(labTest, ['reportsUrl', 'ReportsUrl'], undefined);
+          const testDoneDateTime = extractField(labTest, ['testDoneDateTime', 'TestDoneDateTime'], undefined);
+          const statusValue = extractField(labTest, ['status', 'Status'], status);
+          const charges = extractField(labTest, ['charges', 'Charges'], 0);
+          const createdBy = extractField(labTest, ['createdBy', 'CreatedBy'], undefined);
+          const createdDate = extractField(labTest, ['createdDate', 'CreatedDate'], new Date().toISOString().split('T')[0]);
+          
+          return {
+            id: Number(patientLabTestsId) || index + 1,
+            patientLabTestsId: Number(patientLabTestsId) || index + 1,
+            testId: String(testId),
+            patientName: String(patientName),
+            patientId: String(patientId),
+            age: 0,
+            gender: 'N/A',
+            testName: String(testName),
+            category: (testCategory as 'Blood Test' | 'Urine Test' | 'Imaging' | 'Pathology' | 'Radiology' | 'Other') || 'Other',
+            testCategory: String(testCategory),
+            orderedBy: 'N/A',
+            orderedDate: String(createdDate),
+            orderedTime: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
+            priority: (priority as 'Routine' | 'Urgent' | 'Emergency') || 'Routine',
+            status: status,
+            patientType: patientType ? String(patientType) : undefined,
+            labTestId: labTestId ? Number(labTestId) : undefined,
+            displayTestId: String(displayTestId),
+            roomAdmissionId: roomAdmissionId ? Number(roomAdmissionId) : undefined,
+            emergencyBedSlotId: emergencyBedSlotId ? (typeof emergencyBedSlotId === 'number' ? emergencyBedSlotId : String(emergencyBedSlotId)) : undefined,
+            billId: billId ? (typeof billId === 'number' ? billId : String(billId)) : undefined,
+            labTestDone: labTestDone === true || labTestDone === 'Yes' || labTestDone === 'yes' ? 'Yes' : 'No',
+            reportsUrl: reportsUrl ? String(reportsUrl) : undefined,
+            testStatus: String(testStatus),
+            testDoneDateTime: testDoneDateTime ? String(testDoneDateTime) : undefined,
+            statusValue: String(statusValue),
+            charges: Number(charges) || 0,
+            createdBy: createdBy ? (typeof createdBy === 'number' ? createdBy : String(createdBy)) : undefined,
+            createdDate: createdDate ? String(createdDate) : undefined
+          } as any;
+        });
+        
+        setTests(mappedTests);
+      } else {
+        setTests([]);
+      }
+
+      // Close dialog
+      setIsEditPatientLabTestDialogOpen(false);
+      setEditingPatientLabTest(null);
+      setEditPatientLabTestFormData(null);
+    } catch (err) {
+      console.error('Error saving PatientLabTest:', err);
+      setEditPatientLabTestSubmitError(err instanceof Error ? err.message : 'Failed to save patient lab test');
+    } finally {
+      setEditPatientLabTestSubmitting(false);
+    }
+  };
 
   const filteredTests = tests.filter(test =>
     test.patientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -1116,7 +1057,7 @@ export function Laboratory() {
                     <div className="relative">
                       <Input
                         id="labTestId"
-                        placeholder="Search lab test by name..."
+                        placeholder="Search lab test by Display Test ID, name, or category..."
                         value={labTestSearchTerm}
                         onChange={(e) => {
                           setLabTestSearchTerm(e.target.value);
@@ -1129,6 +1070,7 @@ export function Laboratory() {
                           <table className="w-full text-sm">
                             <thead className="bg-gray-50 sticky top-0">
                               <tr>
+                                <th className="py-2 px-3 text-left text-xs font-medium text-gray-700">Display Test ID</th>
                                 <th className="py-2 px-3 text-left text-xs font-medium text-gray-700">Test Name</th>
                                 <th className="py-2 px-3 text-left text-xs font-medium text-gray-700">Category</th>
                               </tr>
@@ -1137,24 +1079,31 @@ export function Laboratory() {
                               {availableLabTests.filter((test: any) => {
                                 if (!labTestSearchTerm) return true;
                                 const searchLower = labTestSearchTerm.toLowerCase();
-                                const testName = test.labTestName || test.LabTestName || test.name || test.Name || '';
-                                return testName.toLowerCase().includes(searchLower);
+                                const displayTestId = test.displayTestId || test.DisplayTestId || test.displayTestID || test.DisplayTestID || '';
+                                const testName = test.testName || test.TestName || test.labTestName || test.LabTestName || test.name || test.Name || '';
+                                const category = test.testCategory || test.TestCategory || test.category || test.Category || '';
+                                return displayTestId.toLowerCase().includes(searchLower) ||
+                                       testName.toLowerCase().includes(searchLower) ||
+                                       category.toLowerCase().includes(searchLower);
                               }).map((test: any) => {
                                 const testId = test.labTestId || test.LabTestId || test.id || test.Id || '';
-                                const testName = test.labTestName || test.LabTestName || test.name || test.Name || '';
+                                const displayTestId = test.displayTestId || test.DisplayTestId || test.displayTestID || test.DisplayTestID || '';
+                                const testName = test.testName || test.TestName || test.labTestName || test.LabTestName || test.name || test.Name || '';
                                 const category = test.testCategory || test.TestCategory || test.category || test.Category || '';
                                 const isSelected = newLabOrderFormData.labTestId === String(testId);
+                                const displayText = `${displayTestId}, ${testName} (${category})`;
                                 return (
                                   <tr
                                     key={testId}
                                     onClick={() => {
                                       setNewLabOrderFormData({ ...newLabOrderFormData, labTestId: String(testId) });
-                                      setLabTestSearchTerm(testName);
+                                      setLabTestSearchTerm(displayText);
                                       setShowLabTestList(false);
                                     }}
                                     className={`border-b border-gray-100 cursor-pointer hover:bg-blue-50 ${isSelected ? 'bg-blue-100' : ''}`}
                                   >
-                                    <td className="py-2 px-3 text-sm text-gray-900">{testName}</td>
+                                    <td className="py-2 px-3 text-sm text-gray-900 font-mono">{displayTestId || '-'}</td>
+                                    <td className="py-2 px-3 text-sm text-gray-900">{testName || '-'}</td>
                                     <td className="py-2 px-3 text-sm text-gray-600">{category || '-'}</td>
                                   </tr>
                                 );
@@ -1514,21 +1463,57 @@ export function Laboratory() {
           </TabsList>
 
           <TabsContent value="all">
-            <TestsList tests={filteredTests} onSelectTest={setSelectedTest} />
+            <TestsList 
+              tests={filteredTests} 
+              onSelectTest={setSelectedTest}
+              onViewTest={(test) => {
+                setViewingPatientLabTest(test);
+                setIsViewPatientLabTestDialogOpen(true);
+              }}
+              onEditTest={(test) => {
+                setEditingPatientLabTest(test);
+                setEditPatientLabTestFormData({
+                  patientLabTestsId: test.patientLabTestsId || test.id,
+                  patientId: test.patientId || '',
+                  labTestId: test.labTestId || '',
+                  patientType: test.patientType || 'OPD',
+                  priority: test.priority || 'Normal',
+                  testStatus: test.testStatus || test.status || 'Pending',
+                  labTestDone: test.labTestDone === 'Yes' || test.labTestDone === true ? 'Yes' : 'No',
+                  reportsUrl: test.reportsUrl || '',
+                  testDoneDateTime: test.testDoneDateTime || '',
+                  roomAdmissionId: test.roomAdmissionId || '',
+                  emergencyBedSlotId: test.emergencyBedSlotId || '',
+                  billId: test.billId || '',
+                  status: (test as any).statusValue || test.status || 'Active',
+                  charges: test.charges || 0
+                });
+                setIsEditPatientLabTestDialogOpen(true);
+              }}
+            />
           </TabsContent>
           <TabsContent value="pending">
-            <TestsList tests={getTestsByStatus('Pending')} onSelectTest={setSelectedTest} />
+            <TestsList 
+              tests={getTestsByStatus('Pending')} 
+              onSelectTest={setSelectedTest}
+              onViewTest={handleViewPatientLabTest}
+              onEditTest={handleEditPatientLabTest}
+            />
           </TabsContent>
           <TabsContent value="progress">
             <TestsList 
               tests={[...getTestsByStatus('In Progress'), ...getTestsByStatus('Sample Collected')]} 
-              onSelectTest={setSelectedTest} 
+              onSelectTest={setSelectedTest}
+              onViewTest={handleViewPatientLabTest}
+              onEditTest={handleEditPatientLabTest}
             />
           </TabsContent>
           <TabsContent value="completed">
             <TestsList 
               tests={[...getTestsByStatus('Completed'), ...getTestsByStatus('Reported')]} 
-              onSelectTest={setSelectedTest} 
+              onSelectTest={setSelectedTest}
+              onViewTest={handleViewPatientLabTest}
+              onEditTest={handleEditPatientLabTest}
             />
           </TabsContent>
         </Tabs>
@@ -1799,64 +1784,418 @@ export function Laboratory() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* View PatientLabTest Dialog */}
+      <Dialog open={isViewPatientLabTestDialogOpen} onOpenChange={setIsViewPatientLabTestDialogOpen}>
+        <DialogContent className="p-0 gap-0 large-dialog max-w-5xl max-h-[90vh]">
+          <DialogHeader className="px-6 pt-4 pb-3 flex-shrink-0">
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="size-5" />
+              Patient Lab Test Details
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto px-6 pb-1 patient-list-scrollable min-h-0">
+            {viewingPatientLabTest && (
+              <div className="space-y-4 py-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm font-semibold text-gray-700">PatientLabTestsId</Label>
+                    <p className="text-gray-900">{viewingPatientLabTest.patientLabTestsId || viewingPatientLabTest.id || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-semibold text-gray-700">PatientId</Label>
+                    <p className="text-gray-900">{viewingPatientLabTest.patientId || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-semibold text-gray-700">PatientName</Label>
+                    <p className="text-gray-900">{viewingPatientLabTest.patientName || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-semibold text-gray-700">TestName</Label>
+                    <p className="text-gray-900">{viewingPatientLabTest.testName || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-semibold text-gray-700">PatientType</Label>
+                    <p className="text-gray-900">{viewingPatientLabTest.patientType || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-semibold text-gray-700">LabTestId</Label>
+                    <p className="text-gray-900">{viewingPatientLabTest.labTestId || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-semibold text-gray-700">DisplayTestId</Label>
+                    <p className="text-gray-900 font-mono">{viewingPatientLabTest.displayTestId || viewingPatientLabTest.testId || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-semibold text-gray-700">TestCategory</Label>
+                    <p className="text-gray-900">{viewingPatientLabTest.testCategory || viewingPatientLabTest.category || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-semibold text-gray-700">RoomAdmissionId</Label>
+                    <p className="text-gray-900">{viewingPatientLabTest.roomAdmissionId || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-semibold text-gray-700">EmergencyBedSlotId</Label>
+                    <p className="text-gray-900">{viewingPatientLabTest.emergencyBedSlotId || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-semibold text-gray-700">BillId</Label>
+                    <p className="text-gray-900">{viewingPatientLabTest.billId || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-semibold text-gray-700">Priority</Label>
+                    <p className="text-gray-900">{viewingPatientLabTest.priority || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-semibold text-gray-700">LabTestDone</Label>
+                    <p className="text-gray-900">{viewingPatientLabTest.labTestDone === 'Yes' || viewingPatientLabTest.labTestDone === true ? 'Yes' : 'No'}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-semibold text-gray-700">ReportsUrl</Label>
+                    <p className="text-gray-900">
+                      {viewingPatientLabTest.reportsUrl ? (
+                        <a href={viewingPatientLabTest.reportsUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                          {viewingPatientLabTest.reportsUrl}
+                        </a>
+                      ) : 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-semibold text-gray-700">TestStatus</Label>
+                    <p className="text-gray-900">{viewingPatientLabTest.testStatus || viewingPatientLabTest.status || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-semibold text-gray-700">TestDoneDateTime</Label>
+                    <p className="text-gray-900">
+                      {viewingPatientLabTest.testDoneDateTime ? new Date(viewingPatientLabTest.testDoneDateTime).toLocaleString() : 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-semibold text-gray-700">Status</Label>
+                    <p className="text-gray-900">{(viewingPatientLabTest as any).statusValue || viewingPatientLabTest.status || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-semibold text-gray-700">Charges</Label>
+                    <p className="text-gray-900">₹{viewingPatientLabTest.charges || 0}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-semibold text-gray-700">CreatedBy</Label>
+                    <p className="text-gray-900">{viewingPatientLabTest.createdBy || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-semibold text-gray-700">CreatedDate</Label>
+                    <p className="text-gray-900">
+                      {viewingPatientLabTest.createdDate ? new Date(viewingPatientLabTest.createdDate).toLocaleDateString() : 'N/A'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+          <DialogFooter className="px-6 pb-4 flex-shrink-0">
+            <Button variant="outline" onClick={() => setIsViewPatientLabTestDialogOpen(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit PatientLabTest Dialog */}
+      <Dialog open={isEditPatientLabTestDialogOpen} onOpenChange={setIsEditPatientLabTestDialogOpen}>
+        <DialogContent className="p-0 gap-0 large-dialog max-w-4xl max-h-[90vh]">
+          <DialogHeader className="px-6 pt-4 pb-3 flex-shrink-0">
+            <DialogTitle className="flex items-center gap-2">
+              <Edit className="size-5" />
+              Edit Patient Lab Test
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto px-6 pb-1 patient-list-scrollable min-h-0">
+            {editPatientLabTestFormData && (
+              <div className="space-y-4 py-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="editPatientId">PatientId *</Label>
+                    <Input
+                      id="editPatientId"
+                      value={editPatientLabTestFormData.patientId}
+                      onChange={(e) => setEditPatientLabTestFormData({ ...editPatientLabTestFormData, patientId: e.target.value })}
+                      disabled
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="editLabTestId">LabTestId *</Label>
+                    <Input
+                      id="editLabTestId"
+                      value={editPatientLabTestFormData.labTestId}
+                      onChange={(e) => setEditPatientLabTestFormData({ ...editPatientLabTestFormData, labTestId: e.target.value })}
+                      disabled
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="editPatientType">PatientType *</Label>
+                    <select
+                      id="editPatientType"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                      value={editPatientLabTestFormData.patientType}
+                      onChange={(e) => setEditPatientLabTestFormData({ ...editPatientLabTestFormData, patientType: e.target.value })}
+                    >
+                      <option value="OPD">OPD</option>
+                      <option value="IPD">IPD</option>
+                      <option value="Emergency">Emergency</option>
+                    </select>
+                  </div>
+                  <div>
+                    <Label htmlFor="editPriority">Priority *</Label>
+                    <select
+                      id="editPriority"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                      value={editPatientLabTestFormData.priority}
+                      onChange={(e) => setEditPatientLabTestFormData({ ...editPatientLabTestFormData, priority: e.target.value })}
+                    >
+                      <option value="Normal">Normal</option>
+                      <option value="Urgent">Urgent</option>
+                    </select>
+                  </div>
+                  <div>
+                    <Label htmlFor="editTestStatus">TestStatus *</Label>
+                    <select
+                      id="editTestStatus"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                      value={editPatientLabTestFormData.testStatus}
+                      onChange={(e) => setEditPatientLabTestFormData({ ...editPatientLabTestFormData, testStatus: e.target.value })}
+                    >
+                      <option value="Pending">Pending</option>
+                      <option value="InProgress">InProgress</option>
+                      <option value="Completed">Completed</option>
+                    </select>
+                  </div>
+                  <div>
+                    <Label htmlFor="editLabTestDone">LabTestDone *</Label>
+                    <select
+                      id="editLabTestDone"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                      value={editPatientLabTestFormData.labTestDone}
+                      onChange={(e) => setEditPatientLabTestFormData({ ...editPatientLabTestFormData, labTestDone: e.target.value })}
+                    >
+                      <option value="No">No</option>
+                      <option value="Yes">Yes</option>
+                    </select>
+                  </div>
+                  <div>
+                    <Label htmlFor="editReportsUrl">ReportsUrl</Label>
+                    <Input
+                      id="editReportsUrl"
+                      value={editPatientLabTestFormData.reportsUrl}
+                      onChange={(e) => setEditPatientLabTestFormData({ ...editPatientLabTestFormData, reportsUrl: e.target.value })}
+                      placeholder="Enter report URL"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="editTestDoneDateTime">TestDoneDateTime</Label>
+                    <Input
+                      id="editTestDoneDateTime"
+                      type="datetime-local"
+                      value={editPatientLabTestFormData.testDoneDateTime ? new Date(editPatientLabTestFormData.testDoneDateTime).toISOString().slice(0, 16) : ''}
+                      onChange={(e) => setEditPatientLabTestFormData({ ...editPatientLabTestFormData, testDoneDateTime: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="editRoomAdmissionId">RoomAdmissionId</Label>
+                    <Input
+                      id="editRoomAdmissionId"
+                      type="number"
+                      value={editPatientLabTestFormData.roomAdmissionId}
+                      onChange={(e) => setEditPatientLabTestFormData({ ...editPatientLabTestFormData, roomAdmissionId: e.target.value })}
+                      placeholder="Room Admission ID"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="editEmergencyBedSlotId">EmergencyBedSlotId</Label>
+                    <Input
+                      id="editEmergencyBedSlotId"
+                      type="number"
+                      value={editPatientLabTestFormData.emergencyBedSlotId}
+                      onChange={(e) => setEditPatientLabTestFormData({ ...editPatientLabTestFormData, emergencyBedSlotId: e.target.value })}
+                      placeholder="Emergency Bed Slot ID"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="editBillId">BillId</Label>
+                    <Input
+                      id="editBillId"
+                      type="number"
+                      value={editPatientLabTestFormData.billId}
+                      onChange={(e) => setEditPatientLabTestFormData({ ...editPatientLabTestFormData, billId: e.target.value })}
+                      placeholder="Bill ID"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="editStatus">Status *</Label>
+                    <select
+                      id="editStatus"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                      value={editPatientLabTestFormData.status}
+                      onChange={(e) => setEditPatientLabTestFormData({ ...editPatientLabTestFormData, status: e.target.value })}
+                    >
+                      <option value="Active">Active</option>
+                      <option value="Inactive">Inactive</option>
+                    </select>
+                  </div>
+                  <div>
+                    <Label htmlFor="editCharges">Charges</Label>
+                    <Input
+                      id="editCharges"
+                      type="number"
+                      value={editPatientLabTestFormData.charges}
+                      onChange={(e) => setEditPatientLabTestFormData({ ...editPatientLabTestFormData, charges: Number(e.target.value) })}
+                      placeholder="Enter charges"
+                    />
+                  </div>
+                </div>
+                {editPatientLabTestSubmitError && (
+                  <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+                    {editPatientLabTestSubmitError}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+          <DialogFooter className="px-6 pb-4 flex-shrink-0">
+            <Button variant="outline" onClick={() => setIsEditPatientLabTestDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveEditPatientLabTest} disabled={editPatientLabTestSubmitting}>
+              {editPatientLabTestSubmitting ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
-function TestsList({ tests, onSelectTest }: { tests: LabTest[]; onSelectTest: (test: LabTest) => void }) {
+function TestsList({ 
+  tests, 
+  onSelectTest,
+  onViewTest,
+  onEditTest
+}: { 
+  tests: LabTest[]; 
+  onSelectTest: (test: LabTest) => void;
+  onViewTest: (test: any) => void;
+  onEditTest: (test: any) => void;
+}) {
   return (
     <Card className="mb-4">
       <CardContent className="p-6">
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full border-collapse">
             <thead>
               <tr className="border-b border-gray-200">
-                <th className="text-left py-3 px-4 text-gray-700">Test ID</th>
-                <th className="text-left py-3 px-4 text-gray-700">Patient</th>
-                <th className="text-left py-3 px-4 text-gray-700">Test Name</th>
-                <th className="text-left py-3 px-4 text-gray-700">Category</th>
-                <th className="text-left py-3 px-4 text-gray-700">Ordered By</th>
-                <th className="text-left py-3 px-4 text-gray-700">Priority</th>
-                <th className="text-left py-3 px-4 text-gray-700">Status</th>
-                <th className="text-left py-3 px-4 text-gray-700">Actions</th>
+                <th className="text-left py-3 px-4 text-xs font-medium text-gray-700">PatientLabTestsId</th>
+                <th className="text-left py-3 px-4 text-xs font-medium text-gray-700">PatientId</th>
+                <th className="text-left py-3 px-4 text-xs font-medium text-gray-700">PatientName</th>
+                <th className="text-left py-3 px-4 text-xs font-medium text-gray-700">TestName</th>
+                <th className="text-left py-3 px-4 text-xs font-medium text-gray-700">PatientType</th>
+                <th className="text-left py-3 px-4 text-xs font-medium text-gray-700">LabTestId</th>
+                <th className="text-left py-3 px-4 text-xs font-medium text-gray-700">DisplayTestId</th>
+                <th className="text-left py-3 px-4 text-xs font-medium text-gray-700">TestCategory</th>
+                <th className="text-left py-3 px-4 text-xs font-medium text-gray-700">RoomAdmissionId</th>
+                <th className="text-left py-3 px-4 text-xs font-medium text-gray-700">EmergencyBedSlotId</th>
+                <th className="text-left py-3 px-4 text-xs font-medium text-gray-700">BillId</th>
+                <th className="text-left py-3 px-4 text-xs font-medium text-gray-700">Priority</th>
+                <th className="text-left py-3 px-4 text-xs font-medium text-gray-700">LabTestDone</th>
+                <th className="text-left py-3 px-4 text-xs font-medium text-gray-700">ReportsUrl</th>
+                <th className="text-left py-3 px-4 text-xs font-medium text-gray-700">TestStatus</th>
+                <th className="text-left py-3 px-4 text-xs font-medium text-gray-700">TestDoneDateTime</th>
+                <th className="text-left py-3 px-4 text-xs font-medium text-gray-700">Status</th>
+                <th className="text-left py-3 px-4 text-xs font-medium text-gray-700">Charges</th>
+                <th className="text-left py-3 px-4 text-xs font-medium text-gray-700">CreatedBy</th>
+                <th className="text-left py-3 px-4 text-xs font-medium text-gray-700">CreatedDate</th>
+                <th className="text-left py-3 px-4 text-xs font-medium text-gray-700">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {tests.map((test) => (
+              {tests.map((test: any) => (
                 <tr key={test.id} className="border-b border-gray-100 hover:bg-gray-50">
-                  <td className="py-3 px-4">
-                    <span className="text-sm text-gray-900">{test.testId}</span>
+                  <td className="py-3 px-4 text-sm text-gray-600">{test.patientLabTestsId || test.id || 'N/A'}</td>
+                  <td className="py-3 px-4 text-sm text-gray-600">{test.patientId || 'N/A'}</td>
+                  <td className="py-3 px-4 text-sm text-gray-900">{test.patientName || 'N/A'}</td>
+                  <td className="py-3 px-4 text-sm text-gray-900">{test.testName || 'N/A'}</td>
+                  <td className="py-3 px-4 text-sm text-gray-600">
+                    <Badge variant="outline">{test.patientType || 'N/A'}</Badge>
                   </td>
-                  <td className="py-3 px-4">
-                    <p className="text-gray-900">{test.patientName}</p>
-                    <p className="text-xs text-gray-500">{test.patientId}</p>
+                  <td className="py-3 px-4 text-sm text-gray-600">{test.labTestId || 'N/A'}</td>
+                  <td className="py-3 px-4 text-sm text-gray-600 font-mono">{test.displayTestId || test.testId || 'N/A'}</td>
+                  <td className="py-3 px-4 text-sm text-gray-600">
+                    <Badge variant="outline">{test.testCategory || test.category || 'N/A'}</Badge>
                   </td>
-                  <td className="py-3 px-4 text-gray-900">{test.testName}</td>
-                  <td className="py-3 px-4">
-                    <Badge variant="outline">{test.category}</Badge>
-                  </td>
-                  <td className="py-3 px-4 text-gray-600">{test.orderedBy}</td>
-                  <td className="py-3 px-4">
+                  <td className="py-3 px-4 text-sm text-gray-600">{test.roomAdmissionId || 'N/A'}</td>
+                  <td className="py-3 px-4 text-sm text-gray-600">{test.emergencyBedSlotId || 'N/A'}</td>
+                  <td className="py-3 px-4 text-sm text-gray-600">{test.billId || 'N/A'}</td>
+                  <td className="py-3 px-4 text-sm">
                     <Badge variant={
-                      test.priority === 'Emergency' ? 'destructive' :
+                      test.priority === 'Emergency' || test.priority === 'Urgent' ? 'destructive' :
                       test.priority === 'Urgent' ? 'default' : 'secondary'
                     }>
-                      {test.priority}
+                      {test.priority || 'N/A'}
                     </Badge>
                   </td>
-                  <td className="py-3 px-4">
-                    <span className={`px-3 py-1 rounded-full text-xs ${
-                      test.status === 'Completed' || test.status === 'Reported' ? 'bg-green-100 text-green-700' :
-                      test.status === 'In Progress' || test.status === 'Sample Collected' ? 'bg-blue-100 text-blue-700' :
+                  <td className="py-3 px-4 text-sm text-gray-600">
+                    <Badge variant={test.labTestDone === 'Yes' || test.labTestDone === true ? 'default' : 'outline'}>
+                      {test.labTestDone === 'Yes' || test.labTestDone === true ? 'Yes' : 'No'}
+                    </Badge>
+                  </td>
+                  <td className="py-3 px-4 text-sm text-gray-600">
+                    {test.reportsUrl ? (
+                      <a href={test.reportsUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                        View Report
+                      </a>
+                    ) : 'N/A'}
+                  </td>
+                  <td className="py-3 px-4 text-sm">
+                    <span className={`px-2 py-1 rounded-full text-xs ${
+                      test.testStatus === 'Completed' || test.testStatus === 'completed' ? 'bg-green-100 text-green-700' :
+                      test.testStatus === 'In Progress' || test.testStatus === 'InProgress' || test.testStatus === 'in_progress' ? 'bg-blue-100 text-blue-700' :
                       'bg-orange-100 text-orange-700'
                     }`}>
-                      {test.status}
+                      {test.testStatus || test.status || 'N/A'}
                     </span>
                   </td>
+                  <td className="py-3 px-4 text-sm text-gray-600">
+                    {test.testDoneDateTime ? new Date(test.testDoneDateTime).toLocaleString() : 'N/A'}
+                  </td>
+                  <td className="py-3 px-4 text-sm">
+                    <Badge variant={(test as any).statusValue === 'Active' || (test as any).statusValue === 'active' ? 'default' : 'outline'}>
+                      {(test as any).statusValue || test.status || 'N/A'}
+                    </Badge>
+                  </td>
+                  <td className="py-3 px-4 text-sm text-gray-600">₹{test.charges || 0}</td>
+                  <td className="py-3 px-4 text-sm text-gray-600">{test.createdBy || 'N/A'}</td>
+                  <td className="py-3 px-4 text-sm text-gray-600">
+                    {test.createdDate ? new Date(test.createdDate).toLocaleDateString() : 'N/A'}
+                  </td>
                   <td className="py-3 px-4">
-                    <Button variant="outline" size="sm" onClick={() => onSelectTest(test)}>
-                      View Details
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onViewTest(test)}
+                        className="h-8 w-8 p-0"
+                        title="View Patient Lab Test Details"
+                      >
+                        <Eye className="h-4 w-4 text-blue-600" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onEditTest(test)}
+                        className="h-8 w-8 p-0"
+                        title="Edit Patient Lab Test"
+                      >
+                        <Edit className="h-4 w-4 text-green-600" />
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               ))}

@@ -135,7 +135,7 @@ export default function App() {
     { id: 'doctors' as View, label: 'Doctors', icon: Users },
     // { id: 'patientappointments' as View, label: 'Appointments', icon: Calendar }, // Hidden - can be removed later
     { id: 'consultation' as View, label: 'Doctor Consultation', icon: Stethoscope },
-    { id: 'laboratory' as View, label: 'Laboratory', icon: TestTube },    
+    { id: 'laboratory' as View, label: 'Laboratory Management', icon: TestTube },    
     { id: 'admissions' as View, label: 'Admissions (IPD)', icon: BedDouble },
     { id: 'ot' as View, label: 'OT Management', icon: Scissors },
     { id: 'otrooms' as View, label: 'OT Rooms Management', icon: Scissors },
@@ -151,7 +151,7 @@ export default function App() {
     { id: 'departments' as View, label: 'Departments', icon: Building2 },  
     { id: 'staff' as View, label: 'Staff', icon: UserCog },   
     { id: 'roombeds' as View, label: 'Room & Beds', icon: BedDouble },
-    { id: 'labtests' as View, label: 'Lab Tests', icon: FlaskConical },    
+    { id: 'labtests' as View, label: 'Lab Tests Management', icon: FlaskConical },    
     { id: 'emergency' as View, label: 'Emergency', icon: Siren },
      
     { id: 'reports' as View, label: 'Reports', icon: FileBarChart },
@@ -278,7 +278,7 @@ export default function App() {
               {currentView === 'admissions' && <Admissions />}
               {currentView === 'ot' && <OTManagement />}
               {currentView === 'otrooms' && <OTRoomsManagement />}
-              {currentView === 'surgerymanagement' && <SurgeryManagement />}
+
               {currentView === 'patientotallocation' && <PatientOTAllocationManagement />}
               {currentView === 'icu' && <ICUManagement />}
               {currentView === 'icubeds' && <ICUBedsManagement />}
