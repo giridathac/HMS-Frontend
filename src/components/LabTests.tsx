@@ -337,7 +337,8 @@ function LabTestsView({
             </div>
           </DialogContent>
         </Dialog>
-      </div>
+          </div>
+        </div>
 
       {/* Lab Tests Table */}
       <div className="overflow-y-auto overflow-x-hidden px-4 pb-4 labtests-scrollable" style={{ maxHeight: 'calc(100vh - 100px)', minHeight: 0 }}>

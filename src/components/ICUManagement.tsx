@@ -560,7 +560,7 @@ export function ICUManagement() {
         ICUAllocationFromDate: addICUAdmissionForm.icuAllocationFromDate,
         ICUAllocationToDate: addICUAdmissionForm.icuAllocationToDate,
         Diagnosis: addICUAdmissionForm.diagnosis,
-        TreatementDetails: addICUAdmissionForm.treatmentDetails,
+        TreatmentDetails: addICUAdmissionForm.treatmentDetails,
         PatientCondition: addICUAdmissionForm.patientCondition,
         OnVentilator: addICUAdmissionForm.onVentilator,
         ICUAdmissionStatus: addICUAdmissionForm.icuAdmissionStatus,
@@ -875,14 +875,14 @@ export function ICUManagement() {
       'patientStatus', 'PatientStatus', 'patient_status', 'Patient_Status'
     ], null);
 
-    //if (!icuPatientStatusRaw) {
+    if (!icuPatientStatusRaw) {
       icuPatientStatusRaw = extractField(patientData, [
         'icuPatientStatus', 'ICUPatientStatus', 'icu_patient_status', 'ICU_Patient_Status',
         'patientCondition', 'PatientCondition', 'patient_condition', 'Patient_Condition',
         'condition', 'Condition', 'patientStatus', 'PatientStatus',
         'status', 'Status', 'severity', 'Severity', 'patientSeverity', 'PatientSeverity'
       ], 'Stable');
-    //}
+    }
 
     const statusLower = String(icuPatientStatusRaw || 'Stable').toLowerCase().trim();
     let severity: 'Critical' | 'Serious' | 'Stable' = 'Stable';

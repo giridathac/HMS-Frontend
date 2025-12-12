@@ -522,7 +522,7 @@ export const admissionsApi = {
       const gender = extractField(admissionData, [
         'gender', 'Gender', 'sex', 'Sex', 'patientGender', 'PatientGender',
         'patient_gender', 'Patient_Gender', 'GenderType', 'genderType', 'gender_type', 'Gender_Type'
-      ], '');
+      ], null);
       
       // Extract admittedBy with more variations
       const admittedBy = extractField(admissionData, [
