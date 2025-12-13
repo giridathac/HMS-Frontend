@@ -164,10 +164,26 @@ export interface OTSlot {
   id: number;
   otSlotId: string;
   otId: string;
+  // Raw OTId and OTSlotNo from API
+  otIdNumber: number;
   otSlotNo: string;
+  // Room information from API
+  otNo?: string | null;
+  otName?: string | null;
+  otType?: string | null;
   slotStartTime: string;
   slotEndTime: string;
   status: 'Active' | 'Inactive';
+  // Availability/Occupancy information from backend
+  isAvailable?: boolean;
+  isOccupied?: boolean;
+  availabilityStatus?: string;
+  patientOTAllocationId?: number | null;
+  operationStatus?: string | null;
+  // Patient information for booked slots
+  patientId?: string | null;
+  patientNo?: string | null;
+  patientName?: string | null;
 }
 
 export interface Bill {
@@ -222,7 +238,6 @@ export interface PatientOTAllocation {
   emergencyBedId?: number; // Kept for backward compatibility but not in new API response
   emergencyBedSlotId?: number;
   otId: number;
-  otSlotId?: number; // Kept for backward compatibility but not in new API request/response
   surgeryId?: number;
   leadSurgeonId: number;
   assistantDoctorId?: number;
@@ -243,6 +258,7 @@ export interface PatientOTAllocation {
   otAllocationCreatedBy?: number;
   otAllocationCreatedAt?: string;
   status: 'Active' | 'InActive';
+  otSlotIds?: number[];
 }
 
 export interface EmergencyAdmission {

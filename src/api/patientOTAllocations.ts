@@ -1,6 +1,7 @@
 // Patient OT Allocations API service
-import { apiRequest, ENABLE_STUB_DATA } from './base';
+import { apiRequest } from './base';
 import { PatientOTAllocation } from '../types';
+import { formatDateIST } from '../utils/timeUtils';
 
 // API Response types
 interface PatientOTAllocationResponseItem {
@@ -9,7 +10,6 @@ interface PatientOTAllocationResponseItem {
   PatientAppointmentId?: number | null;
   EmergencyBedSlotId?: number | null;
   OTId: number;
-  OTSlotId?: number | null;
   SurgeryId?: number | null;
   LeadSurgeonId: number;
   AssistantDoctorId?: number | null;
@@ -46,6 +46,8 @@ interface PatientOTAllocationResponseItem {
   SlotStartTime?: string | null;
   SlotEndTime?: string | null;
   OTSlotStatus?: string | null; // "Active" | "InActive"
+  // Array of slot IDs for this allocation
+  OTSlotIds?: number[] | null;
 }
 
 interface PatientOTAllocationAPIResponse {
@@ -65,105 +67,60 @@ interface PatientOTAllocationGetByIdResponse {
   data: PatientOTAllocationResponseItem;
 }
 
-// Stub data
-const stubPatientOTAllocations: PatientOTAllocationResponseItem[] = [
-  {
-    PatientOTAllocationId: 1,
-    PatientId: '00000000-0000-0000-0000-000000000001',
-    OTId: 1,
-    LeadSurgeonId: 1,
-    OTAllocationDate: '2025-01-15',
-    OTStartTime: '08:00',
-    OTEndTime: '10:00',
-    OperationStatus: 'Scheduled',
-    Status: 'Active',
-  },
-  {
-    PatientOTAllocationId: 2,
-    PatientId: '00000000-0000-0000-0000-000000000002',
-    OTId: 2,
-    LeadSurgeonId: 2,
-    AssistantDoctorId: 3,
-    AnaesthetistId: 4,
-    OTAllocationDate: '2025-01-16',
-    OTStartTime: '09:00',
-    OTEndTime: '12:00',
-    OperationDescription: 'Cardiac Bypass Surgery',
-    OperationStatus: 'In Progress',
-    PreOperationNotes: 'ICU bed reserved post-surgery',
-    Status: 'Active',
-  },
-  {
-    PatientOTAllocationId: 3,
-    PatientId: '00000000-0000-0000-0000-000000000003',
-    PatientAppointmentId: 1,
-    OTId: 3,
-    LeadSurgeonId: 1,
-    OTAllocationDate: '2025-01-17',
-    OTStartTime: '10:00',
-    OTEndTime: '12:30',
-    OperationDescription: 'Knee Replacement',
-    OperationStatus: 'Completed',
-    OTActualStartTime: '10:05',
-    OTActualEndTime: '12:25',
-    PostOperationNotes: 'Patient stable, recovery in progress',
-    Status: 'Active',
-  },
-];
-
-// Helper function to delay execution (for stub data simulation)
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 // Map backend response to frontend format
 function mapPatientOTAllocationFromBackend(backendData: PatientOTAllocationResponseItem): PatientOTAllocation {
-  // Map OperationStatus: "In Progress" -> "InProgress" for frontend compatibility
-  let operationStatus: 'Scheduled' | 'InProgress' | 'Completed' | 'Cancelled' | 'Postponed' = 'Scheduled';
-  if (backendData.OperationStatus) {
-    const status = backendData.OperationStatus.trim();
-    if (status === 'In Progress') {
-      operationStatus = 'InProgress';
-    } else if (status === 'Scheduled' || status === 'Completed' || status === 'Cancelled' || status === 'Postponed') {
-      operationStatus = status as 'Scheduled' | 'Completed' | 'Cancelled' | 'Postponed';
-    } else if (status === 'InProgress') {
-      operationStatus = 'InProgress';
+  try {
+    // Map OperationStatus: "In Progress" -> "InProgress" for frontend compatibility
+    let operationStatus: 'Scheduled' | 'InProgress' | 'Completed' | 'Cancelled' | 'Postponed' = 'Scheduled';
+    if (backendData.OperationStatus) {
+      const status = backendData.OperationStatus.trim();
+      if (status === 'In Progress') {
+        operationStatus = 'InProgress';
+      } else if (status === 'Scheduled' || status === 'Completed' || status === 'Cancelled' || status === 'Postponed') {
+        operationStatus = status as 'Scheduled' | 'Completed' | 'Cancelled' | 'Postponed';
+      } else if (status === 'InProgress') {
+        operationStatus = 'InProgress';
+      }
     }
-  }
 
-  return {
-    id: backendData.PatientOTAllocationId,
-    patientOTAllocationId: backendData.PatientOTAllocationId,
-    patientId: backendData.PatientId,
-    patientAppointmentId: backendData.PatientAppointmentId?.toString(),
-    emergencyBedSlotId: backendData.EmergencyBedSlotId,
-    otId: backendData.OTId,
-    otSlotId: backendData.OTSlotId,
-    surgeryId: backendData.SurgeryId,
-    leadSurgeonId: backendData.LeadSurgeonId,
-    assistantDoctorId: backendData.AssistantDoctorId,
-    anaesthetistId: backendData.AnaesthetistId,
-    nurseId: backendData.NurseId,
-    otAllocationDate: typeof backendData.OTAllocationDate === 'string' 
-      ? backendData.OTAllocationDate.split('T')[0] 
-      : new Date(backendData.OTAllocationDate).toISOString().split('T')[0],
-    duration: backendData.Duration?.toString(),
-    otStartTime: backendData.OTStartTime || '',
-    otEndTime: backendData.OTEndTime || '',
-    otActualStartTime: backendData.OTActualStartTime,
-    otActualEndTime: backendData.OTActualEndTime,
-    operationDescription: backendData.OperationDescription,
-    operationStatus,
-    preOperationNotes: backendData.PreOperationNotes,
-    postOperationNotes: backendData.PostOperationNotes,
-    otDocuments: backendData.OTDocuments,
-    billId: backendData.BillId,
-    otAllocationCreatedBy: backendData.OTAllocationCreatedBy,
-    otAllocationCreatedAt: typeof backendData.OTAllocationCreatedAt === 'string' 
-      ? backendData.OTAllocationCreatedAt 
-      : backendData.OTAllocationCreatedAt 
-        ? new Date(backendData.OTAllocationCreatedAt).toISOString() 
-        : undefined,
-    status: (backendData.Status === 'Active' ? 'Active' : 'InActive') as 'Active' | 'InActive',
-  };
+    return {
+      id: backendData.PatientOTAllocationId,
+      patientOTAllocationId: backendData.PatientOTAllocationId,
+      patientId: backendData.PatientId,
+      patientAppointmentId: backendData.PatientAppointmentId?.toString(),
+      emergencyBedSlotId: backendData.EmergencyBedSlotId,
+      otId: backendData.OTId,
+      surgeryId: backendData.SurgeryId,
+      leadSurgeonId: backendData.LeadSurgeonId,
+      assistantDoctorId: backendData.AssistantDoctorId,
+      anaesthetistId: backendData.AnaesthetistId,
+      nurseId: backendData.NurseId,
+      otAllocationDate: formatDateIST(backendData.OTAllocationDate),
+      duration: backendData.Duration?.toString(),
+      otStartTime: backendData.OTStartTime || '',
+      otEndTime: backendData.OTEndTime || '',
+      otActualStartTime: backendData.OTActualStartTime,
+      otActualEndTime: backendData.OTActualEndTime,
+      operationDescription: backendData.OperationDescription,
+      operationStatus,
+      preOperationNotes: backendData.PreOperationNotes,
+      postOperationNotes: backendData.PostOperationNotes,
+      otDocuments: backendData.OTDocuments,
+      billId: backendData.BillId,
+      otAllocationCreatedBy: backendData.OTAllocationCreatedBy,
+      otAllocationCreatedAt: typeof backendData.OTAllocationCreatedAt === 'string' 
+        ? backendData.OTAllocationCreatedAt 
+        : backendData.OTAllocationCreatedAt 
+          ? new Date(backendData.OTAllocationCreatedAt).toISOString() 
+          : undefined,
+      status: (backendData.Status === 'Active' ? 'Active' : 'InActive') as 'Active' | 'InActive',
+      otSlotIds: Array.isArray(backendData.OTSlotIds) ? backendData.OTSlotIds : [],
+    };
+  } catch (error) {
+    console.error('Error mapping PatientOTAllocation from backend:', error, backendData);
+    throw error;
+  }
 }
 
 // Frontend DTOs
@@ -173,6 +130,7 @@ export interface CreatePatientOTAllocationDto {
   patientAppointmentId?: number | null;
   emergencyBedSlotId?: number | null;
   otId: number; // Required
+  otSlotIds?: number[]; // Array of slot IDs
   surgeryId?: number | null;
   leadSurgeonId: number; // Required
   assistantDoctorId?: number | null;
@@ -200,7 +158,7 @@ export interface UpdatePatientOTAllocationDto {
   patientAppointmentId?: number | null;
   emergencyBedSlotId?: number | null;
   otId?: number;
-  otSlotId?: number | null;
+  otSlotIds?: number[];
   surgeryId?: number | null;
   leadSurgeonId?: number;
   assistantDoctorId?: number | null;
@@ -224,85 +182,29 @@ export interface UpdatePatientOTAllocationDto {
 
 export const patientOTAllocationsApi = {
   async getAll(status?: string): Promise<PatientOTAllocation[]> {
-    let apiData: PatientOTAllocation[] = [];
-    
-    try {
-      console.log('Fetching patient OT allocations from API endpoint: /patient-ot-allocations', status);
-      
-      const params = new URLSearchParams();
-      if (status) {
-        params.append('status', status);
-      }
-      
-      const queryString = params.toString();
-      const endpoint = `/patient-ot-allocations${queryString ? `?${queryString}` : ''}`;
-      
-      const response = await apiRequest<PatientOTAllocationAPIResponse>(endpoint);
-      console.log('Patient OT allocations API response:', response);
-      
-      if (response.success && Array.isArray(response.data)) {
-        apiData = response.data.map(mapPatientOTAllocationFromBackend);
-        console.log(`Mapped ${apiData.length} patient OT allocations`);
-      }
-    } catch (error) {
-      console.error('Error fetching patient OT allocations:', error);
-      if (!ENABLE_STUB_DATA) {
-        throw error;
-      }
+    const params = new URLSearchParams();
+    if (status) {
+      params.append('status', status);
     }
     
-    // Append stub data if enabled
-    if (ENABLE_STUB_DATA) {
-      const apiIds = new Set(apiData.map(a => a.patientOTAllocationId.toString()));
-      let filteredStubData = stubPatientOTAllocations.filter(a => {
-        const stubId = a.PatientOTAllocationId.toString();
-        return !apiIds.has(stubId);
-      });
-      
-      if (status) {
-        const statusLower = status.toLowerCase();
-        filteredStubData = filteredStubData.filter(a => {
-          const aStatus = String(a.Status || '').toLowerCase();
-          return aStatus === statusLower;
-        });
-      }
-      
-      if (filteredStubData.length > 0) {
-        console.log(`Appending ${filteredStubData.length} stub patient OT allocations to ${apiData.length} API records`);
-      }
-      
-      if (apiData.length === 0) {
-        console.warn('No patient OT allocations data received from API, using stub data');
-        await delay(300);
-        return filteredStubData.length > 0 
-          ? filteredStubData.map(mapPatientOTAllocationFromBackend) 
-          : stubPatientOTAllocations.map(mapPatientOTAllocationFromBackend);
-      }
-      
-      return [...apiData, ...filteredStubData.map(mapPatientOTAllocationFromBackend)];
+    const queryString = params.toString();
+    const endpoint = `/patient-ot-allocations${queryString ? `?${queryString}` : ''}`;
+    
+    const response = await apiRequest<PatientOTAllocationAPIResponse>(endpoint);
+    
+    if (response.success && Array.isArray(response.data)) {
+      return response.data.map(mapPatientOTAllocationFromBackend);
     }
     
-    return apiData;
+    return [];
   },
 
   async getById(id: number): Promise<PatientOTAllocation> {
-    try {
-      const response = await apiRequest<PatientOTAllocationGetByIdResponse>(`/patient-ot-allocations/${id}`);
-      if (response.success && response.data) {
-        return mapPatientOTAllocationFromBackend(response.data);
-      }
-      throw new Error('Patient OT allocation not found');
-    } catch (error) {
-      console.error('Error fetching patient OT allocation by ID:', error);
-      if (ENABLE_STUB_DATA) {
-        await delay(200);
-        const stub = stubPatientOTAllocations.find(a => a.PatientOTAllocationId === id);
-        if (stub) {
-          return mapPatientOTAllocationFromBackend(stub);
-        }
-      }
-      throw error;
+    const response = await apiRequest<PatientOTAllocationGetByIdResponse>(`/patient-ot-allocations/${id}`);
+    if (response.success && response.data) {
+      return mapPatientOTAllocationFromBackend(response.data);
     }
+    throw new Error('Patient OT allocation not found');
   },
 
   async create(data: CreatePatientOTAllocationDto): Promise<PatientOTAllocation> {
@@ -322,6 +224,7 @@ export const patientOTAllocationsApi = {
         PatientAppointmentId: data.patientAppointmentId ?? null,
         EmergencyBedSlotId: data.emergencyBedSlotId ?? null,
         OTId: data.otId, // Required
+        OTSlotIds: data.otSlotIds ?? [],
         SurgeryId: data.surgeryId ?? null,
         LeadSurgeonId: data.leadSurgeonId, // Required
         AssistantDoctorId: data.assistantDoctorId ?? null,
@@ -372,44 +275,6 @@ export const patientOTAllocationsApi = {
       return allocation;
     } catch (error) {
       console.error('Error creating patient OT allocation:', error);
-      
-      if (ENABLE_STUB_DATA) {
-        console.warn('API create failed, using stub data fallback');
-        await delay(400);
-        let operationStatus = data.operationStatus || 'Scheduled';
-        if (operationStatus === 'InProgress') {
-          operationStatus = 'In Progress';
-        }
-        const newStub: PatientOTAllocationResponseItem = {
-          PatientOTAllocationId: stubPatientOTAllocations.length + 1,
-          PatientId: data.patientId,
-          PatientAppointmentId: data.patientAppointmentId ?? null,
-          EmergencyBedSlotId: data.emergencyBedSlotId ?? null,
-          OTId: data.otId,
-          SurgeryId: data.surgeryId ?? null,
-          LeadSurgeonId: data.leadSurgeonId,
-          AssistantDoctorId: data.assistantDoctorId ?? null,
-          AnaesthetistId: data.anaesthetistId ?? null,
-          NurseId: data.nurseId ?? null,
-          OTAllocationDate: data.otAllocationDate,
-          Duration: data.duration ?? null,
-          OTStartTime: data.otStartTime ?? null,
-          OTEndTime: data.otEndTime ?? null,
-          OTActualStartTime: data.otActualStartTime ?? null,
-          OTActualEndTime: data.otActualEndTime ?? null,
-          OperationDescription: data.operationDescription ?? null,
-          OperationStatus: operationStatus,
-          PreOperationNotes: data.preOperationNotes ?? null,
-          PostOperationNotes: data.postOperationNotes ?? null,
-          OTDocuments: data.otDocuments ?? null,
-          BillId: data.billId ?? null,
-          OTAllocationCreatedBy: data.otAllocationCreatedBy ?? null,
-          Status: data.status || 'Active',
-        };
-        stubPatientOTAllocations.push(newStub);
-        return mapPatientOTAllocationFromBackend(newStub);
-      }
-      
       throw error;
     }
   },
@@ -435,7 +300,9 @@ export const patientOTAllocationsApi = {
       if (data.patientAppointmentId !== undefined) backendRequest.PatientAppointmentId = data.patientAppointmentId ?? null;
       if (data.emergencyBedSlotId !== undefined) backendRequest.EmergencyBedSlotId = data.emergencyBedSlotId ?? null;
       if (data.otId !== undefined) backendRequest.OTId = data.otId;
-      if (data.otSlotId !== undefined) backendRequest.OTSlotId = data.otSlotId ?? null;
+      // Always include OTSlotIds as an array (non-null requirement)
+      // Include it even if undefined to ensure it's always sent
+      backendRequest.OTSlotIds = (data.otSlotIds !== undefined) ? data.otSlotIds : [];
       if (data.surgeryId !== undefined) backendRequest.SurgeryId = data.surgeryId ?? null;
       if (data.leadSurgeonId !== undefined) backendRequest.LeadSurgeonId = data.leadSurgeonId;
       if (data.assistantDoctorId !== undefined) backendRequest.AssistantDoctorId = data.assistantDoctorId ?? null;
@@ -482,51 +349,6 @@ export const patientOTAllocationsApi = {
       return allocation;
     } catch (error) {
       console.error('Error updating patient OT allocation:', error);
-      
-      if (ENABLE_STUB_DATA) {
-        console.warn('API update failed, using stub data fallback');
-        await delay(400);
-        const index = stubPatientOTAllocations.findIndex(a => a.PatientOTAllocationId === data.id);
-        if (index === -1) {
-          throw new Error(`Patient OT allocation with id ${data.id} not found`);
-        }
-        
-        const updated = { ...stubPatientOTAllocations[index] };
-        if (data.patientId !== undefined) updated.PatientId = data.patientId;
-        if (data.patientAppointmentId !== undefined) updated.PatientAppointmentId = data.patientAppointmentId ?? null;
-        if (data.emergencyBedSlotId !== undefined) updated.EmergencyBedSlotId = data.emergencyBedSlotId ?? null;
-        if (data.otId !== undefined) updated.OTId = data.otId;
-        if (data.otSlotId !== undefined) updated.OTSlotId = data.otSlotId ?? null;
-        if (data.surgeryId !== undefined) updated.SurgeryId = data.surgeryId ?? null;
-        if (data.leadSurgeonId !== undefined) updated.LeadSurgeonId = data.leadSurgeonId;
-        if (data.assistantDoctorId !== undefined) updated.AssistantDoctorId = data.assistantDoctorId ?? null;
-        if (data.anaesthetistId !== undefined) updated.AnaesthetistId = data.anaesthetistId ?? null;
-        if (data.nurseId !== undefined) updated.NurseId = data.nurseId ?? null;
-        if (data.otAllocationDate !== undefined) updated.OTAllocationDate = data.otAllocationDate;
-        if (data.duration !== undefined) updated.Duration = data.duration ?? null;
-        if (data.otStartTime !== undefined) updated.OTStartTime = data.otStartTime ?? null;
-        if (data.otEndTime !== undefined) updated.OTEndTime = data.otEndTime ?? null;
-        if (data.otActualStartTime !== undefined) updated.OTActualStartTime = data.otActualStartTime ?? null;
-        if (data.otActualEndTime !== undefined) updated.OTActualEndTime = data.otActualEndTime ?? null;
-        if (data.operationDescription !== undefined) updated.OperationDescription = data.operationDescription ?? null;
-        if (data.operationStatus !== undefined) {
-          let operationStatus = data.operationStatus;
-          if (operationStatus === 'InProgress') {
-            operationStatus = 'In Progress';
-          }
-          updated.OperationStatus = operationStatus;
-        }
-        if (data.preOperationNotes !== undefined) updated.PreOperationNotes = data.preOperationNotes ?? null;
-        if (data.postOperationNotes !== undefined) updated.PostOperationNotes = data.postOperationNotes ?? null;
-        if (data.otDocuments !== undefined) updated.OTDocuments = data.otDocuments ?? null;
-        if (data.billId !== undefined) updated.BillId = data.billId ?? null;
-        if (data.otAllocationCreatedBy !== undefined) updated.OTAllocationCreatedBy = data.otAllocationCreatedBy ?? null;
-        if (data.status !== undefined) updated.Status = data.status;
-        
-        stubPatientOTAllocations[index] = updated;
-        return mapPatientOTAllocationFromBackend(updated);
-      }
-      
       throw error;
     }
   },
@@ -553,14 +375,6 @@ export const patientOTAllocationsApi = {
       return;
     } catch (error) {
       console.error('Error deleting patient OT allocation:', error);
-      if (ENABLE_STUB_DATA) {
-        await delay(300);
-        const index = stubPatientOTAllocations.findIndex(a => a.PatientOTAllocationId === id);
-        if (index !== -1) {
-          stubPatientOTAllocations.splice(index, 1);
-        }
-        return;
-      }
       throw error;
     }
   },
