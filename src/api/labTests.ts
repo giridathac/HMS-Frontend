@@ -4,43 +4,39 @@ import { LabTest } from '../types';
 
 // Stub data
 const stubLabTests: LabTest[] = [
-  { id: 1, labTestId: 1, displayTestId: 'LAB-2025-001', testName: 'Complete Blood Count', testCategory: 'BloodTest', description: 'Complete blood count test', charges: 500, status: 'active' },
-  { id: 2, labTestId: 2, displayTestId: 'LAB-2025-002', testName: 'ECG', testCategory: 'Imaging', description: 'Electrocardiogram test', charges: 800, status: 'active' },
-  { id: 3, labTestId: 3, displayTestId: 'LAB-2025-003', testName: 'Blood Sugar (Fasting)', testCategory: 'BloodTest', description: 'Fasting blood sugar test', charges: 300, status: 'active' },
-  { id: 4, labTestId: 4, displayTestId: 'LAB-2025-004', testName: 'X-Ray Chest', testCategory: 'Radiology', description: 'Chest X-ray examination', charges: 600, status: 'active' },
-  { id: 5, labTestId: 5, displayTestId: 'LAB-2025-005', testName: 'Urine Analysis', testCategory: 'UrineTest', description: 'Complete urine analysis', charges: 400, status: 'active' },
-  { id: 6, labTestId: 6, displayTestId: 'LAB-2025-006', testName: 'Ultrasound Abdomen', testCategory: 'Ultrasound', description: 'Abdominal ultrasound scan', charges: 1200, status: 'active' },
-  { id: 7, labTestId: 7, displayTestId: 'LAB-2025-007', testName: 'Lipid Profile', testCategory: 'BloodTest', description: 'Complete lipid profile test', charges: 600, status: 'active' },
-  { id: 8, labTestId: 8, displayTestId: 'LAB-2025-008', testName: 'Liver Function Test', testCategory: 'BloodTest', description: 'Liver function panel', charges: 700, status: 'active' },
-  { id: 9, labTestId: 9, displayTestId: 'LAB-2025-009', testName: 'Kidney Function Test', testCategory: 'BloodTest', description: 'Renal function panel', charges: 650, status: 'active' },
-  { id: 10, labTestId: 10, displayTestId: 'LAB-2025-010', testName: 'Thyroid Function Test', testCategory: 'BloodTest', description: 'TSH, T3, T4 levels', charges: 750, status: 'active' },
-  { id: 11, labTestId: 11, displayTestId: 'LAB-2025-011', testName: 'MRI Brain', testCategory: 'Imaging', description: 'Magnetic resonance imaging of brain', charges: 5000, status: 'active' },
-  { id: 12, labTestId: 12, displayTestId: 'LAB-2025-012', testName: 'CT Scan Chest', testCategory: 'Imaging', description: 'Computed tomography of chest', charges: 3500, status: 'active' },
-  { id: 13, labTestId: 13, displayTestId: 'LAB-2025-013', testName: 'Echocardiogram', testCategory: 'Imaging', description: 'Heart ultrasound examination', charges: 2000, status: 'active' },
-  { id: 14, labTestId: 14, displayTestId: 'LAB-2025-014', testName: 'Mammography', testCategory: 'Radiology', description: 'Breast X-ray screening', charges: 1500, status: 'active' },
-  { id: 15, labTestId: 15, displayTestId: 'LAB-2025-015', testName: 'Bone Density Scan', testCategory: 'Radiology', description: 'DEXA scan for bone density', charges: 1800, status: 'active' },
-  { id: 16, labTestId: 16, displayTestId: 'LAB-2025-016', testName: 'Urine Culture', testCategory: 'UrineTest', description: 'Bacterial culture of urine sample', charges: 450, status: 'active' },
-  { id: 17, labTestId: 17, displayTestId: 'LAB-2025-017', testName: 'Pregnancy Test', testCategory: 'UrineTest', description: 'Urine pregnancy test', charges: 200, status: 'active' },
-  { id: 18, labTestId: 18, displayTestId: 'LAB-2025-018', testName: 'Ultrasound Pelvis', testCategory: 'Ultrasound', description: 'Pelvic ultrasound examination', charges: 1000, status: 'active' },
-  { id: 19, labTestId: 19, displayTestId: 'LAB-2025-019', testName: 'Ultrasound Heart', testCategory: 'Ultrasound', description: 'Echocardiography', charges: 2200, status: 'active' },
-  { id: 20, labTestId: 20, displayTestId: 'LAB-2025-020', testName: 'Hemoglobin A1C', testCategory: 'BloodTest', description: 'Glycated hemoglobin test', charges: 550, status: 'active' },
-  { id: 21, labTestId: 21, displayTestId: 'LAB-2025-021', testName: 'Vitamin D Level', testCategory: 'BloodTest', description: '25-hydroxyvitamin D test', charges: 800, status: 'active' },
-  { id: 22, labTestId: 22, displayTestId: 'LAB-2025-022', testName: 'Prostate Specific Antigen', testCategory: 'BloodTest', description: 'PSA test for prostate screening', charges: 600, status: 'active' },
-  { id: 23, labTestId: 23, displayTestId: 'LAB-2025-023', testName: 'Pap Smear', testCategory: 'Radiology', description: 'Cervical cancer screening', charges: 500, status: 'active' },
-  { id: 24, labTestId: 24, displayTestId: 'LAB-2025-024', testName: 'Colonoscopy', testCategory: 'Imaging', description: 'Colon examination procedure', charges: 4000, status: 'active' },
-  { id: 25, labTestId: 25, displayTestId: 'LAB-2025-025', testName: 'Stress Test', testCategory: 'Imaging', description: 'Cardiac stress test', charges: 2500, status: 'active' },
-  { id: 26, labTestId: 26, displayTestId: 'LAB-2025-026', testName: 'Serum Creatinine', testCategory: 'BloodTest', description: 'Kidney function marker', charges: 250, status: 'active' },
-];
+ ];
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-// Generate display test ID in format LAB-YYYY-XXX
-function generateDisplayTestId(): string {
-  const year = new Date().getFullYear();
-  const timestamp = Date.now();
-  const random = Math.floor(Math.random() * 1000);
-  const count = timestamp % 1000 + random;
-  return `LAB-${year}-${count.toString().padStart(3, '0')}`;
+// Generate display test ID in format LAB_yyyy_mm_dd_01, LAB_yyyy_mm_dd_02, etc.
+function generateDisplayTestId(existingLabTests: LabTest[] = []): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const datePrefix = `${year}_${month}_${day}`;
+  const baseId = `LAB_${datePrefix}_`;
+  
+  // Filter lab tests that match today's date pattern
+  const todayPattern = new RegExp(`^${baseId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(\\d+)$`);
+  const todayTests = existingLabTests.filter(test => {
+    const displayId = test.displayTestId || '';
+    return todayPattern.test(displayId);
+  });
+  
+  // Extract sequence numbers and find the highest
+  const sequenceNumbers = todayTests
+    .map(test => {
+      const match = (test.displayTestId || '').match(todayPattern);
+      return match ? parseInt(match[1], 10) : 0;
+    })
+    .filter(num => num > 0);
+  
+  // Get the next sequence number
+  const maxSequence = sequenceNumbers.length > 0 ? Math.max(...sequenceNumbers) : 0;
+  const nextSequence = maxSequence + 1;
+  
+  return `${baseId}${String(nextSequence).padStart(2, '0')}`;
 }
 
 // Helper function to normalize status to 'Active' or 'InActive' for backend
@@ -213,9 +209,17 @@ export const labTestsApi = {
         throw new Error('Charges must be a valid positive number');
       }
 
+      // Fetch existing lab tests to generate sequential ID for today
+      let existingLabTests: LabTest[] = [];
+      try {
+        existingLabTests = await labTestsApi.getAll();
+      } catch (error) {
+        console.warn('Failed to fetch existing lab tests for ID generation, will use empty array:', error);
+      }
+
       // Convert camelCase to PascalCase for backend API
       const backendData: any = {
-        DisplayTestId: generateDisplayTestId(), // Generate DisplayTestId in format LAB-YYYY-XXX
+        DisplayTestId: generateDisplayTestId(existingLabTests), // Generate DisplayTestId in format LAB_yyyy_mm_dd_01, LAB_yyyy_mm_dd_02, etc.
         TestName: data.testName.trim(),
         TestCategory: data.testCategory.trim(),
         Charges: Number(data.charges),

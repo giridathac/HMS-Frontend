@@ -405,36 +405,61 @@ export function Admissions() {
         doctorName: doctorName
       });
 
-      // Check if bed is occupied before proceeding (only for new admissions, not updates)
+      // Check room bed availability before proceeding (only for new admissions, not updates)
       if (!editingAdmission) {
         try {
-          console.log('Checking if bed is occupied, RoomBedsId:', roomBedsId);
-          const checkResponse = await apiRequest<any>(`/patient-icu-admissions/check-occupied?RoomBedsId=${roomBedsId}`, {
+          console.log('Checking room bed availability, RoomBedsId:', roomBedsId, 'AllocationDate:', addAdmissionForm.roomAllocationDate);
+          
+          // Call the room admissions availability check API
+          const checkResponse = await apiRequest<any>(`/room-admissions/check-availability?RoomBedsId=${roomBedsId}&AllocationDate=${addAdmissionForm.roomAllocationDate}`, {
             method: 'GET',
           });
           
-          console.log('Bed occupancy check response:', checkResponse);
+          console.log('Room bed availability check response:', checkResponse);
           
-          // Check if bed is occupied
-          const isOccupied = checkResponse?.isOccupied || 
-                           checkResponse?.occupied || 
-                           checkResponse?.IsOccupied || 
-                           checkResponse?.Occupied ||
-                           (checkResponse?.status && String(checkResponse.status).toLowerCase() === 'occupied') ||
-                           (checkResponse?.Status && String(checkResponse.Status).toLowerCase() === 'occupied');
+          // Check if bed is available
+          // API might return: { available: true/false } or { isAvailable: true/false } or { status: 'available'/'occupied' }
+          //const isAvailable = checkResponse?.available !== false && 
+           //                  checkResponse?.isAvailable !== false &&
+            //                 checkResponse?.Available !== false &&
+            //                 checkResponse?.IsAvailable !== false &&
+             //                (checkResponse?.status === undefined || String(checkResponse.status).toLowerCase() === 'available') &&
+             //                (checkResponse?.Status === undefined || String(checkResponse.Status).toLowerCase() === 'available');
+             const isAvailable = checkResponse?.isAvailable !== false && checkResponse?.available === true &&
+             (checkResponse?.status === undefined || String(checkResponse.status).toLowerCase() === 'available') &&
+             (checkResponse?.Status === undefined || String(checkResponse.Status).toLowerCase() === 'available');
+   
+          //const isOccupied = checkResponse?.occupied === true ||
+           //                checkResponse?.isOccupied === true ||
+           //                checkResponse?.Occupied === true ||
+           //                checkResponse?.IsOccupied === true ||
+           //                checkResponse?.available === false ||
+           //                checkResponse?.isAvailable === false ||
+           //                (checkResponse?.status && String(checkResponse.status).toLowerCase() === 'occupied') ||
+           //                (checkResponse?.Status && String(checkResponse.Status).toLowerCase() === 'occupied');
           
-          if (isOccupied === true || isOccupied === 'true' || isOccupied === 'Yes') {
-            throw new Error('ICU bed selected is already occupied please select other ICU Bed');
+          //if (isOccupied || !isAvailable) {
+          if (!isAvailable) {
+            throw new Error('The selected room bed is not available for the selected allocation date. Please select another room bed or choose a different date.');
           }
         } catch (checkError: any) {
           // If it's our custom error message, throw it
-          if (checkError?.message && checkError.message.includes('already occupied')) {
+          if (checkError?.message && (checkError.message.includes('not available') || checkError.message.includes('already occupied'))) {
             throw checkError;
           }
-          // If it's a 404 or other error, the bed might not exist in ICU system, but that's okay for IPD
-          // Only throw if it's explicitly marked as occupied
-          console.warn('Bed occupancy check failed or bed not found in ICU system:', checkError);
-          // Continue with admission if it's not an explicit "occupied" error
+          // If the API returns an error indicating unavailability, throw it
+          if (checkError?.response?.data?.message || checkError?.message) {
+            const errorMessage = checkError.response?.data?.message || checkError.message;
+            if (errorMessage.toLowerCase().includes('not available') || 
+                errorMessage.toLowerCase().includes('occupied') ||
+                errorMessage.toLowerCase().includes('unavailable')) {
+              throw new Error(errorMessage || 'The selected room bed is not available for the selected allocation date.');
+            }
+          }
+          // If it's a network error or other issue, log it but continue (or you can choose to throw)
+          console.warn('Room bed availability check failed:', checkError);
+          // For now, we'll continue if it's not an explicit unavailability error
+          // You can change this to throw if you want to be more strict
         }
       }
 
@@ -1594,7 +1619,6 @@ export function Admissions() {
                 setIsManageDialogOpen(true);
               }}
               onManageCase={handleManageCase}
-              onNewLabOrder={handleOpenNewLabOrderDialog}
               schedulingOT={schedulingOT}
             />
           </TabsContent>
@@ -1608,7 +1632,6 @@ export function Admissions() {
                 setIsManageDialogOpen(true);
               }}
               onManageCase={handleManageCase}
-              onNewLabOrder={handleOpenNewLabOrderDialog}
               schedulingOT={schedulingOT}
             />
           </TabsContent>
@@ -1622,7 +1645,6 @@ export function Admissions() {
                 setIsManageDialogOpen(true);
               }}
               onManageCase={handleManageCase}
-              onNewLabOrder={handleOpenNewLabOrderDialog}
               schedulingOT={schedulingOT}
             />
           </TabsContent>
@@ -1636,7 +1658,6 @@ export function Admissions() {
                 setIsManageDialogOpen(true);
               }}
               onManageCase={handleManageCase}
-              onNewLabOrder={handleOpenNewLabOrderDialog}
               schedulingOT={schedulingOT}
             />
           </TabsContent>
@@ -1941,7 +1962,6 @@ function AdmissionsList({
   onManage,
   onManageCase,
   onEdit,
-  onNewLabOrder,
   schedulingOT 
 }: { 
   admissions: Admission[]; 
@@ -1949,7 +1969,6 @@ function AdmissionsList({
   onManage: (admission: Admission) => void;
   onManageCase: (admission: Admission) => void;
   onEdit: (admission: Admission) => void;
-  onNewLabOrder: (admission: Admission) => void;
   schedulingOT: number | null;
 }) {
   return (
@@ -2042,15 +2061,6 @@ function AdmissionsList({
                             Manage Case
                           </Button>
                           
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="gap-1"
-                            onClick={() => onNewLabOrder(admission)}
-                          >
-                            <FlaskConical className="size-3" />
-                            New Lab Order
-                          </Button>
                         </>
                       )}
                     </div>

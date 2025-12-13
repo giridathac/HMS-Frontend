@@ -6,7 +6,7 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
-import { Plus, Trash2, Edit, TestTube, Tag, CheckCircle2, XCircle, FileText } from 'lucide-react';
+import { Plus, Trash2, Edit, TestTube, Tag, CheckCircle2, XCircle, FileText, Search } from 'lucide-react';
 import { useLabTests } from '../hooks/useLabTests';
 import { LabTest } from '../types';
 
@@ -119,6 +119,7 @@ function LabTestsView({
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedLabTest, setSelectedLabTest] = useState<LabTest | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState({
     testName: '',
     testCategory: 'BloodTest',
@@ -229,6 +230,20 @@ function LabTestsView({
     );
   };
 
+  // Filter lab tests based on search term
+  const filteredLabTests = labTests.filter(labTest => {
+    const searchLower = searchTerm.toLowerCase();
+    const testName = (labTest.testName || '').toLowerCase();
+    const displayTestId = (labTest.displayTestId || '').toLowerCase();
+    const testCategory = (labTest.testCategory || '').toLowerCase();
+    const description = (labTest.description || '').toLowerCase();
+    
+    return testName.includes(searchLower) ||
+           displayTestId.includes(searchLower) ||
+           testCategory.includes(searchLower) ||
+           description.includes(searchLower);
+  });
+
   return (
     <div className="flex-1 bg-gray-50 flex flex-col overflow-hidden min-h-0 dashboard-scrollable" style={{ maxHeight: '100vh', minHeight: 0 }}>
       <div className="overflow-y-auto overflow-x-hidden flex-1 flex flex-col min-h-0">
@@ -324,12 +339,29 @@ function LabTestsView({
         </Dialog>
           </div>
         </div>
-        <div className="px-6 pt-4 pb-4 flex-1">
-          <Card className="bg-white border border-gray-200 shadow-sm rounded-lg mb-4">
+
+      {/* Lab Tests Table */}
+      <div className="overflow-y-auto overflow-x-hidden px-4 pb-4 labtests-scrollable" style={{ maxHeight: 'calc(100vh - 100px)', minHeight: 0 }}>
+        {/* Search */}
+        <Card className="mb-6">
+          <CardContent className="p-6">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
+              <Input
+                placeholder="Search by test name, test ID, category, or description..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="mb-4">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <TestTube className="size-5" />
-              Lab Tests List ({labTests.length})
+              Lab Tests List ({filteredLabTests.length})
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -347,14 +379,14 @@ function LabTestsView({
                   </tr>
                 </thead>
                 <tbody>
-                  {labTests.length === 0 ? (
+                  {filteredLabTests.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="text-center py-8 text-gray-500">
-                        No lab tests found. Add a new lab test to get started.
+                      <td colSpan={7} className="text-center py-8 text-blue-600">
+                        {searchTerm ? 'No lab tests found matching your search.' : 'No lab tests found. Add a new lab test to get started.'}
                       </td>
                     </tr>
                   ) : (
-                    labTests.map((labTest) => (
+                    filteredLabTests.map((labTest) => (
                       <tr key={labTest.id} className="border-b border-gray-100 hover:bg-gray-50">
                         <td className="py-3 px-4 text-sm text-gray-900 font-mono font-medium">{labTest.displayTestId}</td>
                         <td className="py-3 px-4 text-sm text-gray-900 font-medium">{labTest.testName}</td>

@@ -130,25 +130,25 @@ export default function App() {
     { id: 'patientregistration' as View, label: 'Patient Registration', icon: UserPlus, color: 'text-indigo-600' },
     { id: 'doctors' as View, label: 'Doctors', icon: Users, color: 'text-purple-600' },
     // { id: 'patientappointments' as View, label: 'Appointments', icon: Calendar }, // Hidden - can be removed later
-    { id: 'consultation' as View, label: 'Doctor Consultation', icon: Stethoscope, color: 'text-green-600' },
-    { id: 'laboratory' as View, label: 'Laboratory', icon: TestTube, color: 'text-yellow-600' },    
-    { id: 'admissions' as View, label: 'Admissions (IPD)', icon: BedDouble, color: 'text-teal-600' },
-    { id: 'ot' as View, label: 'OT Management', icon: Scissors, color: 'text-pink-600' },
-    { id: 'otrooms' as View, label: 'OT Rooms Management', icon: Scissors, color: 'text-pink-600' },
-    //{ id: 'surgerymanagement' as View, label: 'Surgery Procedures Mgmt', icon: Activity, color: 'text-orange-600' },
-    { id: 'patientotallocation' as View, label: 'Patient OT Allocation', icon: Scissors, color: 'text-pink-600' },
-    { id: 'icu' as View, label: 'ICU Management', icon: HeartPulse, color: 'text-red-600' },
-    { id: 'icubeds' as View, label: 'ICU Bed Management', icon: HeartPulse, color: 'text-red-600' },
-    { id: 'emergencybeds' as View, label: 'Emergency Bed Management', icon: BedDouble, color: 'text-amber-600' },
-    { id: 'emergencyadmission' as View, label: 'Emergency Admission', icon: Siren, color: 'text-red-700' },
-    { id: 'bills' as View, label: 'Bill Management', icon: Receipt, color: 'text-emerald-600' },   
+    { id: 'consultation' as View, label: 'Doctor Consultation', icon: Stethoscope },
+    { id: 'laboratory' as View, label: 'Laboratory Management', icon: TestTube },    
+    { id: 'admissions' as View, label: 'Admissions (IPD)', icon: BedDouble },
+    { id: 'ot' as View, label: 'OT Management', icon: Scissors },
+    { id: 'otrooms' as View, label: 'OT Rooms Management', icon: Scissors },
+    //{ id: 'surgerymanagement' as View, label: 'Surgery Procedures Mgmt', icon: Activity },
+    { id: 'patientotallocation' as View, label: 'Patient OT Allocation', icon: Scissors },
+    { id: 'icu' as View, label: 'ICU Management', icon: HeartPulse },
+    { id: 'icubeds' as View, label: 'ICU Bed Management', icon: HeartPulse },
+    { id: 'emergencybeds' as View, label: 'Emergency Bed Management', icon: BedDouble },
+    { id: 'emergencyadmission' as View, label: 'Emergency Admission', icon: Siren },
+    { id: 'bills' as View, label: 'Bill Management', icon: Receipt },   
     
-    { id: 'roles' as View, label: 'Roles', icon: Shield, color: 'text-slate-600' },
-    { id: 'departments' as View, label: 'Departments', icon: Building2, color: 'text-cyan-600' },  
-    { id: 'staff' as View, label: 'Staff', icon: UserCog, color: 'text-violet-600' },   
-    { id: 'roombeds' as View, label: 'Room & Beds', icon: BedDouble, color: 'text-teal-600' },
-    { id: 'labtests' as View, label: 'Lab Tests', icon: FlaskConical, color: 'text-yellow-600' },    
-    { id: 'emergency' as View, label: 'Emergency', icon: Siren, color: 'text-red-700' },
+    { id: 'roles' as View, label: 'Roles', icon: Shield },
+    { id: 'departments' as View, label: 'Departments', icon: Building2 },  
+    { id: 'staff' as View, label: 'Staff', icon: UserCog },   
+    { id: 'roombeds' as View, label: 'Room & Beds', icon: BedDouble },
+    { id: 'labtests' as View, label: 'Lab Tests Management', icon: FlaskConical },    
+    { id: 'emergency' as View, label: 'Emergency', icon: Siren },
      
     { id: 'reports' as View, label: 'Reports', icon: FileBarChart, color: 'text-blue-700' },
   ];
@@ -274,7 +274,7 @@ export default function App() {
               {currentView === 'admissions' && <Admissions />}
               {currentView === 'ot' && <OTManagement />}
               {currentView === 'otrooms' && <OTRoomsManagement />}
-              {currentView === 'surgerymanagement' && <SurgeryManagement />}
+
               {currentView === 'patientotallocation' && <PatientOTAllocationManagement />}
               {currentView === 'icu' && <ICUManagement />}
               {currentView === 'icubeds' && <ICUBedsManagement />}

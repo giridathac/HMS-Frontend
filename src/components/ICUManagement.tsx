@@ -503,6 +503,54 @@ export function ICUManagement() {
         console.warn('PatientId may not be a valid UUID:', patientId, 'Type:', typeof patientId, 'Length:', patientId?.length);
       }
 
+      // Validate required fields for availability check
+      if (!addICUAdmissionForm.icuId) {
+        throw new Error('ICU ID is required. Please select an ICU.');
+      }
+      if (!addICUAdmissionForm.icuAllocationFromDate) {
+        throw new Error('ICU Allocation From Date is required.');
+      }
+
+      // Check ICU availability before proceeding
+      try {
+        console.log('Checking ICU availability, ICUId:', addICUAdmissionForm.icuId, 'ICUAllocationFromDate:', addICUAdmissionForm.icuAllocationFromDate);
+        
+        // Call the ICU availability check API
+        const checkResponse = await apiRequest<any>(`/patient-icu-admissions/check-availability?ICUId=${addICUAdmissionForm.icuId}&ICUAllocationFromDate=${addICUAdmissionForm.icuAllocationFromDate}`, {
+          method: 'GET',
+        });
+        
+        console.log('ICU availability check response:', checkResponse);
+        
+        // Check if ICU is available
+        // API might return: { available: true/false } or { isAvailable: true/false } or { status: 'available'/'occupied' }
+        const isAvailable = checkResponse?.isAvailable !== false && checkResponse?.available === true &&
+                           (checkResponse?.status === undefined || String(checkResponse.status).toLowerCase() === 'available') &&
+                           (checkResponse?.Status === undefined || String(checkResponse.Status).toLowerCase() === 'available');
+        
+        if (!isAvailable) {
+          throw new Error('The selected ICU is not available for the selected allocation date. Please select another ICU or choose a different date.');
+        }
+      } catch (checkError: any) {
+        // If it's our custom error message, throw it
+        if (checkError?.message && (checkError.message.includes('not available') || checkError.message.includes('already occupied'))) {
+          throw checkError;
+        }
+        // If the API returns an error indicating unavailability, throw it
+        if (checkError?.response?.data?.message || checkError?.message) {
+          const errorMessage = checkError.response?.data?.message || checkError.message;
+          if (errorMessage.toLowerCase().includes('not available') || 
+              errorMessage.toLowerCase().includes('occupied') ||
+              errorMessage.toLowerCase().includes('unavailable')) {
+            throw new Error(errorMessage || 'The selected ICU is not available for the selected allocation date.');
+          }
+        }
+        // If it's a network error or other issue, log it but continue (or you can choose to throw)
+        console.warn('ICU availability check failed:', checkError);
+        // For now, we'll continue if it's not an explicit unavailability error
+        // You can change this to throw if you want to be more strict
+      }
+
       const payload = {
         PatientId: String(patientId).trim(), // Ensure it's a string UUID and trim whitespace
         ICUId: addICUAdmissionForm.icuId,
@@ -827,14 +875,14 @@ export function ICUManagement() {
       'patientStatus', 'PatientStatus', 'patient_status', 'Patient_Status'
     ], null);
 
-    //if (!icuPatientStatusRaw) {
+    if (!icuPatientStatusRaw) {
       icuPatientStatusRaw = extractField(patientData, [
         'icuPatientStatus', 'ICUPatientStatus', 'icu_patient_status', 'ICU_Patient_Status',
         'patientCondition', 'PatientCondition', 'patient_condition', 'Patient_Condition',
         'condition', 'Condition', 'patientStatus', 'PatientStatus',
         'status', 'Status', 'severity', 'Severity', 'patientSeverity', 'PatientSeverity'
       ], 'Stable');
-    //}
+    }
 
     const statusLower = String(icuPatientStatusRaw || 'Stable').toLowerCase().trim();
     let severity: 'Critical' | 'Serious' | 'Stable' = 'Stable';

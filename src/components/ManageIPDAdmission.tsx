@@ -189,8 +189,18 @@ export function ManageIPDAdmission() {
       setPatientDoctorVisits(doctorVisits);
     } catch (err) {
       console.error('Error fetching patient doctor visits:', err);
-      setDoctorVisitsError(err instanceof Error ? err.message : 'Failed to load patient doctor visits');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load patient doctor visits';
+      
+      // Check if the error indicates "no records found" - treat as empty state, not error
+      if (errorMessage.toLowerCase().includes('no doctor visits found') || 
+          errorMessage.toLowerCase().includes('not found') ||
+          errorMessage.toLowerCase().includes('no records')) {
       setPatientDoctorVisits([]);
+        setDoctorVisitsError(null); // Clear error to show empty state message
+      } else {
+        setDoctorVisitsError(errorMessage);
+        setPatientDoctorVisits([]);
+      }
     } finally {
       setDoctorVisitsLoading(false);
     }
@@ -1842,7 +1852,7 @@ export function ManageIPDAdmission() {
                       setShowLabTestList(true);
                     }}
                     onFocus={() => setShowLabTestList(true)}
-                    placeholder="Search and select lab test..."
+                    placeholder="Search by Display Test ID, name, or category..."
                     className="cursor-pointer"
                   />
                   {showLabTestList && (
@@ -1850,7 +1860,7 @@ export function ManageIPDAdmission() {
                       <table className="w-full text-sm">
                         <thead className="bg-gray-50 sticky top-0">
                           <tr>
-                            <th className="text-left py-2 px-3 text-gray-700 font-semibold">Test ID</th>
+                            <th className="text-left py-2 px-3 text-gray-700 font-semibold">Display Test ID</th>
                             <th className="text-left py-2 px-3 text-gray-700 font-semibold">Test Name</th>
                             <th className="text-left py-2 px-3 text-gray-700 font-semibold">Category</th>
                             <th className="text-left py-2 px-3 text-gray-700 font-semibold">Charges</th>
@@ -1861,27 +1871,31 @@ export function ManageIPDAdmission() {
                             .filter((test) => {
                               if (!labTestSearchTerm) return true;
                               const searchLower = labTestSearchTerm.toLowerCase();
-                              const name = (test.testName || '').toLowerCase();
-                              const id = String(test.labTestId || test.id || '').toLowerCase();
-                              const category = (test.testCategory || '').toLowerCase();
-                              return name.includes(searchLower) || id.includes(searchLower) || category.includes(searchLower);
+                              const displayTestId = (test.displayTestId || test.DisplayTestId || test.displayTestID || test.DisplayTestID || '').toLowerCase();
+                              const name = (test.testName || test.TestName || '').toLowerCase();
+                              const category = (test.testCategory || test.TestCategory || '').toLowerCase();
+                              return displayTestId.includes(searchLower) || name.includes(searchLower) || category.includes(searchLower);
                             })
                             .map((test) => {
-                              const testId = String(test.labTestId || test.id || '');
+                              const testId = String(test.labTestId || test.LabTestId || test.id || '');
+                              const displayTestId = test.displayTestId || test.DisplayTestId || test.displayTestID || test.DisplayTestID || '';
+                              const testName = test.testName || test.TestName || 'Unknown';
+                              const category = test.testCategory || test.TestCategory || 'N/A';
+                              const displayText = `${displayTestId}, ${testName} (${category})`;
                               const isSelected = ipdLabTestFormData.labTestId === testId;
                               return (
                                 <tr
                                   key={test.labTestId || test.id}
                                   onClick={() => {
                                     setIpdLabTestFormData({ ...ipdLabTestFormData, labTestId: testId });
-                                    setLabTestSearchTerm(`${test.testName || 'Unknown'} (${test.testCategory || 'N/A'})`);
+                                    setLabTestSearchTerm(displayText);
                                     setShowLabTestList(false);
                                   }}
                                   className={`border-b border-gray-100 cursor-pointer hover:bg-blue-50 ${isSelected ? 'bg-blue-100' : ''}`}
                                 >
-                                  <td className="py-2 px-3 text-sm text-gray-900 font-mono">{test.displayTestId || testId}</td>
-                                  <td className="py-2 px-3 text-sm text-gray-600">{test.testName || 'Unknown'}</td>
-                                  <td className="py-2 px-3 text-sm text-gray-600">{test.testCategory || 'N/A'}</td>
+                                  <td className="py-2 px-3 text-sm text-gray-900 font-mono">{displayTestId || '-'}</td>
+                                  <td className="py-2 px-3 text-sm text-gray-600">{testName}</td>
+                                  <td className="py-2 px-3 text-sm text-gray-600">{category}</td>
                                   <td className="py-2 px-3 text-sm text-gray-600">₹{test.charges || 0}</td>
                                 </tr>
                               );

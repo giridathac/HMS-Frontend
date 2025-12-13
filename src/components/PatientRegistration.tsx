@@ -14,11 +14,11 @@ import {
 } from './ui/dialog';
 import { usePatients } from '../hooks';
 import { patientsApi } from '../api';
-import { UserPlus, Plus, Eye, Pencil, Search } from 'lucide-react';
+import { UserPlus, Plus, Eye, Pencil, Search, Trash2 } from 'lucide-react';
 import { Patient } from '../types';
 
 export function PatientRegistration() {
-  const { patients, createPatient, loading, error, fetchPatients } = usePatients();
+  const { patients, createPatient, loading, error, fetchPatients, deletePatient } = usePatients();
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [adhaarError, setAdhaarError] = useState('');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -30,6 +30,7 @@ export function PatientRegistration() {
   const [loadingEditPatient, setLoadingEditPatient] = useState(false);
   const [editFormData, setEditFormData] = useState<any>(null);
   const [updatingPatient, setUpdatingPatient] = useState(false);
+  const [editAdhaarError, setEditAdhaarError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState({
     patientNo: '',
@@ -44,9 +45,6 @@ export function PatientRegistration() {
     address: '',
     chiefComplaint: '',
     description: '',
-    status: 'Active',
-    registeredBy: 'Admin User', // This could come from auth context
-    registeredDate: new Date().toISOString().split('T')[0],
   });
 
   const handleAdhaarChange = (value: string) => {
@@ -88,9 +86,6 @@ export function PatientRegistration() {
         address: formData.address || undefined,
         chiefComplaint: formData.chiefComplaint || undefined,
         description: formData.description || undefined,
-        status: formData.status || undefined,
-        registeredBy: formData.registeredBy || undefined,
-        registeredDate: formData.registeredDate || undefined,
       });
       setIsSubmitted(true);
       // Refresh patient list
@@ -110,9 +105,6 @@ export function PatientRegistration() {
           address: '',
           chiefComplaint: '',
           description: '',
-          status: 'Active',
-          registeredBy: 'Admin User',
-          registeredDate: new Date().toISOString().split('T')[0],
         });
         setAdhaarError('');
         setIsSubmitted(false);
@@ -136,11 +128,13 @@ export function PatientRegistration() {
     const patientNo = (patient.patientNo || '').toLowerCase();
     const phoneNo = (patient.phoneNo || patient.phone || '').toLowerCase();
     const patientId = (patient.patientId || patient.PatientId || '').toLowerCase();
+    const patientType = (patient.patientType || patient.PatientType || '').toLowerCase();
     
     return patientName.includes(searchLower) ||
            patientNo.includes(searchLower) ||
            phoneNo.includes(searchLower) ||
-           patientId.includes(searchLower);
+           patientId.includes(searchLower) ||
+           patientType.includes(searchLower);
   });
 
   const handleViewPatient = async (patientId: string) => {
@@ -259,6 +253,26 @@ export function PatientRegistration() {
     setIsEditDialogOpen(false);
     setEditingPatient(null);
     setEditFormData(null);
+    setEditAdhaarError('');
+  };
+
+  const handleDeletePatient = async (patientId: string) => {
+    if (confirm('Are you sure you want to delete this patient? This action cannot be undone.')) {
+      try {
+        // Note: deletePatient expects a number, but we have a string PatientId
+        // We may need to get the numeric id from the patient object
+        const patient = patients.find(p => (p.patientId || p.PatientId) === patientId);
+        if (patient && patient.id) {
+          await deletePatient(patient.id);
+          await fetchPatients();
+        } else {
+          alert('Unable to delete patient: ID not found');
+        }
+      } catch (err) {
+        console.error('Failed to delete patient:', err);
+        alert('Failed to delete patient. Please try again.');
+      }
+    }
   };
 
   const handleUpdatePatient = async () => {
@@ -278,9 +292,10 @@ export function PatientRegistration() {
     }
 
     if (editFormData.adhaarID && editFormData.adhaarID.length !== 12) {
-      alert('Aadhaar ID must be exactly 12 digits.');
+      setEditAdhaarError('Aadhaar ID must be exactly 12 digits');
       return;
     }
+    setEditAdhaarError('');
 
     try {
       setUpdatingPatient(true);
@@ -417,11 +432,10 @@ export function PatientRegistration() {
                         onChange={(e) => setFormData({ ...formData, patientType: e.target.value })}
                         
                       >
-                        <option value="" >Select type</option>
-                        <option value="OPD" >OPD</option>
-                        <option value="IPD" >IPD</option>
-                        <option value="Emergency" >Emergency</option>
-                        <option value="Follow-up" >Follow-up</option>
+                        <option value="">Select type</option>
+                        <option value="OPD">OPD</option>
+                        <option value="IPD">IPD</option>
+                        <option value="Emergency">Emergency</option>
                       </select>
                     </div>
                     <div>
@@ -625,9 +639,6 @@ export function PatientRegistration() {
                           address: '',
                           chiefComplaint: '',
                           description: '',
-                          status: 'Active',
-                          registeredBy: 'Admin User',
-                          registeredDate: new Date().toISOString().split('T')[0],
                         });
                         setAdhaarError('');
                       }} 
@@ -657,7 +668,7 @@ export function PatientRegistration() {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
                 <Input
-                  placeholder="Search by patient name, patient number, phone number, or patient ID..."
+                  placeholder="Search by patient name, patient number, phone number, patient ID, or patient type..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10 bg-gray-50"
@@ -762,6 +773,23 @@ export function PatientRegistration() {
                             >
                               <Pencil className="size-3" />
                             </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                const patientId = patient.patientId || patient.PatientId;
+                                if (!patientId) {
+                                  console.error('PatientId not found for patient:', patient);
+                                  alert('Patient ID not available');
+                                  return;
+                                }
+                                handleDeletePatient(patientId);
+                              }}
+                              className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                              title="Delete Patient"
+                            >
+                              <Trash2 className="size-4" />
+                            </Button>
                           </div>
                         </td>
                       </tr>
@@ -779,19 +807,15 @@ export function PatientRegistration() {
 
       {/* Patient Details Dialog */}
       <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
-        <DialogContent className="max-w-3xl p-0 gap-0">
-          <div className="flex flex-col h-[70vh] max-h-[70vh] overflow-hidden">
-            <DialogHeader className="px-6 pt-6 pb-4 border-b border-gray-200 flex-shrink-0 bg-white">
-              <DialogTitle className="flex items-center gap-2">
-                <UserPlus className="size-5" />
-                Patient Details
-              </DialogTitle>
-              <DialogDescription>
-                View complete patient information
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="flex-1 overflow-y-auto px-6 py-4">
+        <DialogContent className="p-0 gap-0 large-dialog max-w-5xl max-h-[90vh]">
+          <DialogHeader className="px-6 pt-4 pb-3 flex-shrink-0">
+            <DialogTitle className="flex items-center gap-2">
+              <UserPlus className="size-5" />
+              Patient Details
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="flex-1 overflow-y-auto px-6 pb-1 patient-list-scrollable min-h-0">
             {loadingPatientDetails ? (
               <div className="flex items-center justify-center py-12">
                 <div className="text-center">
@@ -800,171 +824,167 @@ export function PatientRegistration() {
                 </div>
               </div>
             ) : selectedPatient ? (
-              <div className="grid grid-cols-2 gap-4">
-              {/* Patient ID - Read Only */}
-              <div>
-                <Label className="text-xs text-gray-500">Patient ID</Label>
-                <p className="text-sm font-mono font-medium">{selectedPatient.patientId || '-'}</p>
-              </div>
-              
-              {/* Patient No */}
-              <div>
-                <Label className="text-xs text-gray-500">Patient No</Label>
-                <p className="text-sm font-mono font-medium">{selectedPatient.patientNo || '-'}</p>
-              </div>
-              
-              {/* Patient Name */}
-              <div>
-                <Label className="text-xs text-gray-500">Patient Name</Label>
-                <p className="text-sm font-medium">{selectedPatient.patientName || '-'}</p>
-              </div>
-              
-              {/* Last Name */}
-              <div>
-                <Label className="text-xs text-gray-500">Last Name</Label>
-                <p className="text-sm">{selectedPatient.lastName || '-'}</p>
-              </div>
-              
-              {/* Patient Type */}
-              <div>
-                <Label className="text-xs text-gray-500">Patient Type</Label>
-                <p className="text-sm">
-                  <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
-                    {selectedPatient.patientType || 'N/A'}
-                  </span>
-                </p>
-              </div>
-              
-              {/* Status */}
-              <div>
-                <Label className="text-xs text-gray-500">Status</Label>
-                <p className="text-sm">
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    selectedPatient.status === 'Active' ? 'bg-green-100 text-green-700' :
-                    selectedPatient.status === 'Inactive' ? 'bg-gray-100 text-gray-700' :
-                    'bg-red-100 text-red-700'
-                  }`}>
-                    {selectedPatient.status || 'Active'}
-                  </span>
-                </p>
-              </div>
-              
-              {/* Age */}
-              <div>
-                <Label className="text-xs text-gray-500">Age</Label>
-                <p className="text-sm">{selectedPatient.age || '-'}</p>
-              </div>
-              
-              {/* Gender */}
-              <div>
-                <Label className="text-xs text-gray-500">Gender</Label>
-                <p className="text-sm">{selectedPatient.gender || '-'}</p>
-              </div>
-              
-              {/* Phone No */}
-              <div>
-                <Label className="text-xs text-gray-500">Phone No</Label>
-                <p className="text-sm">{selectedPatient.phoneNo || '-'}</p>
-              </div>
-              
-              {/* Aadhaar ID */}
-              <div>
-                <Label className="text-xs text-gray-500">Aadhaar ID</Label>
-                <p className="text-sm font-mono">{selectedPatient.adhaarID || '-'}</p>
-              </div>
-              
-              {/* PAN Card */}
-              <div>
-                <Label className="text-xs text-gray-500">PAN Card</Label>
-                <p className="text-sm font-mono">{selectedPatient.panCard || '-'}</p>
-              </div>
-              
-              {/* Registered Date */}
-              <div>
-                <Label className="text-xs text-gray-500">Registered Date</Label>
-                <p className="text-sm">
-                  {selectedPatient.registeredDate 
-                    ? new Date(selectedPatient.registeredDate).toLocaleDateString() 
-                    : '-'}
-                </p>
-              </div>
-              
-              {/* Address */}
-              <div className="col-span-2">
-                <Label className="text-xs text-gray-500">Address</Label>
-                <p className="text-sm">{selectedPatient.address || '-'}</p>
-              </div>
-              
-              {/* Chief Complaint */}
-              <div className="col-span-2">
-                <Label className="text-xs text-gray-500">Chief Complaint</Label>
-                <p className="text-sm">{selectedPatient.chiefComplaint || '-'}</p>
-              </div>
-              
-              {/* Description */}
-              <div className="col-span-2">
-                <Label className="text-xs text-gray-500">Description</Label>
-                <p className="text-sm whitespace-pre-wrap">{selectedPatient.description || '-'}</p>
-              </div>
-              
-              {/* Registered By */}
-              <div>
-                <Label className="text-xs text-gray-500">Registered By</Label>
-                <p className="text-sm">{selectedPatient.registeredBy || '-'}</p>
-              </div>
+              <div className="space-y-6 py-4">
+                {/* Basic Information Section */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2">Basic Information</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-sm font-medium text-gray-700">Patient ID</Label>
+                      <p className="text-base font-mono font-semibold mt-1 text-gray-900">{selectedPatient.patientId || '-'}</p>
+                    </div>
+                    
+                    <div>
+                      <Label className="text-sm font-medium text-gray-700">Patient No</Label>
+                      <p className="text-base font-mono font-semibold mt-1 text-gray-900">{selectedPatient.patientNo || '-'}</p>
+                    </div>
+                    
+                    <div>
+                      <Label className="text-sm font-medium text-gray-700">Patient Name</Label>
+                      <p className="text-base font-semibold mt-1 text-gray-900">{selectedPatient.patientName || '-'}</p>
+                    </div>
+                    
+                    <div>
+                      <Label className="text-sm font-medium text-gray-700">Last Name</Label>
+                      <p className="text-base mt-1 text-gray-900">{selectedPatient.lastName || '-'}</p>
+                    </div>
+                    
+                    <div>
+                      <Label className="text-sm font-medium text-gray-700">Patient Type</Label>
+                      <p className="text-base mt-1">
+                        <span className="px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-700">
+                          {selectedPatient.patientType || 'N/A'}
+                        </span>
+                      </p>
+                    </div>
+                    
+                    <div>
+                      <Label className="text-sm font-medium text-gray-700">Status</Label>
+                      <p className="text-base mt-1">
+                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                          selectedPatient.status === 'Active' ? 'bg-green-100 text-green-700' :
+                          selectedPatient.status === 'Inactive' ? 'bg-gray-100 text-gray-700' :
+                          'bg-red-100 text-red-700'
+                        }`}>
+                          {selectedPatient.status || 'Active'}
+                        </span>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Personal Details Section */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2">Personal Details</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-sm font-medium text-gray-700">Age</Label>
+                      <p className="text-base mt-1 text-gray-900">{selectedPatient.age || '-'}</p>
+                    </div>
+                    
+                    <div>
+                      <Label className="text-sm font-medium text-gray-700">Gender</Label>
+                      <p className="text-base mt-1 text-gray-900">{selectedPatient.gender || '-'}</p>
+                    </div>
+                    
+                    <div>
+                      <Label className="text-sm font-medium text-gray-700">Phone No</Label>
+                      <p className="text-base font-mono mt-1 text-gray-900">{selectedPatient.phoneNo || '-'}</p>
+                    </div>
+                    
+                    <div>
+                      <Label className="text-sm font-medium text-gray-700">Registered Date</Label>
+                      <p className="text-base mt-1 text-gray-900">
+                        {selectedPatient.registeredDate 
+                          ? new Date(selectedPatient.registeredDate).toLocaleDateString('en-US', { 
+                              year: 'numeric', 
+                              month: 'long', 
+                              day: 'numeric' 
+                            }) 
+                          : '-'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Identification Section */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2">Identification</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-sm font-medium text-gray-700">Aadhaar ID</Label>
+                      <p className="text-base font-mono mt-1 text-gray-900">{selectedPatient.adhaarID || '-'}</p>
+                    </div>
+                    
+                    <div>
+                      <Label className="text-sm font-medium text-gray-700">PAN Card</Label>
+                      <p className="text-base font-mono mt-1 text-gray-900">{selectedPatient.panCard || '-'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Address Section */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2">Address</h3>
+                  <div>
+                    <Label className="text-sm font-medium text-gray-700">Full Address</Label>
+                    <p className="text-base mt-1 text-gray-900 whitespace-pre-wrap">{selectedPatient.address || '-'}</p>
+                  </div>
+                </div>
+
+                {/* Medical Information Section */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2">Medical Information</h3>
+                  <div className="space-y-4">
+                    <div>
+                      <Label className="text-sm font-medium text-gray-700">Chief Complaint</Label>
+                      <p className="text-base mt-1 text-gray-900">{selectedPatient.chiefComplaint || '-'}</p>
+                    </div>
+                    
+                    <div>
+                      <Label className="text-sm font-medium text-gray-700">Description</Label>
+                      <p className="text-base mt-1 text-gray-900 whitespace-pre-wrap bg-gray-50 p-3 rounded-md border border-gray-200">
+                        {selectedPatient.description || '-'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
             ) : (
-              <div className="text-center py-8 text-gray-500">
-                No patient details available
+              <div className="text-center py-12 text-gray-500">
+                <p className="text-lg">No patient details available</p>
               </div>
             )}
-            </div>
+          </div>
+          
+          <div className="px-6 py-3 flex-shrink-0 border-t border-gray-200 flex justify-end">
+            <Button variant="outline" onClick={() => setIsDetailDialogOpen(false)}>
+              Close
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
 
       {/* Edit Patient Details Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-3xl p-0 gap-0">
-          <div className="flex flex-col h-[70vh] max-h-[70vh] overflow-hidden">
-            <DialogHeader className="px-6 pt-6 pb-4 border-b border-gray-200 flex-shrink-0 bg-white">
-              <DialogTitle className="flex items-center gap-2">
-                <Pencil className="size-5" />
-                Edit Patient Details
-              </DialogTitle>
-              <DialogDescription>
-                Modify patient information
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="flex-1 overflow-y-auto px-6 py-4">
-              {loadingEditPatient ? (
-                <div className="flex items-center justify-center py-12">
-                  <div className="text-center">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                    <p className="text-blue-600">Loading patient details...</p>
-                  </div>
+        <DialogContent className="p-0 gap-0 large-dialog">
+          <DialogHeader className="px-6 pt-4 pb-3 flex-shrink-0">
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="size-5" />
+              Edit Patient Details
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto px-6 pb-1 patient-list-scrollable min-h-0">
+            {loadingEditPatient ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                  <p className="text-blue-600">Loading patient details...</p>
                 </div>
+              </div>
               ) : editingPatient && editFormData ? (
-                <form onSubmit={(e) => { e.preventDefault(); handleUpdatePatient(); }} className="grid grid-cols-2 gap-4">
-                  {/* Patient ID (Read-only) */}
-                  <div>
-                    <Label className="text-xs text-gray-500">Patient ID</Label>
-                    <p className="text-sm font-mono font-medium">{editingPatient.patientId || '-'}</p>
-                  </div>
-                  
-                  {/* Patient No */}
-                  <div>
-                    <Label htmlFor="editPatientNo">Patient No</Label>
-                    <Input
-                      id="editPatientNo"
-                      value={editFormData.patientNo}
-                      onChange={(e) => setEditFormData({ ...editFormData, patientNo: e.target.value })}
-                      placeholder="Enter patient number"
-                    />
-                  </div>
-                  
-                  {/* Patient Name */}
+                <form onSubmit={(e) => { e.preventDefault(); handleUpdatePatient(); }} className="space-y-4 py-4">
+                  {/* Row 1: PatientName */}
                   <div>
                     <Label htmlFor="editPatientName">Patient Name *</Label>
                     <Input
@@ -975,149 +995,148 @@ export function PatientRegistration() {
                       placeholder="Enter patient's first name"
                     />
                   </div>
-                  
-                  {/* Last Name */}
+
+                  {/* Row 1.5: PatientNo */}
                   <div>
-                    <Label htmlFor="editLastName">Last Name</Label>
+                    <Label htmlFor="editPatientNo">Patient No (Optional)</Label>
                     <Input
-                      id="editLastName"
-                      value={editFormData.lastName}
-                      onChange={(e) => setEditFormData({ ...editFormData, lastName: e.target.value })}
-                      placeholder="Enter patient's last name"
+                      id="editPatientNo"
+                      value={editFormData.patientNo}
+                      onChange={(e) => setEditFormData({ ...editFormData, patientNo: e.target.value })}
+                      placeholder="Optional manual patient number"
                     />
                   </div>
-                  
-                  {/* Patient Type */}
+
+                  {/* Row 2: PatientType, LastName */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="editPatientType">Patient Type</Label>
+                      <select
+                        id="editPatientType"
+                        aria-label="Patient Type"
+                        className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                        value={editFormData.patientType}
+                        onChange={(e) => setEditFormData({ ...editFormData, patientType: e.target.value })}
+                      >
+                        <option value="">Select type</option>
+                        <option value="OPD">OPD</option>
+                        <option value="IPD">IPD</option>
+                        <option value="Emergency">Emergency</option>
+                      </select>
+                    </div>
+                    <div>
+                      <Label htmlFor="editLastName">Last Name</Label>
+                      <Input
+                        id="editLastName"
+                        value={editFormData.lastName}
+                        onChange={(e) => setEditFormData({ ...editFormData, lastName: e.target.value })}
+                        placeholder="Enter patient's last name"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Row 3: AdhaarID (highlighted), PANCard */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="editAdhaarID" className="flex items-center gap-2">
+                        Adhaar ID
+                        <span className="text-xs text-orange-500">(Important)</span>
+                      </Label>
+                      <Input
+                        id="editAdhaarID"
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        value={editFormData.adhaarID}
+                        onChange={(e) => {
+                          const numericValue = e.target.value.replace(/\D/g, '');
+                          const limitedValue = numericValue.slice(0, 12);
+                          setEditFormData({ ...editFormData, adhaarID: limitedValue });
+                          if (limitedValue && limitedValue.length !== 12) {
+                            setEditAdhaarError('Aadhaar ID must be exactly 12 digits');
+                          } else {
+                            setEditAdhaarError('');
+                          }
+                        }}
+                        placeholder="Enter 12-digit Aadhaar number"
+                        maxLength={12}
+                        className={`bg-orange-50 border-orange-200 ${editAdhaarError ? 'border-red-300' : ''}`}
+                      />
+                      {editAdhaarError && (
+                        <p className="text-sm text-red-600 mt-1">{editAdhaarError}</p>
+                      )}
+                    </div>
+                    <div>
+                      <Label htmlFor="editPANCard">PAN Card</Label>
+                      <Input
+                        id="editPANCard"
+                        value={editFormData.panCard}
+                        onChange={(e) => setEditFormData({ ...editFormData, panCard: e.target.value.toUpperCase() })}
+                        placeholder="Enter PAN number"
+                        maxLength={10}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Row 4: PhoneNo, Gender */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="editPhoneNo">Phone No *</Label>
+                      <Input
+                        id="editPhoneNo"
+                        required
+                        type="tel"
+                        value={editFormData.phoneNo}
+                        onChange={(e) => setEditFormData({ ...editFormData, phoneNo: e.target.value })}
+                        placeholder="Enter phone number"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="editGender">Gender *</Label>
+                      <select
+                        id="editGender"
+                        aria-label="Gender"
+                        required
+                        className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                        value={editFormData.gender}
+                        onChange={(e) => setEditFormData({ ...editFormData, gender: e.target.value })}
+                      >
+                        <option value="">Select gender</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Row 5: Age, Address */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="editAge">Age *</Label>
+                      <Input
+                        id="editAge"
+                        required
+                        type="number"
+                        min="0"
+                        max="150"
+                        value={editFormData.age}
+                        onChange={(e) => setEditFormData({ ...editFormData, age: e.target.value })}
+                        placeholder="Enter age"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="editAddress">Address</Label>
+                      <Input
+                        id="editAddress"
+                        value={editFormData.address}
+                        onChange={(e) => setEditFormData({ ...editFormData, address: e.target.value })}
+                        placeholder="Enter address"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Row 6: ChiefComplaint */}
                   <div>
-                    <Label htmlFor="editPatientType">Patient Type</Label>
-                    <select
-                      id="editPatientType"
-                      aria-label="Patient Type"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-md"
-                      value={editFormData.patientType}
-                      onChange={(e) => setEditFormData({ ...editFormData, patientType: e.target.value })}
-                    >
-                      <option value="">Select type</option>
-                      <option value="OPD">OPD</option>
-                      <option value="IPD">IPD</option>
-                      <option value="Emergency">Emergency</option>
-                      <option value="Follow-up">Follow-up</option>
-                    </select>
-                  </div>
-                  
-                  {/* Status */}
-                  <div>
-                    <Label htmlFor="editStatus">Status</Label>
-                    <select
-                      id="editStatus"
-                      aria-label="Status"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-md"
-                      value={editFormData.status}
-                      onChange={(e) => setEditFormData({ ...editFormData, status: e.target.value })}
-                    >
-                      <option value="Active">Active</option>
-                      <option value="Inactive">Inactive</option>
-                      <option value="Discharged">Discharged</option>
-                    </select>
-                  </div>
-                  
-                  {/* Age */}
-                  <div>
-                    <Label htmlFor="editAge">Age *</Label>
-                    <Input
-                      id="editAge"
-                      required
-                      type="number"
-                      min="0"
-                      max="150"
-                      value={editFormData.age}
-                      onChange={(e) => setEditFormData({ ...editFormData, age: e.target.value })}
-                      placeholder="Enter age"
-                    />
-                  </div>
-                  
-                  {/* Gender */}
-                  <div>
-                    <Label htmlFor="editGender">Gender *</Label>
-                    <select
-                      id="editGender"
-                      aria-label="Gender"
-                      required
-                      className="w-full px-3 py-2 border border-gray-200 rounded-md"
-                      value={editFormData.gender}
-                      onChange={(e) => setEditFormData({ ...editFormData, gender: e.target.value })}
-                    >
-                      <option value="">Select gender</option>
-                      <option value="Male">Male</option>
-                      <option value="Female">Female</option>
-                      <option value="Other">Other</option>
-                    </select>
-                  </div>
-                  
-                  {/* Phone No */}
-                  <div>
-                    <Label htmlFor="editPhoneNo">Phone No *</Label>
-                    <Input
-                      id="editPhoneNo"
-                      required
-                      type="tel"
-                      value={editFormData.phoneNo}
-                      onChange={(e) => setEditFormData({ ...editFormData, phoneNo: e.target.value })}
-                      placeholder="Enter phone number"
-                    />
-                  </div>
-                  
-                  {/* Aadhaar ID */}
-                  <div>
-                    <Label htmlFor="editAdhaarID">Aadhaar ID</Label>
-                    <Input
-                      id="editAdhaarID"
-                      type="text"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      value={editFormData.adhaarID}
-                      onChange={(e) => setEditFormData({ ...editFormData, adhaarID: e.target.value.replace(/\D/g, '').slice(0, 12) })}
-                      placeholder="Enter 12-digit Aadhaar number"
-                      maxLength={12}
-                    />
-                  </div>
-                  
-                  {/* PAN Card */}
-                  <div>
-                    <Label htmlFor="editPANCard">PAN Card</Label>
-                    <Input
-                      id="editPANCard"
-                      value={editFormData.panCard}
-                      onChange={(e) => setEditFormData({ ...editFormData, panCard: e.target.value.toUpperCase().slice(0, 10) })}
-                      placeholder="Enter PAN number"
-                      maxLength={10}
-                    />
-                  </div>
-                  
-                  {/* Registered Date */}
-                  <div>
-                    <Label htmlFor="editRegisteredDate">Registered Date</Label>
-                    <Input
-                      id="editRegisteredDate"
-                      type="date"
-                      value={editFormData.registeredDate}
-                      onChange={(e) => setEditFormData({ ...editFormData, registeredDate: e.target.value })}
-                    />
-                  </div>
-                  
-                  {/* Address */}
-                  <div className="col-span-2">
-                    <Label htmlFor="editAddress">Address</Label>
-                    <Input
-                      id="editAddress"
-                      value={editFormData.address}
-                      onChange={(e) => setEditFormData({ ...editFormData, address: e.target.value })}
-                      placeholder="Enter address"
-                    />
-                  </div>
-                  
-                  {/* Chief Complaint */}
-                  <div className="col-span-2">
                     <Label htmlFor="editChiefComplaint">Chief Complaint</Label>
                     <Input
                       id="editChiefComplaint"
@@ -1126,9 +1145,9 @@ export function PatientRegistration() {
                       placeholder="Enter chief complaint"
                     />
                   </div>
-                  
-                  {/* Description */}
-                  <div className="col-span-2">
+
+                  {/* Row 7: Description */}
+                  <div>
                     <Label htmlFor="editDescription">Description</Label>
                     <textarea
                       id="editDescription"
@@ -1139,34 +1158,31 @@ export function PatientRegistration() {
                       placeholder="Enter additional description or notes"
                     />
                   </div>
-                  
-                  {/* Registered By */}
-                  <div>
-                    <Label htmlFor="editRegisteredBy">Registered By</Label>
-                    <Input
-                      id="editRegisteredBy"
-                      value={editFormData.registeredBy}
-                      onChange={(e) => setEditFormData({ ...editFormData, registeredBy: e.target.value })}
-                      placeholder="Registered by"
-                    />
-                  </div>
-                  
-                  {/* Action Buttons */}
-                  <div className="col-span-2 flex justify-end gap-2 pt-4 border-t">
-                    <Button type="button" variant="outline" onClick={handleCancelEdit} disabled={updatingPatient}>
+
+                  <div className="flex justify-end gap-2 pt-4 border-t">
+                    <Button 
+                      type="button"
+                      variant="outline" 
+                      onClick={handleCancelEdit}
+                      disabled={updatingPatient}
+                      className="py-1"
+                    >
                       Cancel
                     </Button>
-                    <Button type="submit" disabled={updatingPatient}>
+                    <Button 
+                      type="submit"
+                      disabled={updatingPatient} 
+                      className="py-1"
+                    >
                       {updatingPatient ? 'Updating...' : 'Update Patient'}
                     </Button>
                   </div>
                 </form>
               ) : (
-                <div className="text-center py-8 text-gray-500">
-                  No patient data available for editing
+                <div className="text-center py-12 text-gray-500">
+                  <p className="text-lg">No patient data available for editing</p>
                 </div>
               )}
-            </div>
           </div>
         </DialogContent>
       </Dialog>
