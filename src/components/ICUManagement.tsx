@@ -515,25 +515,28 @@ export function ICUManagement() {
       try {
         console.log('Checking ICU availability, ICUId:', addICUAdmissionForm.icuId, 'ICUAllocationFromDate:', addICUAdmissionForm.icuAllocationFromDate);
         
-        // Call the ICU availability check API
-        const checkResponse = await apiRequest<any>(`/patient-icu-admissions/check-availability?ICUId=${addICUAdmissionForm.icuId}&ICUAllocationFromDate=${addICUAdmissionForm.icuAllocationFromDate}`, {
+        // Call the ICU occupied check API
+        const checkResponse = await apiRequest<any>(`/patient-icu-admissions/check-occupied?ICUId=${addICUAdmissionForm.icuId}&ICUAllocationFromDate=${addICUAdmissionForm.icuAllocationFromDate}`, {
           method: 'GET',
         });
         
-        console.log('ICU availability check response:', checkResponse);
+        console.log('ICU occupied check response:', checkResponse);
         
-        // Check if ICU is available
-        // API might return: { available: true/false } or { isAvailable: true/false } or { status: 'available'/'occupied' }
-        const isAvailable = checkResponse?.isAvailable !== false && checkResponse?.available === true &&
-                           (checkResponse?.status === undefined || String(checkResponse.status).toLowerCase() === 'available') &&
-                           (checkResponse?.Status === undefined || String(checkResponse.Status).toLowerCase() === 'available');
+        // Check if ICU is occupied
+        // API might return: { isOccupied: true/false } or { occupied: true/false } or { status: 'occupied'/'available' }
+        const isOccupied = checkResponse?.isOccupied === true ||
+                          checkResponse?.occupied === true ||
+                          checkResponse?.IsOccupied === true ||
+                          checkResponse?.Occupied === true ||
+                          (checkResponse?.status && String(checkResponse.status).toLowerCase() === 'occupied') ||
+                          (checkResponse?.Status && String(checkResponse.Status).toLowerCase() === 'occupied');
         
-        if (!isAvailable) {
-          throw new Error('The selected ICU is not available for the selected allocation date. Please select another ICU or choose a different date.');
+        if (isOccupied) {
+          throw new Error('The selected ICU is already occupied for the selected allocation date. Please select another ICU or choose a different date.');
         }
       } catch (checkError: any) {
         // If it's our custom error message, throw it
-        if (checkError?.message && (checkError.message.includes('not available') || checkError.message.includes('already occupied'))) {
+        if (checkError?.message && (checkError.message.includes('not available') || checkError.message.includes('already occupied') || checkError.message.includes('occupied'))) {
           throw checkError;
         }
         // If the API returns an error indicating unavailability, throw it
@@ -546,8 +549,8 @@ export function ICUManagement() {
           }
         }
         // If it's a network error or other issue, log it but continue (or you can choose to throw)
-        console.warn('ICU availability check failed:', checkError);
-        // For now, we'll continue if it's not an explicit unavailability error
+        console.warn('ICU occupied check failed:', checkError);
+        // For now, we'll continue if it's not an explicit "occupied" error
         // You can change this to throw if you want to be more strict
       }
 
