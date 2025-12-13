@@ -1105,6 +1105,58 @@ export function PatientOTAllocationManagement() {
     return result;
   }, [patientOTAllocations, otRooms, allOTSlots, slotSearchTerm, patients]);
 
+  // Separate slots into occupied and unoccupied
+  const { occupiedSlots, unoccupiedSlots } = useMemo(() => {
+    const occupied: Array<{ slot: OTSlot; roomData: any; slotIdx: number; slotAllocation: PatientOTAllocation | null; patientNo: string | null }> = [];
+    const unoccupied: Array<{ slot: OTSlot; roomData: any; slotIdx: number }> = [];
+    
+    getTodayAllocationsByRoom.forEach((roomData) => {
+      if (roomData.slots.length > 0) {
+        roomData.slots.forEach((slot, slotIdx) => {
+          const isOccupied = slot.isOccupied ?? false;
+          const operationStatus = slot.operationStatus;
+          const isScheduled = operationStatus === 'Scheduled';
+          const isInProgress = operationStatus === 'InProgress';
+          const isCompleted = operationStatus === 'Completed';
+          
+          // Find allocation for this slot
+          let slotAllocation = slot.patientOTAllocationId 
+            ? patientOTAllocations.find(a => 
+                a.id === slot.patientOTAllocationId || 
+                a.patientOTAllocationId === slot.patientOTAllocationId
+              )
+            : null;
+          
+          if (!slotAllocation && slot.otIdNumber && slot.id) {
+            slotAllocation = patientOTAllocations.find(a => {
+              const otIdMatches = a.otId === slot.otIdNumber;
+              const slotIdMatches = a.otSlotIds && a.otSlotIds.includes(slot.id);
+              return otIdMatches && slotIdMatches;
+            });
+          }
+          
+          // Get patient number for display
+          let patientNo = slot.patientNo || null;
+          if (!patientNo && slotAllocation?.patientId) {
+            const patient = patients.find(p => p.PatientId === slotAllocation.patientId);
+            patientNo = patient ? (patient.PatientNo || (patient as any).patientNo) : null;
+          }
+          
+          // Consider occupied if: isOccupied is true, or has allocation with status InProgress/Scheduled/Completed
+          const isActuallyOccupied = isOccupied || isInProgress || isScheduled || isCompleted || !!slotAllocation;
+          
+          if (isActuallyOccupied) {
+            occupied.push({ slot, roomData, slotIdx, slotAllocation, patientNo });
+          } else {
+            unoccupied.push({ slot, roomData, slotIdx });
+          }
+        });
+      }
+    });
+    
+    return { occupiedSlots: occupied, unoccupiedSlots: unoccupied };
+  }, [getTodayAllocationsByRoom, patientOTAllocations, patients]);
+
   if (loading) {
     return (
       <div className="p-8">
@@ -1124,7 +1176,7 @@ export function PatientOTAllocationManagement() {
   return (
     <>
       <div className="flex-1 bg-gray-50 flex flex-col overflow-hidden min-h-0 dashboard-scrollable" style={{ maxHeight: '100vh', minHeight: 0 }}>
-        <div className="overflow-y-auto overflow-x-hidden flex-1 flex flex-col min-h-0">
+        <div className="overflow-y-auto overflow-x-hidden flex-1 flex flex-col min-h-0 dashboard-scrollable">
           <div className="px-6 pt-6 pb-0 flex-shrink-0">
             <div className="flex items-center justify-between mb-4 flex-shrink-0">
               <div>
@@ -1138,23 +1190,24 @@ export function PatientOTAllocationManagement() {
                 Add OT Allocation
               </Button>
             </DialogTrigger>
-            <DialogContent className="p-0 gap-0 large-dialog max-h-[90vh]">
-              <DialogHeader className="px-6 pt-4 pb-3 flex-shrink-0">
-                <DialogTitle>Add New Patient OT Allocation</DialogTitle>
-              </DialogHeader>
-              <div className="flex-1 overflow-y-auto px-6 pb-1 patient-list-scrollable min-h-0">
-                <div className="space-y-4 py-4">
-                  <div className="text-sm text-gray-600 p-3 bg-blue-50 rounded-md">
+            <DialogContent className="p-0 gap-0 large-dialog bg-white">
+              <div className="flex-1 overflow-y-auto dialog-content-scrollable min-h-0 bg-white max-h-[90vh]">
+                <DialogHeader className="px-6 pt-4 pb-3 bg-white">
+                  <DialogTitle className="text-gray-700">Add New Patient OT Allocation</DialogTitle>
+                </DialogHeader>
+                <div className="px-6 pb-1">
+                  <div className="space-y-4 py-4">
+                  <div className="text-sm text-gray-600 p-3 bg-gray-300 rounded-md">
                     <p className="font-medium mb-1">Patient Source (Select one):</p>
                     <p className="text-xs">Choose either Patient (Direct OT), Room Admission (IPD), Patient Appointment (OPD), or Emergency Bed</p>
                   </div>
                   
                   <div>
-                    <Label htmlFor="add-patientId">Patient (Direct OT - Optional)</Label>
+                    <Label htmlFor="add-patientId" className="text-gray-600">Patient (Direct OT - Optional)</Label>
                     <select
                       id="add-patientId"
                       aria-label="Patient"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-md text-gray-700 bg-gray-100"
                       value={formData.patientId}
                       onChange={(e) => setFormData({ ...formData, patientId: e.target.value, roomAdmissionId: '', patientAppointmentId: '', emergencyBedSlotId: '' })}
                     >
@@ -1175,11 +1228,11 @@ export function PatientOTAllocationManagement() {
                   </div>
 
                   <div>
-                    <Label htmlFor="add-roomAdmissionId">Room Admission (IPD - Optional)</Label>
+                    <Label htmlFor="add-roomAdmissionId" className="text-gray-600">Room Admission (IPD - Optional)</Label>
                     <select
                       id="add-roomAdmissionId"
                       aria-label="Room Admission"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-md text-gray-700 bg-gray-100"
                       value={formData.roomAdmissionId}
                       onChange={(e) => setFormData({ ...formData, roomAdmissionId: e.target.value, patientId: '', patientAppointmentId: '', emergencyBedSlotId: '' })}
                     >
@@ -1193,11 +1246,11 @@ export function PatientOTAllocationManagement() {
                   </div>
 
                   <div>
-                    <Label htmlFor="add-patientAppointmentId">Patient Appointment (OPD - Optional)</Label>
+                    <Label htmlFor="add-patientAppointmentId" className="text-gray-600">Patient Appointment (OPD - Optional)</Label>
                     <select
                       id="add-patientAppointmentId"
                       aria-label="Patient Appointment"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-md text-gray-700 bg-gray-100"
                       value={formData.patientAppointmentId}
                       onChange={(e) => setFormData({ ...formData, patientAppointmentId: e.target.value, patientId: '', roomAdmissionId: '', emergencyBedSlotId: '' })}
                     >
@@ -1222,11 +1275,11 @@ export function PatientOTAllocationManagement() {
                   </div>
 
                     <div>
-                      <Label htmlFor="add-emergencyBedSlotId">Emergency Bed Slot (Optional)</Label>
+                      <Label htmlFor="add-emergencyBedSlotId" className="text-gray-600">Emergency Bed Slot (Optional)</Label>
                       <select
                         id="add-emergencyBedSlotId"
                         aria-label="Emergency Bed Slot"
-                        className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                        className="w-full px-3 py-2 border border-gray-200 rounded-md text-gray-700 bg-gray-100"
                         value={formData.emergencyBedSlotId}
                       onChange={(e) => {
                         setFormData({ ...formData, emergencyBedSlotId: e.target.value, patientId: '', roomAdmissionId: '', patientAppointmentId: '' });
@@ -1251,11 +1304,11 @@ export function PatientOTAllocationManagement() {
 
                   <div className="border-t pt-4">
                       <div>
-                        <Label htmlFor="add-otId">OT *</Label>
+                        <Label htmlFor="add-otId" className="text-gray-600">OT *</Label>
                         <select
                           id="add-otId"
                           aria-label="OT"
-                          className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                          className="w-full px-3 py-2 border border-gray-200 rounded-md text-gray-700 bg-gray-200"
                           value={formData.otId}
                           onChange={(e) => {
                             setSelectedOTId(e.target.value);
@@ -1271,7 +1324,7 @@ export function PatientOTAllocationManagement() {
                         </select>
                     </div>
                     <div>
-                      <Label>OT Slots (Optional)</Label>
+                      <Label className="text-gray-600">OT Slots (Optional)</Label>
                       <div className="border border-gray-200 rounded-md p-3 max-h-48 overflow-y-auto" style={{ maxHeight: '200px' }}>
                         {!formData.otId ? (
                           <p className="text-sm text-gray-500">Please select an OT first</p>
@@ -1376,11 +1429,11 @@ export function PatientOTAllocationManagement() {
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="add-leadSurgeonId">Lead Surgeon *</Label>
+                      <Label htmlFor="add-leadSurgeonId" className="text-gray-600">Lead Surgeon *</Label>
                       <select
                         id="add-leadSurgeonId"
                         aria-label="Lead Surgeon"
-                        className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                        className="w-full px-3 py-2 border border-gray-200 rounded-md text-gray-700 bg-gray-100"
                         value={formData.leadSurgeonId}
                         onChange={(e) => setFormData({ ...formData, leadSurgeonId: e.target.value })}
                       >
@@ -1393,11 +1446,11 @@ export function PatientOTAllocationManagement() {
                       </select>
                     </div>
                     <div>
-                      <Label htmlFor="add-assistantDoctorId">Assistant Doctor (Optional)</Label>
+                      <Label htmlFor="add-assistantDoctorId" className="text-gray-600">Assistant Doctor (Optional)</Label>
                       <select
                         id="add-assistantDoctorId"
                         aria-label="Assistant Doctor"
-                        className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                        className="w-full px-3 py-2 border border-gray-200 rounded-md text-gray-700 bg-gray-100"
                         value={formData.assistantDoctorId}
                         onChange={(e) => setFormData({ ...formData, assistantDoctorId: e.target.value })}
                       >
@@ -1413,11 +1466,11 @@ export function PatientOTAllocationManagement() {
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="add-anaesthetistId">Anaesthetist (Optional)</Label>
+                      <Label htmlFor="add-anaesthetistId" className="text-gray-600">Anaesthetist (Optional)</Label>
                       <select
                         id="add-anaesthetistId"
                         aria-label="Anaesthetist"
-                        className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                        className="w-full px-3 py-2 border border-gray-200 rounded-md text-gray-700 bg-gray-100"
                         value={formData.anaesthetistId}
                         onChange={(e) => setFormData({ ...formData, anaesthetistId: e.target.value })}
                       >
@@ -1430,11 +1483,11 @@ export function PatientOTAllocationManagement() {
                       </select>
                     </div>
                     <div>
-                      <Label htmlFor="add-nurseId">Nurse (Optional)</Label>
+                      <Label htmlFor="add-nurseId" className="text-gray-600">Nurse (Optional)</Label>
                       <select
                         id="add-nurseId"
                         aria-label="Nurse"
-                        className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                        className="w-full px-3 py-2 border border-gray-200 rounded-md text-gray-700 bg-gray-100"
                         value={formData.nurseId}
                         onChange={(e) => setFormData({ ...formData, nurseId: e.target.value })}
                       >
@@ -1450,85 +1503,92 @@ export function PatientOTAllocationManagement() {
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="add-otAllocationDate">OT Allocation Date *</Label>
+                      <Label htmlFor="add-otAllocationDate" className="text-gray-600">OT Allocation Date *</Label>
                       <Input
                         id="add-otAllocationDate"
                         type="date"
                         value={formData.otAllocationDate}
                         onChange={(e) => setFormData({ ...formData, otAllocationDate: e.target.value })}
+                        className="text-gray-700 bg-gray-100"
                       />
                     </div>
                     <div>
-                      <Label htmlFor="add-duration">Duration (Optional, in minutes)</Label>
+                      <Label htmlFor="add-duration" className="text-gray-600">Duration (Optional, in minutes)</Label>
                       <Input
                         id="add-duration"
                         type="number"
                         placeholder="e.g., 120"
                         value={formData.duration}
                         onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
+                        className="text-gray-700 bg-gray-100"
                       />
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="add-otStartTime">OT Start Time (Optional)</Label>
+                      <Label htmlFor="add-otStartTime" className="text-gray-600">OT Start Time (Optional)</Label>
                       <Input
                         id="add-otStartTime"
                         type="time"
                         value={formData.otStartTime}
                         onChange={(e) => setFormData({ ...formData, otStartTime: e.target.value })}
+                        className="text-gray-700 bg-gray-100"
                       />
                     </div>
                     <div>
-                      <Label htmlFor="add-otEndTime">OT End Time (Optional)</Label>
+                      <Label htmlFor="add-otEndTime" className="text-gray-600">OT End Time (Optional)</Label>
                       <Input
                         id="add-otEndTime"
                         type="time"
                         value={formData.otEndTime}
                         onChange={(e) => setFormData({ ...formData, otEndTime: e.target.value })}
+                        className="text-gray-700 bg-gray-100"
                       />
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="add-otActualStartTime">OT Actual Start Time (Optional)</Label>
+                      <Label htmlFor="add-otActualStartTime" className="text-gray-600">OT Actual Start Time (Optional)</Label>
                       <Input
                         id="add-otActualStartTime"
                         type="time"
                         value={formData.otActualStartTime}
                         onChange={(e) => setFormData({ ...formData, otActualStartTime: e.target.value })}
+                        className="text-gray-700 bg-gray-100"
                       />
                     </div>
                     <div>
-                      <Label htmlFor="add-otActualEndTime">OT Actual End Time (Optional)</Label>
+                      <Label htmlFor="add-otActualEndTime" className="text-gray-600">OT Actual End Time (Optional)</Label>
                       <Input
                         id="add-otActualEndTime"
                         type="time"
                         value={formData.otActualEndTime}
                         onChange={(e) => setFormData({ ...formData, otActualEndTime: e.target.value })}
+                        className="text-gray-700 bg-gray-100"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <Label htmlFor="add-operationDescription">Operation Description (Optional)</Label>
+                    <Label htmlFor="add-operationDescription" className="text-gray-600">Operation Description (Optional)</Label>
                     <Textarea
                       id="add-operationDescription"
                       placeholder="Enter operation description..."
                       value={formData.operationDescription}
                       onChange={(e) => setFormData({ ...formData, operationDescription: e.target.value })}
                       rows={3}
+                      className="text-gray-700 bg-gray-100"
                     />
                   </div>
 
                   <div>
-                    <Label htmlFor="add-operationStatus">Operation Status</Label>
+                    <Label htmlFor="add-operationStatus" className="text-gray-600">Operation Status</Label>
                     <select
                       id="add-operationStatus"
                       aria-label="Operation Status"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-md text-gray-700 bg-gray-100"
                       value={formData.operationStatus}
                       onChange={(e) => setFormData({ ...formData, operationStatus: e.target.value as PatientOTAllocation['operationStatus'] })}
                     >
@@ -1541,46 +1601,49 @@ export function PatientOTAllocationManagement() {
                   </div>
 
                   <div>
-                    <Label htmlFor="add-preOperationNotes">Pre Operation Notes (Optional)</Label>
+                    <Label htmlFor="add-preOperationNotes" className="text-gray-600">Pre Operation Notes (Optional)</Label>
                     <Textarea
                       id="add-preOperationNotes"
                       placeholder="e.g., ICU bed reserved post-surgery"
                       value={formData.preOperationNotes}
                       onChange={(e) => setFormData({ ...formData, preOperationNotes: e.target.value })}
                       rows={2}
+                      className="text-gray-700 bg-gray-100"
                     />
                   </div>
 
                   <div>
-                    <Label htmlFor="add-postOperationNotes">Post Operation Notes (Optional)</Label>
+                    <Label htmlFor="add-postOperationNotes" className="text-gray-600">Post Operation Notes (Optional)</Label>
                     <Textarea
                       id="add-postOperationNotes"
                       placeholder="Enter post operation notes..."
                       value={formData.postOperationNotes}
                       onChange={(e) => setFormData({ ...formData, postOperationNotes: e.target.value })}
                       rows={2}
+                      className="text-gray-700 bg-gray-100"
                     />
                   </div>
 
                   <div>
-                    <Label htmlFor="add-otDocuments">OT Documents URL (Optional)</Label>
+                    <Label htmlFor="add-otDocuments" className="text-gray-600">OT Documents URL (Optional)</Label>
                     <Input
                       id="add-otDocuments"
                       type="url"
                       placeholder="https://documents.example.com/..."
                       value={formData.otDocuments}
                       onChange={(e) => setFormData({ ...formData, otDocuments: e.target.value })}
+                      className="text-gray-700 bg-gray-100"
                     />
                     <p className="text-xs text-gray-500 mt-1">To be uploaded</p>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="add-billId">Bill ID (Optional)</Label>
+                      <Label htmlFor="add-billId" className="text-gray-600">Bill ID (Optional)</Label>
                       <select
                         id="add-billId"
                         aria-label="Bill ID"
-                        className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                        className="w-full px-3 py-2 border border-gray-200 rounded-md text-gray-700 bg-gray-100"
                         value={formData.billId}
                         onChange={(e) => setFormData({ ...formData, billId: e.target.value })}
                       >
@@ -1593,11 +1656,11 @@ export function PatientOTAllocationManagement() {
                       </select>
                     </div>
                     <div>
-                      <Label htmlFor="add-status">Status</Label>
+                      <Label htmlFor="add-status" className="text-gray-600">Status</Label>
                       <select
                         id="add-status"
                         aria-label="Status"
-                        className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                        className="w-full px-3 py-2 border border-gray-200 rounded-md text-gray-700 bg-gray-100"
                         value={formData.status}
                         onChange={(e) => setFormData({ ...formData, status: e.target.value as PatientOTAllocation['status'] })}
                       >
@@ -1606,11 +1669,12 @@ export function PatientOTAllocationManagement() {
                       </select>
                     </div>
                   </div>
+                  </div>
                 </div>
-              </div>
-              <div className="flex justify-end gap-2 px-6 py-2 border-t bg-gray-50 flex-shrink-0">
-                <Button variant="outline" onClick={() => setIsAddDialogOpen(false)} className="py-1">Cancel</Button>
-                <Button onClick={handleAddSubmit} className="py-1">Add OT Allocation</Button>
+                <div className="flex justify-end gap-2 px-6 py-2 border-t bg-white flex-shrink-0">
+                  <Button variant="outline" onClick={() => setIsAddDialogOpen(false)} className="py-1">Cancel</Button>
+                  <Button onClick={handleAddSubmit} className="py-1">Add OT Allocation</Button>
+                </div>
               </div>
             </DialogContent>
           </Dialog>
@@ -1712,38 +1776,18 @@ export function PatientOTAllocationManagement() {
               </CardContent>
             </Card>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-4">
-              {getTodayAllocationsByRoom.length === 0 ? (
-                <div className="col-span-full text-center py-8 text-gray-500 text-sm">
-                  {slotSearchTerm.trim() 
-                    ? `No OT rooms or slots found matching "${slotSearchTerm}"`
-                    : "No OT rooms found. Please ensure OT rooms are configured."}
-                </div>
-              ) : (
-                getTodayAllocationsByRoom.flatMap((roomData) => {
-                  // Create a card for each slot
-                  if (roomData.slots.length === 0) {
-                    // If no slots, show room card
-                    return (
-                      <Card key={roomData.room.id} className="bg-white border border-gray-200 shadow-sm rounded-lg">
-                        <CardContent className="p-4">
-                          <div className="flex items-center justify-between mb-3">
-                            <div>
-                              <h3 className="text-base font-semibold text-gray-900">{roomData.room.otNo} - {roomData.room.otName}</h3>
-                              <p className="text-xs text-gray-500">{roomData.room.otType}</p>
-                            </div>
-                          </div>
-                          <div className="text-xs text-gray-400 italic p-2 bg-gray-50 rounded">
-                            No slots configured
-                          </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  }
-                  
-                  // Return a card for each slot
-                  return roomData.slots.map((slot, slotIdx) => {
-                    const slotId = slot.id || parseInt(slot.otSlotId || '0');
+            {/* Occupied Slots Section */}
+            {occupiedSlots.length > 0 && (
+              <div className="mb-6">
+                <h3 className="text-md font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                  Occupied Slots ({occupiedSlots.length})
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-4">
+                  {occupiedSlots.map(({ slot, roomData, slotIdx, slotAllocation: passedSlotAllocation, patientNo: passedPatientNo }) => {
+                    // Use passed values
+                    const slotAllocation = passedSlotAllocation;
+                    const patientNo = passedPatientNo;
                     
                     // Use backend-provided availability/occupancy information
                     const isAvailable = slot.isAvailable ?? true;
@@ -1752,33 +1796,6 @@ export function PatientOTAllocationManagement() {
                     const isCompleted = operationStatus === 'Completed';
                     const isScheduled = operationStatus === 'Scheduled';
                     const isInProgress = operationStatus === 'InProgress';
-                    
-                    // Find allocation for this slot
-                    // First try by patientOTAllocationId if available
-                    let slotAllocation = slot.patientOTAllocationId 
-                      ? patientOTAllocations.find(a => 
-                          a.id === slot.patientOTAllocationId || 
-                          a.patientOTAllocationId === slot.patientOTAllocationId
-                        )
-                      : null;
-                    
-                    // If not found, try matching by OT ID and slot ID
-                    if (!slotAllocation && slot.otIdNumber && slot.id) {
-                      slotAllocation = patientOTAllocations.find(a => {
-                        // Match by OT ID
-                        const otIdMatches = a.otId === slot.otIdNumber;
-                        // Check if slot ID is in the otSlotIds array
-                        const slotIdMatches = a.otSlotIds && a.otSlotIds.includes(slot.id);
-                        return otIdMatches && slotIdMatches;
-                      });
-                    }
-                    
-                    // Get patient number for display
-                    let patientNo = slot.patientNo || null;
-                    if (!patientNo && slotAllocation?.patientId) {
-                      const patient = patients.find(p => p.PatientId === slotAllocation.patientId);
-                      patientNo = patient ? (patient.PatientNo || (patient as any).patientNo) : null;
-                    }
                     
                     // Debug allocation lookup
                     if (slot.patientOTAllocationId || slot.otIdNumber) {
@@ -1956,10 +1973,71 @@ export function PatientOTAllocationManagement() {
                         </Card>
                       </div>
                     );
-                  });
-                })
-              )}
-            </div>
+                  })}
+                </div>
+              </div>
+            )}
+            
+            {/* Unoccupied Slots Section */}
+            {unoccupiedSlots.length > 0 && (
+              <div className="mb-6">
+                <h3 className="text-md font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  Unoccupied Slots ({unoccupiedSlots.length})
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-4">
+                  {unoccupiedSlots.map(({ slot, roomData, slotIdx }) => {
+                    const isAvailable = slot.isAvailable ?? true;
+                    const borderColor = isAvailable ? 'border-green-200' : 'border-gray-200';
+                    
+                    return (
+                      <div
+                        key={`${roomData.room.id}-${slot.id || slotIdx}`}
+                        className="w-full"
+                      >
+                        <Card 
+                          className={`bg-white border shadow-sm rounded-lg ${borderColor} h-full`}
+                        >
+                          <CardContent className="p-4">
+                            <div className="flex items-center justify-between mb-2">
+                              <div>
+                                <h3 className="text-base font-semibold text-gray-900">{roomData.room.otNo} - {slot.otSlotNo || `Slot ${slotIdx + 1}`}</h3>
+                                <p className="text-xs text-gray-500">{roomData.room.otName} ({roomData.room.otType})</p>
+                              </div>
+                              <div className="px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-700">
+                                Available
+                              </div>
+                            </div>
+                            
+                            {/* Slot Time - minimal info for unoccupied */}
+                            {slot.slotStartTime && slot.slotEndTime && (
+                              <div className="p-2 rounded bg-gray-50">
+                                <div className="flex items-center gap-2 text-sm">
+                                  <Clock className="size-4 text-gray-600" />
+                                  <span className="font-medium text-gray-700">
+                                    {slot.slotStartTime} - {slot.slotEndTime}
+                                  </span>
+                                </div>
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            
+            {/* No slots message */}
+            {occupiedSlots.length === 0 && unoccupiedSlots.length === 0 && (
+              <div className="text-center py-8 text-gray-500 text-sm">
+                {slotSearchTerm.trim() 
+                  ? `No OT rooms or slots found matching "${slotSearchTerm}"`
+                  : "No OT rooms found. Please ensure OT rooms are configured."}
+              </div>
+            )}
+          </div>
           </div>
 
           {/* Patient OT Allocation Table */}
@@ -2194,7 +2272,7 @@ export function PatientOTAllocationManagement() {
                 <select
                   id="duplicate-patientId"
                   aria-label="Patient"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-md text-gray-700 bg-gray-100"
                   value={formData.patientId}
                   onChange={(e) => setFormData({ ...formData, patientId: e.target.value, roomAdmissionId: '', patientAppointmentId: '', emergencyBedSlotId: '' })}
                 >
@@ -2219,7 +2297,7 @@ export function PatientOTAllocationManagement() {
                 <select
                   id="duplicate-roomAdmissionId"
                   aria-label="Room Admission"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-md text-gray-700 bg-gray-100"
                   value={formData.roomAdmissionId}
                   onChange={(e) => setFormData({ ...formData, roomAdmissionId: e.target.value, patientId: '', patientAppointmentId: '', emergencyBedSlotId: '' })}
                 >
@@ -2237,7 +2315,7 @@ export function PatientOTAllocationManagement() {
                 <select
                   id="duplicate-patientAppointmentId"
                   aria-label="Patient Appointment"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-md text-gray-700 bg-gray-100"
                   value={formData.patientAppointmentId}
                   onChange={(e) => setFormData({ ...formData, patientAppointmentId: e.target.value, patientId: '', roomAdmissionId: '', emergencyBedSlotId: '' })}
                 >
@@ -2264,7 +2342,7 @@ export function PatientOTAllocationManagement() {
                 <select
                   id="duplicate-emergencyBedSlotId"
                   aria-label="Emergency Bed Slot"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-md text-gray-700 bg-gray-100"
                   value={formData.emergencyBedSlotId}
                   onChange={(e) => {
                     setFormData({ ...formData, emergencyBedSlotId: e.target.value, patientId: '', roomAdmissionId: '', patientAppointmentId: '' });
@@ -2293,7 +2371,7 @@ export function PatientOTAllocationManagement() {
                     <select
                       id="duplicate-otId"
                       aria-label="OT"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-md text-gray-700 bg-gray-100"
                       value={formData.otId}
                       onChange={(e) => {
                         setSelectedOTId(e.target.value);
@@ -2419,7 +2497,7 @@ export function PatientOTAllocationManagement() {
                   <select
                     id="duplicate-leadSurgeonId"
                     aria-label="Lead Surgeon"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-md text-gray-700 bg-gray-100"
                     value={formData.leadSurgeonId}
                     onChange={(e) => setFormData({ ...formData, leadSurgeonId: e.target.value })}
                   >
@@ -2436,7 +2514,7 @@ export function PatientOTAllocationManagement() {
                   <select
                     id="duplicate-assistantDoctorId"
                     aria-label="Assistant Doctor"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-md text-gray-700 bg-gray-100"
                     value={formData.assistantDoctorId}
                     onChange={(e) => setFormData({ ...formData, assistantDoctorId: e.target.value })}
                   >
@@ -2456,7 +2534,7 @@ export function PatientOTAllocationManagement() {
                   <select
                     id="duplicate-anaesthetistId"
                     aria-label="Anaesthetist"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-md text-gray-700 bg-gray-100"
                     value={formData.anaesthetistId}
                     onChange={(e) => setFormData({ ...formData, anaesthetistId: e.target.value })}
                   >
@@ -2473,7 +2551,7 @@ export function PatientOTAllocationManagement() {
                   <select
                     id="duplicate-nurseId"
                     aria-label="Nurse"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-md text-gray-700 bg-gray-100"
                     value={formData.nurseId}
                     onChange={(e) => setFormData({ ...formData, nurseId: e.target.value })}
                   >
@@ -2546,7 +2624,7 @@ export function PatientOTAllocationManagement() {
                 <select
                   id="duplicate-operationStatus"
                   aria-label="Operation Status"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-md text-gray-700 bg-gray-100"
                   value={formData.operationStatus}
                   onChange={(e) => setFormData({ ...formData, operationStatus: e.target.value as PatientOTAllocation['operationStatus'] })}
                 >
@@ -2598,7 +2676,7 @@ export function PatientOTAllocationManagement() {
                   <select
                     id="duplicate-billId"
                     aria-label="Bill ID"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-md text-gray-700 bg-gray-100"
                     value={formData.billId}
                     onChange={(e) => setFormData({ ...formData, billId: e.target.value })}
                   >
@@ -2615,7 +2693,7 @@ export function PatientOTAllocationManagement() {
                   <select
                     id="duplicate-status"
                     aria-label="Status"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-md text-gray-700 bg-gray-100"
                     value={formData.status}
                     onChange={(e) => setFormData({ ...formData, status: e.target.value as PatientOTAllocation['status'] })}
                   >
@@ -2665,7 +2743,7 @@ export function PatientOTAllocationManagement() {
                 <select
                   id="edit-patientId"
                   aria-label="Patient"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-md text-gray-700 bg-gray-100"
                   value={formData.patientId}
                   onChange={(e) => setFormData({ ...formData, patientId: e.target.value, roomAdmissionId: '', patientAppointmentId: '', emergencyBedSlotId: '' })}
                 >
@@ -2690,7 +2768,7 @@ export function PatientOTAllocationManagement() {
                 <select
                   id="edit-roomAdmissionId"
                   aria-label="Room Admission"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-md text-gray-700 bg-gray-100"
                   value={formData.roomAdmissionId}
                   onChange={(e) => setFormData({ ...formData, roomAdmissionId: e.target.value, patientId: '', patientAppointmentId: '', emergencyBedSlotId: '' })}
                 >
@@ -2708,7 +2786,7 @@ export function PatientOTAllocationManagement() {
                 <select
                   id="edit-patientAppointmentId"
                   aria-label="Patient Appointment"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-md text-gray-700 bg-gray-100"
                   value={formData.patientAppointmentId}
                   onChange={(e) => setFormData({ ...formData, patientAppointmentId: e.target.value, patientId: '', roomAdmissionId: '', emergencyBedSlotId: '' })}
                 >
@@ -2736,7 +2814,7 @@ export function PatientOTAllocationManagement() {
                   <select
                     id="edit-emergencyBedSlotId"
                     aria-label="Emergency Bed Slot"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-md text-gray-700 bg-gray-100"
                     value={formData.emergencyBedSlotId}
                   onChange={(e) => {
                     setFormData({ ...formData, emergencyBedSlotId: e.target.value, patientId: '', roomAdmissionId: '', patientAppointmentId: '' });
@@ -2765,7 +2843,7 @@ export function PatientOTAllocationManagement() {
                     <select
                       id="edit-otId"
                       aria-label="OT"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-md text-gray-700 bg-gray-100"
                       value={formData.otId}
                       onChange={(e) => {
                         setSelectedOTId(e.target.value);
@@ -2891,7 +2969,7 @@ export function PatientOTAllocationManagement() {
                   <select
                     id="edit-leadSurgeonId"
                     aria-label="Lead Surgeon"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-md text-gray-700 bg-gray-100"
                     value={formData.leadSurgeonId}
                     onChange={(e) => setFormData({ ...formData, leadSurgeonId: e.target.value })}
                   >
@@ -2908,7 +2986,7 @@ export function PatientOTAllocationManagement() {
                   <select
                     id="edit-assistantDoctorId"
                     aria-label="Assistant Doctor"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-md text-gray-700 bg-gray-100"
                     value={formData.assistantDoctorId}
                     onChange={(e) => setFormData({ ...formData, assistantDoctorId: e.target.value })}
                   >
@@ -2928,7 +3006,7 @@ export function PatientOTAllocationManagement() {
                   <select
                     id="edit-anaesthetistId"
                     aria-label="Anaesthetist"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-md text-gray-700 bg-gray-100"
                     value={formData.anaesthetistId}
                     onChange={(e) => setFormData({ ...formData, anaesthetistId: e.target.value })}
                   >
@@ -2945,7 +3023,7 @@ export function PatientOTAllocationManagement() {
                   <select
                     id="edit-nurseId"
                     aria-label="Nurse"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-md text-gray-700 bg-gray-100"
                     value={formData.nurseId}
                     onChange={(e) => setFormData({ ...formData, nurseId: e.target.value })}
                   >
@@ -3039,7 +3117,7 @@ export function PatientOTAllocationManagement() {
                 <select
                   id="edit-operationStatus"
                   aria-label="Operation Status"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-md text-gray-700 bg-gray-100"
                   value={formData.operationStatus}
                   onChange={(e) => setFormData({ ...formData, operationStatus: e.target.value as PatientOTAllocation['operationStatus'] })}
                 >
@@ -3091,7 +3169,7 @@ export function PatientOTAllocationManagement() {
                   <select
                     id="edit-billId"
                     aria-label="Bill ID"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-md text-gray-700 bg-gray-100"
                     value={formData.billId}
                     onChange={(e) => setFormData({ ...formData, billId: e.target.value })}
                   >
@@ -3108,7 +3186,7 @@ export function PatientOTAllocationManagement() {
                   <select
                     id="edit-status"
                     aria-label="Status"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-md text-gray-700 bg-gray-100"
                     value={formData.status}
                     onChange={(e) => setFormData({ ...formData, status: e.target.value as PatientOTAllocation['status'] })}
                   >

@@ -2493,6 +2493,31 @@ nav.overflow-y-auto {
   scrollbar-color: #9ca3af #000000;
 }
 
+/* Custom scrollbar styling for dialog content - similar to left panel */
+.dialog-content-scrollable {
+  scrollbar-width: thin;
+  scrollbar-color: #9ca3af #000000;
+}
+
+.dialog-content-scrollable::-webkit-scrollbar {
+  width: 8px;
+}
+
+.dialog-content-scrollable::-webkit-scrollbar-track {
+  background: #000000;
+  border-radius: 4px;
+}
+
+.dialog-content-scrollable::-webkit-scrollbar-thumb {
+  background: #9ca3af;
+  border-radius: 4px;
+  border: 2px solid #000000;
+}
+
+.dialog-content-scrollable::-webkit-scrollbar-thumb:hover {
+  background: #d1d5db;
+}
+
 /* Custom scrollbar styling for doctors management */
 .doctors-scrollable {
   scrollbar-width: auto;
@@ -2523,15 +2548,15 @@ nav.overflow-y-auto {
   background: #475569;
 }
 
-/* White background and dark text for select elements to match input fields */
+/* Gray-100 background and dark text for select elements to match input fields */
 select {
-  background-color: white;
+  background-color: #f3f4f6; /* bg-gray-100 */
   color: #030213;
 }
 
 select option {
   color: #030213;
-  background-color: white;
+  background-color: #f3f4f6; /* bg-gray-100 */
 }
 
 /* Override dialog for full-screen popup windows */
@@ -2570,3 +2595,16 @@ select option {
   z-index: 99999 !important;
   pointer-events: auto !important;
 }
+
+/* Standard Dialog Design Scheme - Centralized CSS Classes */
+/* Apply these classes to maintain consistent dialog styling across the application */
+
+/* DialogContent wrapper - use: className="p-0 gap-0 large-dialog bg-white" */
+/* DialogHeader - use: className="px-6 pt-4 pb-3 flex-shrink-0 bg-white" */
+/* DialogTitle - use: className="text-gray-700" */
+/* Dialog body/content area - use: className="flex-1 overflow-y-auto px-6 pb-1 dialog-content-scrollable min-h-0 bg-white" */
+/* Dialog footer - use: className="flex justify-end gap-2 px-6 py-2 border-t bg-white flex-shrink-0" */
+/* Labels - use: className="text-gray-600" */
+/* Inputs - use: className="text-gray-700 bg-gray-100" */
+/* Selects - use: className="text-gray-700 bg-gray-100" */
+/* Textareas - use: className="text-gray-700 bg-gray-100" */
