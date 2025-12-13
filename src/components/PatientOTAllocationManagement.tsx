@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Card, CardContent } from './ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Badge } from './ui/badge';
-import { Scissors, Plus, Edit, Trash2, Clock, CheckCircle2, XCircle, Calendar, CalendarX, Square, Copy, Search } from 'lucide-react';
+import { Scissors, Plus, Edit, Trash2, Clock, CheckCircle2, XCircle, Calendar, CalendarX, Square, Copy, Search, ChevronDown, ChevronUp } from 'lucide-react';
 import { usePatientOTAllocations } from '../hooks/usePatientOTAllocations';
 import { useAdmissions } from '../hooks/useAdmissions';
 import { useEmergencyBeds } from '../hooks/useEmergencyBeds';
@@ -56,6 +56,7 @@ export function PatientOTAllocationManagement() {
   const [fetchedAllocations, setFetchedAllocations] = useState<Map<number, PatientOTAllocation>>(new Map());
   const [slotSearchTerm, setSlotSearchTerm] = useState('');
   const [tableSearchTerm, setTableSearchTerm] = useState('');
+  const [isUnoccupiedSlotsExpanded, setIsUnoccupiedSlotsExpanded] = useState(false);
   
   const [formData, setFormData] = useState({
     patientId: '',
@@ -933,11 +934,13 @@ export function PatientOTAllocationManagement() {
   const getTodayAllocationsByRoom = useMemo(() => {
     const today = getTodayDate();
     const todayAllocations = patientOTAllocations.filter(a => {
-      let allocationDate = a.otAllocationDate;
+      if (!a.otAllocationDate) return false;
+      let allocationDate = String(a.otAllocationDate);
       if (allocationDate.includes('T')) {
         allocationDate = allocationDate.split('T')[0];
       }
       const dateObj = new Date(allocationDate);
+      if (isNaN(dateObj.getTime())) return false;
       const normalizedDate = dateObj.toISOString().split('T')[0];
       return normalizedDate === today;
     });
@@ -1110,8 +1113,12 @@ export function PatientOTAllocationManagement() {
     const occupied: Array<{ slot: OTSlot; roomData: any; slotIdx: number; slotAllocation: PatientOTAllocation | null; patientNo: string | null }> = [];
     const unoccupied: Array<{ slot: OTSlot; roomData: any; slotIdx: number }> = [];
     
+    if (!getTodayAllocationsByRoom || !Array.isArray(getTodayAllocationsByRoom)) {
+      return { occupiedSlots: occupied, unoccupiedSlots: unoccupied };
+    }
+    
     getTodayAllocationsByRoom.forEach((roomData) => {
-      if (roomData.slots.length > 0) {
+      if (roomData && roomData.slots && roomData.slots.length > 0) {
         roomData.slots.forEach((slot, slotIdx) => {
           const isOccupied = slot.isOccupied ?? false;
           const operationStatus = slot.operationStatus;
@@ -1579,7 +1586,7 @@ export function PatientOTAllocationManagement() {
                       value={formData.operationDescription}
                       onChange={(e) => setFormData({ ...formData, operationDescription: e.target.value })}
                       rows={3}
-                      className="text-gray-700 bg-gray-100"
+                      className="bg-gray-100 text-gray-700 border border-gray-200"
                     />
                   </div>
 
@@ -1608,7 +1615,7 @@ export function PatientOTAllocationManagement() {
                       value={formData.preOperationNotes}
                       onChange={(e) => setFormData({ ...formData, preOperationNotes: e.target.value })}
                       rows={2}
-                      className="text-gray-700 bg-gray-100"
+                      className="bg-gray-100 text-gray-700 border border-gray-200"
                     />
                   </div>
 
@@ -1620,7 +1627,7 @@ export function PatientOTAllocationManagement() {
                       value={formData.postOperationNotes}
                       onChange={(e) => setFormData({ ...formData, postOperationNotes: e.target.value })}
                       rows={2}
-                      className="text-gray-700 bg-gray-100"
+                      className="bg-gray-100 text-gray-700 border border-gray-200"
                     />
                   </div>
 
@@ -1667,17 +1674,17 @@ export function PatientOTAllocationManagement() {
                         <option value="Active">Active</option>
                         <option value="InActive">InActive</option>
                       </select>
-                    </div>
-                  </div>
-                  </div>
-                </div>
-                <div className="flex justify-end gap-2 px-6 py-2 border-t bg-white flex-shrink-0">
-                  <Button variant="outline" onClick={() => setIsAddDialogOpen(false)} className="py-1">Cancel</Button>
-                  <Button onClick={handleAddSubmit} className="py-1">Add OT Allocation</Button>
                 </div>
               </div>
-            </DialogContent>
-          </Dialog>
+            </div>
+            <div className="flex justify-end gap-2 px-6 py-2 border-t bg-white flex-shrink-0">
+              <Button variant="outline" onClick={() => setIsAddDialogOpen(false)} className="py-1">Cancel</Button>
+              <Button onClick={handleAddSubmit} className="py-1">Add OT Allocation</Button>
+            </div>
+          </div>
+          </div>
+        </DialogContent>
+      </Dialog>
             </div>
           </div>
           <div className="px-6 pt-4 pb-4 flex-1">
@@ -1758,31 +1765,30 @@ export function PatientOTAllocationManagement() {
           </div>
 
           {/* Slot Cards for Today */}
-          <div className="mb-4">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Today's OT Room/Slot Status</h2>
-            
-            {/* Search Filter */}
-            <Card className="mb-6 bg-white">
-              <CardContent className="p-6">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
-                  <Input
-                    placeholder="Search by OT room, slot number, patient name, time, or status (available, occupied, scheduled, in progress, completed)..."
-                    value={slotSearchTerm}
-                    onChange={(e) => setSlotSearchTerm(e.target.value)}
-                    className="pl-10 bg-gray-50"
-                  />
-                </div>
-              </CardContent>
-            </Card>
-            
-            {/* Occupied Slots Section */}
-            {occupiedSlots.length > 0 && (
-              <div className="mb-6">
-                <h3 className="text-md font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                  <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                  Occupied Slots ({occupiedSlots.length})
-                </h3>
+          <Card className="bg-white border border-gray-200 shadow-sm rounded-lg mb-4">
+            <CardHeader>
+              <CardTitle>OT Room Slot Status</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {/* Search Filter */}
+              <Card className="mb-6 bg-white">
+                <CardContent className="p-6">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
+                    <Input
+                      placeholder="Search by OT room, slot number, patient name, time, or status (available, occupied, scheduled, in progress, completed)..."
+                      value={slotSearchTerm}
+                      onChange={(e) => setSlotSearchTerm(e.target.value)}
+                      className="pl-10 bg-gray-50"
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+              
+              {/* Occupied Slots Section */}
+              {occupiedSlots.length > 0 && (
+                <div className="mb-4">
+                  <h3 className="text-sm font-semibold text-gray-700 mb-3">Occupied ({occupiedSlots.length})</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-4">
                   {occupiedSlots.map(({ slot, roomData, slotIdx, slotAllocation: passedSlotAllocation, patientNo: passedPatientNo }) => {
                     // Use passed values
@@ -1831,22 +1837,32 @@ export function PatientOTAllocationManagement() {
                       console.log('=== END DEBUG ===');
                     };
                     
-                    // Determine border color based on backend status
-                    let borderColor = 'border-gray-200';
-                    if (isOccupied || isInProgress) {
-                      borderColor = 'border-red-300';
-                    } else if (isCompleted) {
-                      borderColor = 'border-green-300';
+                    // Determine if card is clickable
+                    const isClickable = !!slotAllocation;
+                    
+                    // Determine color scheme based on backend status (matching Emergency Admission Management)
+                    // Priority: Occupied/InProgress/Completed -> Red, Scheduled -> Yellow, Available -> Grey
+                    let cardClassName = '';
+                    if (isOccupied || isInProgress || isCompleted || !!slotAllocation) {
+                      // Occupied/In Progress/Completed - Red (transparent)
+                      cardClassName = '!border-2 !rounded-lg border-red-300 !bg-red-50/30 hover:!border-red-400 hover:!bg-red-50/50 shadow-sm';
                     } else if (isScheduled) {
-                      borderColor = 'border-blue-300';
+                      // Scheduled - Yellow (Stable equivalent)
+                      cardClassName = '!border-2 !rounded-lg border-yellow-300 !bg-yellow-50 hover:!border-yellow-400 hover:!bg-yellow-100 shadow-sm';
                     } else if (!isAvailable) {
-                      borderColor = 'border-orange-300';
+                      // Unavailable - Gray
+                      cardClassName = '!border-2 !rounded-lg border-gray-200 !bg-gray-50 shadow-sm';
+                    } else {
+                      // Available - Gray
+                      cardClassName = '!border-2 !rounded-lg border-gray-200 !bg-gray-50 shadow-sm';
                     }
                     
-                    const cardClassName = `bg-white border shadow-sm rounded-lg ${borderColor}`;
+                    // Add transition for hover effects
+                    if (isClickable && (isOccupied || isInProgress || isScheduled || isCompleted)) {
+                      cardClassName += ' transition-all cursor-pointer';
+                    }
                     const textClassName = 'text-gray-900';
                     const subtitleClassName = 'text-gray-500';
-                    const isClickable = !!slotAllocation;
                     
                     // Debug: Log card rendering (only for slots with allocations or potential matches)
                     if (slotAllocation || slot.patientOTAllocationId || (slot.otIdNumber && slot.id)) {
@@ -1868,7 +1884,7 @@ export function PatientOTAllocationManagement() {
                         style={{ pointerEvents: 'auto', cursor: isClickable ? 'pointer' : 'default' }}
                       >
                         <Card 
-                          className={`${cardClassName} ${isClickable ? 'hover:shadow-md transition-shadow' : ''} h-full`}
+                          className={`${cardClassName} h-full`}
                           onClick={(e) => {
                             console.log('[CARD CLICK] Card element clicked');
                             e.stopPropagation();
@@ -1905,7 +1921,7 @@ export function PatientOTAllocationManagement() {
                               </div>
                             )}
                             {isCompleted && (
-                              <div className="px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-700">
+                              <div className="px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-700">
                                 Completed
                               </div>
                             )}
@@ -1955,10 +1971,10 @@ export function PatientOTAllocationManagement() {
                                 </div>
                               )}
                               {isCompleted && (
-                                <div className="flex items-center justify-between p-2 bg-green-50 rounded">
+                                <div className="flex items-center justify-between p-2 bg-blue-50 rounded">
                                   <div className="flex items-center gap-2">
-                                    <CheckCircle2 className="size-4 text-green-600" />
-                                    <span className="text-sm font-medium text-green-900">Completed</span>
+                                    <CheckCircle2 className="size-4 text-blue-600" />
+                                    <span className="text-sm font-medium text-blue-900">Completed</span>
                                   </div>
                                 </div>
                               )}
@@ -1977,26 +1993,36 @@ export function PatientOTAllocationManagement() {
                 </div>
               </div>
             )}
-            
-            {/* Unoccupied Slots Section */}
-            {unoccupiedSlots.length > 0 && (
-              <div className="mb-6">
-                <h3 className="text-md font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                  Unoccupied Slots ({unoccupiedSlots.length})
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-4">
+
+              {/* Unoccupied Slots Section - Collapsible */}
+              {unoccupiedSlots.length > 0 && (
+                <div>
+                  <button
+                    onClick={() => setIsUnoccupiedSlotsExpanded(!isUnoccupiedSlotsExpanded)}
+                    className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-3 hover:text-gray-900"
+                  >
+                    {isUnoccupiedSlotsExpanded ? (
+                      <>
+                        <ChevronUp className="size-4" />
+                        Hide Unoccupied ({unoccupiedSlots.length})
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="size-4" />
+                        Show Unoccupied ({unoccupiedSlots.length})
+                      </>
+                    )}
+                  </button>
+                {isUnoccupiedSlotsExpanded && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-4">
                   {unoccupiedSlots.map(({ slot, roomData, slotIdx }) => {
-                    const isAvailable = slot.isAvailable ?? true;
-                    const borderColor = isAvailable ? 'border-green-200' : 'border-gray-200';
-                    
                     return (
                       <div
                         key={`${roomData.room.id}-${slot.id || slotIdx}`}
                         className="w-full"
                       >
                         <Card 
-                          className={`bg-white border shadow-sm rounded-lg ${borderColor} h-full`}
+                          className="!border-2 !rounded-lg border-gray-200 !bg-gray-50 shadow-sm h-full"
                         >
                           <CardContent className="p-4">
                             <div className="flex items-center justify-between mb-2">
@@ -2004,7 +2030,7 @@ export function PatientOTAllocationManagement() {
                                 <h3 className="text-base font-semibold text-gray-900">{roomData.room.otNo} - {slot.otSlotNo || `Slot ${slotIdx + 1}`}</h3>
                                 <p className="text-xs text-gray-500">{roomData.room.otName} ({roomData.room.otType})</p>
                               </div>
-                              <div className="px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-700">
+                              <div className="px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-700">
                                 Available
                               </div>
                             </div>
@@ -2025,19 +2051,21 @@ export function PatientOTAllocationManagement() {
                       </div>
                     );
                   })}
+                  </div>
+                  )}
                 </div>
-              </div>
-            )}
-            
-            {/* No slots message */}
-            {occupiedSlots.length === 0 && unoccupiedSlots.length === 0 && (
-              <div className="text-center py-8 text-gray-500 text-sm">
-                {slotSearchTerm.trim() 
-                  ? `No OT rooms or slots found matching "${slotSearchTerm}"`
-                  : "No OT rooms found. Please ensure OT rooms are configured."}
-              </div>
-            )}
-          </div>
+              )}
+
+              {/* No slots message */}
+              {occupiedSlots.length === 0 && unoccupiedSlots.length === 0 && (
+                <div className="text-center py-8 text-gray-500 text-sm">
+                  {slotSearchTerm.trim() 
+                    ? `No OT rooms or slots found matching "${slotSearchTerm}"`
+                    : "No OT rooms found. Please ensure OT rooms are configured."}
+                </div>
+              )}
+            </CardContent>
+          </Card>
           </div>
 
           {/* Patient OT Allocation Table */}
@@ -2058,21 +2086,21 @@ export function PatientOTAllocationManagement() {
                 </CardContent>
               </Card>
 
-              <div className="overflow-x-auto">
-                <table className="w-full">
+              <div className="overflow-x-auto -mx-6 px-6">
+                <table className="w-full min-w-[800px]">
                   <thead>
                     <tr className="border-b border-gray-200">
-                      <th className="text-left py-4 px-6 text-gray-700">ID</th>
-                      <th className="text-left py-4 px-6 text-gray-700">Patient Source</th>
-                      <th className="text-left py-4 px-6 text-gray-700">OT</th>
-                      <th className="text-left py-4 px-6 text-gray-700">OT Slot</th>
-                      <th className="text-left py-4 px-6 text-gray-700">Lead Surgeon</th>
-                      <th className="text-left py-4 px-6 text-gray-700">Date</th>
-                      <th className="text-left py-4 px-6 text-gray-700">Start Time</th>
-                      <th className="text-left py-4 px-6 text-gray-700">End Time</th>
-                      <th className="text-left py-4 px-6 text-gray-700">Operation</th>
-                      <th className="text-left py-4 px-6 text-gray-700">Status</th>
-                      <th className="text-left py-4 px-6 text-gray-700">Actions</th>
+                      <th className="text-left py-4 px-3 md:px-6 text-gray-700 text-sm font-semibold">ID</th>
+                      <th className="text-left py-4 px-3 md:px-6 text-gray-700 text-sm font-semibold">Patient Source</th>
+                      <th className="text-left py-4 px-3 md:px-6 text-gray-700 text-sm font-semibold hidden md:table-cell">OT</th>
+                      <th className="text-left py-4 px-3 md:px-6 text-gray-700 text-sm font-semibold hidden lg:table-cell">OT Slot</th>
+                      <th className="text-left py-4 px-3 md:px-6 text-gray-700 text-sm font-semibold">Lead Surgeon</th>
+                      <th className="text-left py-4 px-3 md:px-6 text-gray-700 text-sm font-semibold hidden lg:table-cell">Date</th>
+                      <th className="text-left py-4 px-3 md:px-6 text-gray-700 text-sm font-semibold hidden xl:table-cell">Start Time</th>
+                      <th className="text-left py-4 px-3 md:px-6 text-gray-700 text-sm font-semibold hidden xl:table-cell">End Time</th>
+                      <th className="text-left py-4 px-3 md:px-6 text-gray-700 text-sm font-semibold hidden lg:table-cell">Operation</th>
+                      <th className="text-left py-4 px-3 md:px-6 text-gray-700 text-sm font-semibold">Status</th>
+                      <th className="text-left py-4 px-3 md:px-6 text-gray-700 text-sm font-semibold">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -2106,9 +2134,12 @@ export function PatientOTAllocationManagement() {
                             const otRoomNo = otRoom?.otNo ? String(otRoom.otNo).toLowerCase() : '';
                             const otRoomName = otRoom?.otName ? String(otRoom.otName).toLowerCase() : '';
                             
-                            // Surgeon name
+                            // Surgeon name - check name field first, then fallback to firstName/lastName
                             const surgeonName = leadSurgeon ? 
-                              `${(leadSurgeon as any).firstName || ''} ${(leadSurgeon as any).lastName || ''}`.trim().toLowerCase() : '';
+                              (leadSurgeon.name || 
+                               ((leadSurgeon as any).firstName && (leadSurgeon as any).lastName 
+                                 ? `${(leadSurgeon as any).firstName || ''} ${(leadSurgeon as any).lastName || ''}`.trim()
+                                 : (leadSurgeon as any).firstName || (leadSurgeon as any).lastName || '')).toLowerCase() : '';
                             
                             // Date
                             const allocationDate = allocation.otAllocationDate ? 
@@ -2129,6 +2160,9 @@ export function PatientOTAllocationManagement() {
                             // ID
                             const allocationId = allocation.id ? String(allocation.id).toLowerCase() : '';
                             
+                            // Surgeon ID
+                            const surgeonId = allocation.leadSurgeonId ? String(allocation.leadSurgeonId).toLowerCase() : '';
+                            
                             // Check if search term matches any field
                             return patientName.includes(searchLower) ||
                                    patientNo.includes(searchLower) ||
@@ -2136,6 +2170,7 @@ export function PatientOTAllocationManagement() {
                                    otRoomName.includes(searchLower) ||
                                    slotNumbers.toLowerCase().includes(searchLower) ||
                                    surgeonName.includes(searchLower) ||
+                                   surgeonId.includes(searchLower) ||
                                    allocationDate.includes(searchLower) ||
                                    startTime.includes(searchLower) ||
                                    endTime.includes(searchLower) ||
@@ -2186,10 +2221,10 @@ export function PatientOTAllocationManagement() {
 
                         return (
                           <tr key={allocation.id} className="border-b border-gray-100 hover:bg-gray-50">
-                            <td className="py-4 px-6 text-gray-900 font-mono font-medium whitespace-nowrap">{allocation.patientOTAllocationId}</td>
-                            <td className="py-4 px-6 text-gray-600 whitespace-nowrap min-w-[120px]">{patientSource}</td>
-                            <td className="py-4 px-6 text-gray-600 whitespace-nowrap min-w-[100px]">{otRoom ? `${otRoom.otNo} - ${otRoom.otName}` : allocation.otId}</td>
-                            <td className="py-4 px-6 text-gray-600 whitespace-nowrap">
+                            <td className="py-3 md:py-4 px-3 md:px-6 text-gray-900 font-mono font-medium text-sm whitespace-nowrap">{allocation.patientOTAllocationId}</td>
+                            <td className="py-3 md:py-4 px-3 md:px-6 text-gray-600 text-sm whitespace-nowrap min-w-[120px]">{patientSource}</td>
+                            <td className="py-3 md:py-4 px-3 md:px-6 text-gray-600 text-sm whitespace-nowrap min-w-[100px] hidden md:table-cell">{otRoom ? `${otRoom.otNo} - ${otRoom.otName}` : allocation.otId}</td>
+                            <td className="py-3 md:py-4 px-3 md:px-6 text-gray-600 text-sm whitespace-nowrap hidden lg:table-cell">
                               {allocation.otSlotIds && allocation.otSlotIds.length > 0 
                                 ? allocation.otSlotIds.map((slotId, idx) => {
                                     // Find the slot to get slot number
@@ -2204,13 +2239,13 @@ export function PatientOTAllocationManagement() {
                                 : '-'
                               }
                             </td>
-                            <td className="py-4 px-6 text-gray-600 whitespace-nowrap min-w-[100px]">{leadSurgeon?.name || allocation.leadSurgeonId}</td>
-                            <td className="py-4 px-6 text-gray-600 whitespace-nowrap">{formatDateDisplayIST(allocation.otAllocationDate, 'numeric')}</td>
-                            <td className="py-4 px-6 text-gray-600 whitespace-nowrap">{allocation.otStartTime || '-'}</td>
-                            <td className="py-4 px-6 text-gray-600 whitespace-nowrap">{allocation.otEndTime || '-'}</td>
-                            <td className="py-4 px-6 text-gray-600 whitespace-nowrap min-w-[150px]">{allocation.operationDescription || '-'}</td>
-                            <td className="py-4 px-6 whitespace-nowrap">{getStatusBadge(allocation.operationStatus)}</td>
-                            <td className="py-4 px-6 whitespace-nowrap">
+                            <td className="py-3 md:py-4 px-3 md:px-6 text-gray-600 text-sm whitespace-nowrap min-w-[100px]">{leadSurgeon?.name || allocation.leadSurgeonId}</td>
+                            <td className="py-3 md:py-4 px-3 md:px-6 text-gray-600 text-sm whitespace-nowrap hidden lg:table-cell">{formatDateDisplayIST(allocation.otAllocationDate, 'numeric')}</td>
+                            <td className="py-3 md:py-4 px-3 md:px-6 text-gray-600 text-sm whitespace-nowrap hidden xl:table-cell">{allocation.otStartTime || '-'}</td>
+                            <td className="py-3 md:py-4 px-3 md:px-6 text-gray-600 text-sm whitespace-nowrap hidden xl:table-cell">{allocation.otEndTime || '-'}</td>
+                            <td className="py-3 md:py-4 px-3 md:px-6 text-gray-600 text-sm whitespace-nowrap min-w-[150px] hidden lg:table-cell">{allocation.operationDescription || '-'}</td>
+                            <td className="py-3 md:py-4 px-3 md:px-6 whitespace-nowrap">{getStatusBadge(allocation.operationStatus)}</td>
+                            <td className="py-3 md:py-4 px-3 md:px-6 whitespace-nowrap">
                               <div className="flex items-center gap-1">
                                 <Button
                                   variant="ghost"
@@ -2250,19 +2285,19 @@ export function PatientOTAllocationManagement() {
               </div>
             </CardContent>
           </Card>
-          </div>
         </div>
       </div>
 
       {/* Duplicate Dialog */}
       <Dialog open={isDuplicateDialogOpen} onOpenChange={setIsDuplicateDialogOpen}>
-        <DialogContent className="p-0 gap-0 large-dialog max-h-[90vh]">
-          <DialogHeader className="px-6 pt-4 pb-3 flex-shrink-0">
-            <DialogTitle>Duplicate Patient OT Allocation</DialogTitle>
-          </DialogHeader>
-          <div className="flex-1 overflow-y-auto px-6 pb-1 patient-list-scrollable min-h-0">
-            <div className="space-y-4 py-4">
-              <div className="text-sm text-gray-600 p-3 bg-blue-50 rounded-md">
+        <DialogContent className="p-0 gap-0 large-dialog bg-white">
+          <div className="flex-1 overflow-y-auto dialog-content-scrollable min-h-0 bg-white max-h-[90vh]">
+            <DialogHeader className="px-6 pt-4 pb-3 bg-white">
+              <DialogTitle className="text-gray-700">Duplicate Patient OT Allocation</DialogTitle>
+            </DialogHeader>
+            <div className="px-6 pb-1">
+              <div className="space-y-4 py-4">
+              <div className="text-sm text-gray-600 p-3 bg-gray-300 rounded-md">
                 <p className="font-medium mb-1">Patient Source (Select one):</p>
                 <p className="text-xs">Choose either Patient (Direct OT), Room Admission (IPD), Patient Appointment (OPD), or Emergency Bed</p>
               </div>
@@ -2616,6 +2651,7 @@ export function PatientOTAllocationManagement() {
                   value={formData.operationDescription}
                   onChange={(e) => setFormData({ ...formData, operationDescription: e.target.value })}
                   rows={3}
+                  className="text-gray-700 !bg-gray-100 border border-gray-200"
                 />
               </div>
 
@@ -2644,6 +2680,7 @@ export function PatientOTAllocationManagement() {
                   value={formData.preOperationNotes}
                   onChange={(e) => setFormData({ ...formData, preOperationNotes: e.target.value })}
                   rows={2}
+                  className="text-gray-700 !bg-gray-100 border border-gray-200"
                 />
               </div>
 
@@ -2655,6 +2692,7 @@ export function PatientOTAllocationManagement() {
                   value={formData.postOperationNotes}
                   onChange={(e) => setFormData({ ...formData, postOperationNotes: e.target.value })}
                   rows={2}
+                  className="text-gray-700 !bg-gray-100 border border-gray-200"
                 />
               </div>
 
@@ -2703,37 +2741,39 @@ export function PatientOTAllocationManagement() {
                 </div>
               </div>
             </div>
+            <div className="flex justify-end gap-2 px-6 py-2 border-t bg-white flex-shrink-0">
+              <Button variant="outline" onClick={() => setIsDuplicateDialogOpen(false)} className="py-1">Cancel</Button>
+              <Button onClick={handleDuplicateSubmit} className="py-1">Create Duplicate</Button>
+            </div>
           </div>
-          <div className="flex justify-end gap-2 px-6 py-2 border-t bg-gray-50 flex-shrink-0">
-            <Button variant="outline" onClick={() => setIsDuplicateDialogOpen(false)} className="py-1">Cancel</Button>
-            <Button onClick={handleDuplicateSubmit} className="py-1">Create Duplicate</Button>
           </div>
         </DialogContent>
       </Dialog>
 
       {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="p-0 gap-0 large-dialog max-h-[90vh]">
-          <DialogHeader className="px-6 pt-4 pb-3 flex-shrink-0">
-            <DialogTitle>Edit Patient OT Allocation</DialogTitle>
-            {selectedAllocation && (() => {
-              const patient = selectedAllocation.patientId 
-                ? patients.find(p => p.PatientId === selectedAllocation.patientId)
-                : null;
-              const patientNo = patient ? (patient.PatientNo || (patient as any).patientNo) : null;
-              if (patientNo && (selectedAllocation.operationStatus === 'InProgress' || selectedAllocation.operationStatus === 'Scheduled')) {
-                return (
-                  <p className="text-sm text-gray-700 mt-2 font-medium">
-                    (Occupied - Patient No: {patientNo})
-                  </p>
-                );
-              }
-              return null;
-            })()}
-          </DialogHeader>
-          <div className="flex-1 overflow-y-auto px-6 pb-1 patient-list-scrollable min-h-0">
-            <div className="space-y-4 py-4">
-              <div className="text-sm text-gray-600 p-3 bg-blue-50 rounded-md">
+        <DialogContent className="p-0 gap-0 large-dialog bg-white">
+          <div className="flex-1 overflow-y-auto dialog-content-scrollable min-h-0 bg-white max-h-[90vh]">
+            <DialogHeader className="px-6 pt-4 pb-3 bg-white">
+              <DialogTitle className="text-gray-700">Edit Patient OT Allocation</DialogTitle>
+              {selectedAllocation && (() => {
+                const patient = selectedAllocation.patientId 
+                  ? patients.find(p => p.PatientId === selectedAllocation.patientId)
+                  : null;
+                const patientNo = patient ? (patient.PatientNo || (patient as any).patientNo) : null;
+                if (patientNo && (selectedAllocation.operationStatus === 'InProgress' || selectedAllocation.operationStatus === 'Scheduled')) {
+                  return (
+                    <p className="text-sm text-gray-700 mt-2 font-medium">
+                      (Occupied - Patient No: {patientNo})
+                    </p>
+                  );
+                }
+                return null;
+              })()}
+            </DialogHeader>
+            <div className="px-6 pb-1">
+              <div className="space-y-4 py-4">
+              <div className="text-sm text-gray-600 p-3 bg-gray-300 rounded-md">
                 <p className="font-medium mb-1">Patient Source (Select one):</p>
                 <p className="text-xs">Choose either Patient (Direct OT), Room Admission (IPD), Patient Appointment (OPD), or Emergency Bed</p>
               </div>
@@ -3109,6 +3149,7 @@ export function PatientOTAllocationManagement() {
                   value={formData.operationDescription}
                   onChange={(e) => setFormData({ ...formData, operationDescription: e.target.value })}
                   rows={3}
+                  className="text-gray-700 bg-gray-100 border border-gray-200"
                 />
               </div>
 
@@ -3137,6 +3178,7 @@ export function PatientOTAllocationManagement() {
                   value={formData.preOperationNotes}
                   onChange={(e) => setFormData({ ...formData, preOperationNotes: e.target.value })}
                   rows={2}
+                  className="text-gray-700 bg-gray-100 border border-gray-200"
                 />
               </div>
 
@@ -3148,6 +3190,7 @@ export function PatientOTAllocationManagement() {
                   value={formData.postOperationNotes}
                   onChange={(e) => setFormData({ ...formData, postOperationNotes: e.target.value })}
                   rows={2}
+                  className="text-gray-700 bg-gray-100 border border-gray-200"
                 />
               </div>
 
@@ -3196,10 +3239,11 @@ export function PatientOTAllocationManagement() {
                 </div>
               </div>
             </div>
+            <div className="flex justify-end gap-2 px-6 py-2 border-t bg-white flex-shrink-0">
+              <Button variant="outline" onClick={() => setIsEditDialogOpen(false)} className="py-1">Cancel</Button>
+              <Button onClick={handleEditSubmit} className="py-1">Update OT Allocation</Button>
+            </div>
           </div>
-          <div className="flex justify-end gap-2 px-6 py-2 border-t bg-gray-50 flex-shrink-0">
-            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)} className="py-1">Cancel</Button>
-            <Button onClick={handleEditSubmit} className="py-1">Update OT Allocation</Button>
           </div>
         </DialogContent>
       </Dialog>

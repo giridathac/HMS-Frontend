@@ -3,11 +3,13 @@ import * as React from "react";
 import { cn } from "./utils";
 
 function Card({ className, ...props }: React.ComponentProps<"div">) {
+  const hasCustomBg = className && (String(className).includes('bg-') || String(className).includes('!bg-'));
   return (
     <div
       data-slot="card"
       className={cn(
-        "bg-card text-card-foreground flex flex-col gap-6 rounded-xl border border-gray-200",
+        "text-card-foreground flex flex-col gap-6 rounded-xl border border-gray-200",
+        !hasCustomBg && "bg-card",
         className,
       )}
       {...props}

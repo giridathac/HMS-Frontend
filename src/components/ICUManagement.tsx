@@ -511,9 +511,9 @@ export function ICUManagement() {
         throw new Error('ICU Allocation From Date is required.');
       }
 
-      // Check ICU availability before proceeding
+      // Check ICU occupancy before proceeding
       try {
-        console.log('Checking ICU availability, ICUId:', addICUAdmissionForm.icuId, 'ICUAllocationFromDate:', addICUAdmissionForm.icuAllocationFromDate);
+        console.log('Checking ICU occupancy, ICUId:', addICUAdmissionForm.icuId, 'ICUAllocationFromDate:', addICUAdmissionForm.icuAllocationFromDate);
         
         // Call the ICU occupied check API
         const checkResponse = await apiRequest<any>(`/patient-icu-admissions/check-occupied?ICUId=${addICUAdmissionForm.icuId}&ICUAllocationFromDate=${addICUAdmissionForm.icuAllocationFromDate}`, {
@@ -539,19 +539,33 @@ export function ICUManagement() {
         if (checkError?.message && (checkError.message.includes('not available') || checkError.message.includes('already occupied') || checkError.message.includes('occupied'))) {
           throw checkError;
         }
-        // If the API returns an error indicating unavailability, throw it
+        // If the API returns an error indicating occupancy, throw it
         if (checkError?.response?.data?.message || checkError?.message) {
           const errorMessage = checkError.response?.data?.message || checkError.message;
           if (errorMessage.toLowerCase().includes('not available') || 
               errorMessage.toLowerCase().includes('occupied') ||
               errorMessage.toLowerCase().includes('unavailable')) {
-            throw new Error(errorMessage || 'The selected ICU is not available for the selected allocation date.');
+            throw new Error(errorMessage || 'The selected ICU is already occupied for the selected allocation date. Please select another ICU or choose a different date.');
           }
         }
-        // If it's a network error or other issue, log it but continue (or you can choose to throw)
-        console.warn('ICU occupied check failed:', checkError);
-        // For now, we'll continue if it's not an explicit "occupied" error
-        // You can change this to throw if you want to be more strict
+        // Check for HTTP errors (404, 500, etc.)
+        if (checkError?.response?.status) {
+          const status = checkError.response.status;
+          if (status === 404) {
+            console.warn('ICU occupied check endpoint not found (404). The API endpoint may not be implemented yet.');
+            // Continue without blocking - the backend might not have this endpoint yet
+          } else if (status >= 500) {
+            console.error('ICU occupied check server error:', status, checkError);
+            throw new Error('Server error while checking ICU occupancy. Please try again later.');
+          } else {
+            console.warn('ICU occupied check failed with status:', status, checkError);
+          }
+        } else {
+          // Network error or other issue
+          console.warn('ICU occupied check failed:', checkError);
+          // For network errors, we'll continue to allow the admission to proceed
+          // You can change this to throw if you want to be more strict
+        }
       }
 
       const payload = {
