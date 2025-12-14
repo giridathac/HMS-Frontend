@@ -1,0 +1,243 @@
+/* Global Dialog Styles
+ * Apply these classes to dialogs throughout the application
+ * Based on Edit Patient Appointment dialog structure from FrontDesk.tsx and DoctorConsultation.tsx
+ */
+
+/* ============================================
+   Dialog Container Structure
+   ============================================ */
+
+/* DialogContent - Main container */
+.dialog-content-standard {
+  padding: 0;
+  gap: 0;
+  background-color: white;
+}
+
+/* Dialog scrollable wrapper (contains header, body, and footer) */
+.dialog-scrollable-wrapper {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  background-color: white;
+}
+
+/* ============================================
+   Dialog Header
+   ============================================ */
+
+/* DialogHeader - Header section */
+.dialog-header-standard {
+  padding-left: 1.5rem; /* px-6 */
+  padding-right: 1.5rem;
+  padding-top: 1rem; /* pt-4 */
+  padding-bottom: 0.75rem; /* pb-3 */
+  background-color: white;
+}
+
+/* DialogTitle - Title text for Edit dialogs (20px) */
+.dialog-title-standard {
+  color: rgb(55, 65, 81); /* text-gray-700 */
+  font-size: 1.25rem; /* 20px - for Edit dialogs */
+  line-height: 1.5;
+  font-weight: 500;
+}
+
+/* DialogTitle - Standard size (for View/Add dialogs) */
+.dialog-title-standard-view {
+  color: rgb(55, 65, 81); /* text-gray-700 */
+  font-size: 1.125rem; /* 18px - standard */
+  line-height: 1.5;
+  font-weight: 700; /* bold */
+}
+
+/* ============================================
+   Dialog Body
+   ============================================ */
+
+/* Dialog body content wrapper */
+.dialog-body-content-wrapper {
+  padding-left: 1.5rem; /* px-6 */
+  padding-right: 1.5rem;
+  padding-bottom: 0.25rem; /* pb-1 */
+}
+
+/* Dialog form container */
+.dialog-form-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem; /* space-y-4 */
+  padding-top: 1rem; /* py-4 */
+  padding-bottom: 1rem;
+}
+
+/* Dialog form field wrapper (single field) */
+.dialog-form-field {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Dialog form field grid (2 columns) */
+.dialog-form-field-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem; /* gap-4 */
+}
+
+/* ============================================
+   Form Labels
+   ============================================ */
+
+/* Form Labels */
+.dialog-label-standard {
+  color: rgb(75, 85, 99); /* text-gray-600 */
+  font-size: 1.125rem; /* 18px */
+  line-height: 1.5;
+  font-weight: 500;
+}
+
+/* ============================================
+   Form Inputs
+   ============================================ */
+
+/* Form Inputs - Enabled state */
+.dialog-input-standard {
+  color: rgb(55, 65, 81); /* text-gray-700 */
+  background-color: rgb(243, 244, 246); /* bg-gray-100 */
+  font-size: 1.125rem; /* 18px */
+  line-height: 1.5;
+}
+
+/* Form Inputs - Disabled state */
+.dialog-input-disabled {
+  color: rgb(55, 65, 81); /* text-gray-700 */
+  background-color: rgb(249, 250, 251); /* bg-gray-50 */
+  font-size: 1.125rem; /* 18px */
+  line-height: 1.5;
+}
+
+/* ============================================
+   Form Selects
+   ============================================ */
+
+/* Form Selects */
+.dialog-select-standard {
+  color: rgb(55, 65, 81); /* text-gray-700 */
+  background-color: rgb(243, 244, 246); /* bg-gray-100 */
+  font-size: 1.125rem; /* 18px */
+  line-height: 1.5;
+  width: 100%;
+  padding: 0.5rem 0.75rem; /* px-3 py-2 */
+  border: 1px solid rgb(229, 231, 235); /* border-gray-200 */
+  border-radius: 0.375rem; /* rounded-md */
+}
+
+/* ============================================
+   Form Textareas
+   ============================================ */
+
+/* Form Textareas */
+.dialog-textarea-standard {
+  color: rgb(55, 65, 81); /* text-gray-700 */
+  background-color: rgb(243, 244, 246); /* bg-gray-100 */
+  font-size: 1.125rem; /* 18px */
+  line-height: 1.5;
+}
+
+/* ============================================
+   Form Checkboxes
+   ============================================ */
+
+/* Checkbox container */
+.dialog-checkbox-container {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem; /* gap-2 */
+}
+
+/* Checkbox Labels */
+.dialog-checkbox-label-standard {
+  color: rgb(75, 85, 99); /* text-gray-600 */
+  font-size: 1.125rem; /* 18px */
+  line-height: 1.5;
+  cursor: pointer;
+}
+
+/* ============================================
+   Helper Text
+   ============================================ */
+
+/* Helper text (small text below inputs) */
+.dialog-helper-text {
+  font-size: 0.75rem; /* text-xs */
+  color: rgb(55, 65, 81); /* text-gray-700 */
+  margin-top: 0.25rem; /* mt-1 */
+}
+
+/* ============================================
+   Dialog Footer
+   ============================================ */
+
+/* Dialog Footer */
+.dialog-footer-standard {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem; /* gap-2 */
+  padding-left: 1.5rem; /* px-6 */
+  padding-right: 1.5rem;
+  padding-top: 0.5rem; /* py-2 */
+  padding-bottom: 0.5rem;
+  border-top: 1px solid rgb(229, 231, 235); /* border-t */
+  background-color: white;
+  flex-shrink: 0;
+}
+
+/* Footer button */
+.dialog-footer-button {
+  padding-top: 0.25rem; /* py-1 */
+  padding-bottom: 0.25rem;
+}
+
+/* ============================================
+   Dialog Layout Utilities
+   ============================================ */
+
+/* Full width field (spans both columns in grid) */
+.dialog-field-full-width {
+  grid-column: span 2 / span 2;
+}
+
+/* Single column field in grid */
+.dialog-field-single-column {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ============================================
+   Dialog Scrollbar Styling
+   ============================================ */
+
+/* Custom scrollbar styling for dialog content - matches left panel navigation */
+.dialog-content-scrollable {
+  scrollbar-width: thin;
+  scrollbar-color: #9ca3af #000000;
+}
+
+.dialog-content-scrollable::-webkit-scrollbar {
+  width: 8px;
+}
+
+.dialog-content-scrollable::-webkit-scrollbar-track {
+  background: #000000;
+  border-radius: 4px;
+}
+
+.dialog-content-scrollable::-webkit-scrollbar-thumb {
+  background: #9ca3af;
+  border-radius: 4px;
+  border: 2px solid #000000;
+}
+
+.dialog-content-scrollable::-webkit-scrollbar-thumb:hover {
+  background: #d1d5db;
+}
