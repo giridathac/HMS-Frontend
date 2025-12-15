@@ -225,90 +225,92 @@ export function EmergencyBedManagement() {
                 Add Emergency Bed
               </Button>
             </DialogTrigger>
-          <DialogContent className="p-0 gap-0 large-dialog bg-white">
-            <DialogHeader className="px-6 pt-4 pb-3 flex-shrink-0 bg-white">
-              <DialogTitle className="text-gray-700">Add New Emergency Bed</DialogTitle>
-            </DialogHeader>
-            <div className="flex-1 overflow-y-auto px-6 pb-1 patient-list-scrollable min-h-0 bg-white">
-            <div className="space-y-4 py-4">
-              <div>
-                <Label htmlFor="emergencyBedNo" className="text-gray-600">Emergency Bed No *</Label>
-                <Input
-                  id="emergencyBedNo"
-                  placeholder="e.g., ER-001"
-                  value={formData.emergencyBedNo}
-                  onChange={(e) => setFormData({ ...formData, emergencyBedNo: e.target.value })}
-                  required
-                  className="text-gray-700"
-                />
-              </div>
-              <div>
-                <Label htmlFor="emergencyRoomNameNo" className="text-gray-600">Emergency Room Name/No</Label>
-                <Input
-                  id="emergencyRoomNameNo"
-                  placeholder="e.g., ER-Room-101"
-                  value={formData.emergencyRoomNameNo}
-                  onChange={(e) => setFormData({ ...formData, emergencyRoomNameNo: e.target.value })}
-                  className="text-gray-700"
-                />
-              </div>
-              <div>
-                <Label htmlFor="emergencyRoomDescription" className="text-gray-600">Emergency Room Description</Label>
-                <Textarea
-                  id="emergencyRoomDescription"
-                  placeholder="Enter emergency room description..."
-                  value={formData.emergencyRoomDescription}
-                  onChange={(e) => setFormData({ ...formData, emergencyRoomDescription: e.target.value })}
-                  rows={3}
-                  className="text-gray-700"
-                />
-              </div>
-              <div>
-                <Label htmlFor="chargesPerDay" className="text-gray-600">
-                  Charges Per Day (₹) *
-                </Label>
-                <Input
-                  id="chargesPerDay"
-                  type="number"
-                  step="0.01"
-                  placeholder="e.g., 2500"
-                  value={formData.chargesPerDay}
-                  onChange={(e) => setFormData({ ...formData, chargesPerDay: e.target.value })}
-                  className="text-gray-700"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="createdBy" className="text-gray-600">Created By (User ID) *</Label>
-                  <Input
-                    id="createdBy"
-                    type="text"
-                    placeholder="e.g., 1"
-                    value={formData.createdBy}
-                    onChange={(e) => setFormData({ ...formData, createdBy: e.target.value })}
-                    className="text-gray-700"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Foreign Key to UserId</p>
+          <DialogContent className="p-0 gap-0 large-dialog dialog-content-standard">
+            <div className="dialog-scrollable-wrapper dialog-content-scrollable">
+              <DialogHeader className="dialog-header-standard">
+                <DialogTitle className="dialog-title-standard">Add New Emergency Bed</DialogTitle>
+              </DialogHeader>
+              <div className="dialog-body-content-wrapper">
+                <div className="dialog-form-container space-y-4">
+                  <div className="dialog-form-field">
+                    <Label htmlFor="emergencyBedNo" className="dialog-label-standard">Emergency Bed No *</Label>
+                    <Input
+                      id="emergencyBedNo"
+                      placeholder="e.g., ER-001"
+                      value={formData.emergencyBedNo}
+                      onChange={(e) => setFormData({ ...formData, emergencyBedNo: e.target.value })}
+                      required
+                      className="dialog-input-standard"
+                    />
+                  </div>
+                  <div className="dialog-form-field">
+                    <Label htmlFor="emergencyRoomNameNo" className="dialog-label-standard">Emergency Room Name/No</Label>
+                    <Input
+                      id="emergencyRoomNameNo"
+                      placeholder="e.g., ER-Room-101"
+                      value={formData.emergencyRoomNameNo}
+                      onChange={(e) => setFormData({ ...formData, emergencyRoomNameNo: e.target.value })}
+                      className="dialog-input-standard"
+                    />
+                  </div>
+                  <div className="dialog-form-field">
+                    <Label htmlFor="emergencyRoomDescription" className="dialog-label-standard">Emergency Room Description</Label>
+                    <Textarea
+                      id="emergencyRoomDescription"
+                      placeholder="Enter emergency room description..."
+                      value={formData.emergencyRoomDescription}
+                      onChange={(e) => setFormData({ ...formData, emergencyRoomDescription: e.target.value })}
+                      rows={3}
+                      className="dialog-textarea-standard"
+                    />
+                  </div>
+                  <div className="dialog-form-field">
+                    <Label htmlFor="chargesPerDay" className="dialog-label-standard">
+                      Charges Per Day (₹) *
+                    </Label>
+                    <Input
+                      id="chargesPerDay"
+                      type="number"
+                      step="0.01"
+                      placeholder="e.g., 2500"
+                      value={formData.chargesPerDay}
+                      onChange={(e) => setFormData({ ...formData, chargesPerDay: e.target.value })}
+                      className="dialog-input-standard"
+                    />
+                  </div>
+                  <div className="dialog-form-field-grid">
+                    <div className="dialog-form-field">
+                      <Label htmlFor="createdBy" className="dialog-label-standard">Created By (User ID) *</Label>
+                      <Input
+                        id="createdBy"
+                        type="text"
+                        placeholder="e.g., 1"
+                        value={formData.createdBy}
+                        onChange={(e) => setFormData({ ...formData, createdBy: e.target.value })}
+                        className="dialog-input-standard"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Foreign Key to UserId</p>
+                    </div>
+                    <div className="dialog-form-field">
+                      <Label htmlFor="status" className="dialog-label-standard">Status</Label>
+                      <select
+                        id="status"
+                        aria-label="Status"
+                        className="dialog-select-standard"
+                        value={formData.status}
+                        onChange={(e) => setFormData({ ...formData, status: e.target.value as EmergencyBed['status'] })}
+                      >
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                      </select>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <Label htmlFor="status" className="text-gray-600">Status</Label>
-                  <select
-                    id="status"
-                    aria-label="Status"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-md text-gray-700"
-                    value={formData.status}
-                    onChange={(e) => setFormData({ ...formData, status: e.target.value as EmergencyBed['status'] })}
-                  >
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
-                  </select>
-                </div>
               </div>
-            </div>
-            </div>
-            <div className="flex justify-end gap-2 px-6 py-2 border-t bg-white flex-shrink-0">
-              <Button variant="outline" onClick={() => setIsAddDialogOpen(false)} className="py-1">Cancel</Button>
-              <Button onClick={handleAddSubmit} className="py-1">Add Emergency Bed</Button>
+              <div className="dialog-footer-standard">
+                <Button variant="outline" onClick={() => setIsAddDialogOpen(false)} className="dialog-footer-button">Cancel</Button>
+                <Button onClick={handleAddSubmit} className="dialog-footer-button">Add Emergency Bed</Button>
+              </div>
             </div>
           </DialogContent>
           </Dialog>
@@ -381,8 +383,6 @@ export function EmergencyBedManagement() {
                       <th className="text-left py-4 px-6 text-gray-700 bg-white whitespace-nowrap">Bed No</th>
                       <th className="text-left py-4 px-6 text-gray-700 bg-white whitespace-nowrap">Room No</th>
                       <th className="text-left py-4 px-6 text-gray-700 bg-white whitespace-nowrap">Room Description</th>
-                      <th className="text-left py-4 px-6 text-gray-700 bg-white whitespace-nowrap">Created By</th>
-                      <th className="text-left py-4 px-6 text-gray-700 bg-white whitespace-nowrap">Created At</th>
                       <th className="text-left py-4 px-6 text-gray-700 bg-white whitespace-nowrap">Status</th>
                       <th className="text-left py-4 px-6 text-gray-700 bg-white whitespace-nowrap">Actions</th>
                     </tr>
@@ -412,8 +412,6 @@ export function EmergencyBedManagement() {
                           </td>
                           <td className="py-4 px-6 text-gray-600 whitespace-nowrap">{emergencyBed.emergencyRoomNameNo || '-'}</td>
                           <td className="py-4 px-6 text-gray-600 whitespace-nowrap">{emergencyBed.emergencyRoomDescription || '-'}</td>
-                          <td className="py-4 px-6 text-gray-600 whitespace-nowrap">{emergencyBed.createdBy}</td>
-                          <td className="py-4 px-6 text-gray-600 whitespace-nowrap">{new Date(emergencyBed.createdAt).toLocaleDateString()}</td>
                           <td className="py-4 px-6 whitespace-nowrap">{getStatusBadge(emergencyBed.status)}</td>
                           <td className="py-4 px-6 whitespace-nowrap">
                             <div className="flex items-center gap-2">
@@ -452,96 +450,103 @@ export function EmergencyBedManagement() {
 
       {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="p-0 gap-0 large-dialog max-w-2xl">
-          <DialogHeader className="px-6 pt-4 pb-3 flex-shrink-0">
-            <DialogTitle>Edit Emergency Bed</DialogTitle>
-          </DialogHeader>
-          <div className="flex-1 overflow-y-auto px-6 pb-1 patient-list-scrollable min-h-0">
-          <div className="space-y-4 py-4">
-            {selectedEmergencyBed && (
-              <div>
-                <Label>Emergency Bed ID</Label>
-                <Input
-                  value={selectedEmergencyBed.emergencyBedId}
-                  disabled
-                  className="bg-gray-50 text-gray-500"
-                />
-                <p className="text-xs text-gray-500 mt-1">Emergency Bed ID is auto-generated and cannot be changed</p>
+        <DialogContent className="p-0 gap-0 large-dialog dialog-content-standard max-w-2xl">
+          <div className="dialog-scrollable-wrapper dialog-content-scrollable">
+            <DialogHeader className="dialog-header-standard">
+              <DialogTitle className="dialog-title-standard">Edit Emergency Bed</DialogTitle>
+            </DialogHeader>
+            <div className="dialog-body-content-wrapper">
+              <div className="dialog-form-container space-y-4">
+                {selectedEmergencyBed && (
+                  <div className="dialog-form-field">
+                    <Label className="dialog-label-standard">Emergency Bed ID</Label>
+                    <Input
+                      value={selectedEmergencyBed.emergencyBedId}
+                      disabled
+                      className="dialog-input-standard dialog-input-disabled"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Emergency Bed ID is auto-generated and cannot be changed</p>
+                  </div>
+                )}
+                <div className="dialog-form-field">
+                  <Label htmlFor="edit-emergencyBedNo" className="dialog-label-standard">Emergency Bed No *</Label>
+                  <Input
+                    id="edit-emergencyBedNo"
+                    placeholder="e.g., ER-001"
+                    value={formData.emergencyBedNo}
+                    onChange={(e) => setFormData({ ...formData, emergencyBedNo: e.target.value })}
+                    required
+                    className="dialog-input-standard"
+                  />
+                </div>
+                <div className="dialog-form-field">
+                  <Label htmlFor="edit-emergencyRoomNameNo" className="dialog-label-standard">Emergency Room Name/No</Label>
+                  <Input
+                    id="edit-emergencyRoomNameNo"
+                    placeholder="e.g., ER-Room-101"
+                    value={formData.emergencyRoomNameNo}
+                    onChange={(e) => setFormData({ ...formData, emergencyRoomNameNo: e.target.value })}
+                    className="dialog-input-standard"
+                  />
+                </div>
+                <div className="dialog-form-field">
+                  <Label htmlFor="edit-emergencyRoomDescription" className="dialog-label-standard">Emergency Room Description</Label>
+                  <Textarea
+                    id="edit-emergencyRoomDescription"
+                    placeholder="Enter emergency room description..."
+                    value={formData.emergencyRoomDescription}
+                    onChange={(e) => setFormData({ ...formData, emergencyRoomDescription: e.target.value })}
+                    rows={3}
+                    className="dialog-textarea-standard"
+                  />
+                </div>
+                <div className="dialog-form-field">
+                  <Label htmlFor="edit-chargesPerDay" className="dialog-label-standard">
+                    Charges Per Day (₹) *
+                  </Label>
+                  <Input
+                    id="edit-chargesPerDay"
+                    type="number"
+                    step="0.01"
+                    placeholder="e.g., 2500"
+                    value={formData.chargesPerDay}
+                    onChange={(e) => setFormData({ ...formData, chargesPerDay: e.target.value })}
+                    className="dialog-input-standard"
+                  />
+                </div>
+                <div className="dialog-form-field-grid">
+                  <div className="dialog-form-field">
+                    <Label htmlFor="edit-createdBy" className="dialog-label-standard">Created By (User ID) *</Label>
+                    <Input
+                      id="edit-createdBy"
+                      type="text"
+                      placeholder="e.g., 1"
+                      value={formData.createdBy}
+                      onChange={(e) => setFormData({ ...formData, createdBy: e.target.value })}
+                      className="dialog-input-standard"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Foreign Key to UserId</p>
+                  </div>
+                  <div className="dialog-form-field">
+                    <Label htmlFor="edit-status" className="dialog-label-standard">Status</Label>
+                    <select
+                      id="edit-status"
+                      aria-label="Status"
+                      className="dialog-select-standard"
+                      value={formData.status}
+                      onChange={(e) => setFormData({ ...formData, status: e.target.value as EmergencyBed['status'] })}
+                    >
+                      <option value="active">Active</option>
+                      <option value="inactive">Inactive</option>
+                    </select>
+                  </div>
+                </div>
               </div>
-            )}
-            <div>
-              <Label htmlFor="edit-emergencyBedNo">Emergency Bed No *</Label>
-              <Input
-                id="edit-emergencyBedNo"
-                placeholder="e.g., ER-001"
-                value={formData.emergencyBedNo}
-                onChange={(e) => setFormData({ ...formData, emergencyBedNo: e.target.value })}
-                required
-              />
             </div>
-            <div>
-              <Label htmlFor="edit-emergencyRoomNameNo">Emergency Room Name/No</Label>
-              <Input
-                id="edit-emergencyRoomNameNo"
-                placeholder="e.g., ER-Room-101"
-                value={formData.emergencyRoomNameNo}
-                onChange={(e) => setFormData({ ...formData, emergencyRoomNameNo: e.target.value })}
-              />
+            <div className="dialog-footer-standard">
+              <Button variant="outline" onClick={() => setIsEditDialogOpen(false)} className="dialog-footer-button">Cancel</Button>
+              <Button onClick={handleEditSubmit} className="dialog-footer-button">Update Emergency Bed</Button>
             </div>
-            <div>
-              <Label htmlFor="edit-emergencyRoomDescription">Emergency Room Description</Label>
-              <Textarea
-                id="edit-emergencyRoomDescription"
-                placeholder="Enter emergency room description..."
-                value={formData.emergencyRoomDescription}
-                onChange={(e) => setFormData({ ...formData, emergencyRoomDescription: e.target.value })}
-                rows={3}
-              />
-            </div>
-            <div>
-              <Label htmlFor="edit-chargesPerDay">
-                Charges Per Day (₹) *
-              </Label>
-              <Input
-                id="edit-chargesPerDay"
-                type="number"
-                step="0.01"
-                placeholder="e.g., 2500"
-                value={formData.chargesPerDay}
-                onChange={(e) => setFormData({ ...formData, chargesPerDay: e.target.value })}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="edit-createdBy">Created By (User ID) *</Label>
-                <Input
-                  id="edit-createdBy"
-                  type="text"
-                  placeholder="e.g., 1"
-                  value={formData.createdBy}
-                  onChange={(e) => setFormData({ ...formData, createdBy: e.target.value })}
-                />
-                <p className="text-xs text-gray-500 mt-1">Foreign Key to UserId</p>
-              </div>
-              <div>
-                <Label htmlFor="edit-status">Status</Label>
-                <select
-                  id="edit-status"
-                  aria-label="Status"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-md"
-                  value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value as EmergencyBed['status'] })}
-                >
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                </select>
-              </div>
-            </div>
-          </div>
-          </div>
-          <div className="flex justify-end gap-2 px-6 py-2 border-t bg-gray-50 flex-shrink-0">
-            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)} className="py-1">Cancel</Button>
-            <Button onClick={handleEditSubmit} className="py-1">Update Emergency Bed</Button>
           </div>
         </DialogContent>
       </Dialog>

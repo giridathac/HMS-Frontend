@@ -1,12 +1,12 @@
 // Departments Management Component - Separated UI from logic
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Card, CardContent } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
-import { Plus, Trash2, Edit, Building2, Stethoscope, Users } from 'lucide-react';
+import { Plus, Trash2, Edit, Building2, Stethoscope, Users, Search } from 'lucide-react';
 import { useDepartments } from '../hooks/useDepartments';
 import { Department, DepartmentCategory } from '../types/departments';
 
@@ -129,6 +129,7 @@ function DepartmentsView({
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedDepartment, setSelectedDepartment] = useState<Department | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     category: 'Clinical' as DepartmentCategory,
@@ -218,10 +219,33 @@ function DepartmentsView({
     }
   };
 
-  // Filter departments client-side as fallback if API filtering doesn't work
-  const filteredDepartments = selectedCategory
-    ? departments.filter(dept => dept.category === selectedCategory)
-    : departments;
+  // Filter departments based on category and search term
+  const filteredDepartments = useMemo(() => {
+    let filtered = departments;
+    
+    // First filter by category
+    if (selectedCategory) {
+      filtered = filtered.filter(dept => dept.category === selectedCategory);
+    }
+    
+    // Then filter by search term
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      filtered = filtered.filter(dept => {
+        const name = (dept.name || '').toLowerCase();
+        const category = (dept.category || '').toLowerCase();
+        const description = (dept.description || '').toLowerCase();
+        const specialisation = (dept.specialisationDetails || '').toLowerCase();
+        
+        return name.includes(searchLower) ||
+               category.includes(searchLower) ||
+               description.includes(searchLower) ||
+               specialisation.includes(searchLower);
+      });
+    }
+    
+    return filtered;
+  }, [departments, selectedCategory, searchTerm]);
 
   return (
     <div className="flex-1 bg-gray-50 flex flex-col overflow-hidden min-h-0">
@@ -345,6 +369,21 @@ function DepartmentsView({
           </div>
         </div>
         <div className="px-6 pt-4 pb-4 flex-1">
+          {/* Search */}
+          <Card className="mb-6 bg-white">
+            <CardContent className="p-6">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
+                <Input
+                  placeholder="Search by department name, category, description, or specialisation..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 bg-gray-50"
+                />
+              </div>
+            </CardContent>
+          </Card>
+
           <Card className="bg-white border border-gray-200 shadow-sm rounded-lg mb-4">
           <CardContent className="p-0 flex-1 overflow-hidden flex flex-col min-h-0">
             <div className="overflow-x-auto overflow-y-scroll border border-gray-200 rounded flex-1 min-h-0 doctors-scrollable h-full">
@@ -364,9 +403,11 @@ function DepartmentsView({
                   {filteredDepartments.length === 0 ? (
                     <tr>
                       <td colSpan={7} className="text-center py-8 text-gray-500">
-                        {selectedCategory 
-                          ? `No departments found in ${selectedCategory} category`
-                          : 'No departments found'
+                        {searchTerm 
+                          ? 'No departments found matching your search.'
+                          : selectedCategory 
+                            ? `No departments found in ${selectedCategory} category`
+                            : 'No departments found'
                         }
                       </td>
                     </tr>

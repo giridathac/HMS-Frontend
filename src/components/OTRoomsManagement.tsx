@@ -5,7 +5,7 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Textarea } from './ui/textarea';
-import { Scissors, Plus, Clock, Edit, Trash2, CheckCircle2, XCircle, ArrowLeft } from 'lucide-react';
+import { Scissors, Plus, Clock, Edit, Trash2, CheckCircle2, XCircle, ArrowLeft, Search } from 'lucide-react';
 import { useOTRooms } from '../hooks/useOTRooms';
 import { useOTSlots } from '../hooks/useOTSlots';
 import { OTRoom, OTSlot } from '../types';
@@ -18,6 +18,7 @@ export function OTRoomsManagement() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedOTRoom, setSelectedOTRoom] = useState<OTRoom | null>(null);
   const [selectedOTId, setSelectedOTId] = useState<string | null>(null);
+  const [tableSearchTerm, setTableSearchTerm] = useState('');
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -240,15 +241,19 @@ export function OTRoomsManagement() {
 
   if (loading) {
     return (
-      <div className="px-4 pt-4 pb-0 bg-blue-100 h-full flex flex-col overflow-hidden">
-        <div className="flex items-center justify-between mb-4 flex-shrink-0">
-          <div>
-            <h1 className="text-gray-900 mb-0 text-xl">OT Rooms Management</h1>
-            <p className="text-gray-500 text-sm">Manage operation theater rooms and their configurations</p>
+      <div className="flex-1 bg-gray-50 flex flex-col overflow-hidden min-h-0 dashboard-scrollable" style={{ maxHeight: '100vh', minHeight: 0 }}>
+        <div className="overflow-y-auto overflow-x-hidden flex-1 flex flex-col min-h-0">
+          <div className="px-6 pt-6 pb-0 flex-shrink-0">
+            <div className="flex items-center justify-between mb-4 flex-shrink-0">
+              <div>
+                <h1 className="text-gray-900 mb-2 text-2xl">OT Rooms Management</h1>
+                <p className="text-gray-500 text-base">Manage operation theater rooms and their configurations</p>
+              </div>
+            </div>
           </div>
-        </div>
-        <div className="p-8">
-          <div className="text-center py-12 text-blue-600">Loading OT rooms...</div>
+          <div className="px-6 pt-4 pb-4 flex-1">
+            <div className="text-center py-12 text-gray-600">Loading OT rooms...</div>
+          </div>
         </div>
       </div>
     );
@@ -256,173 +261,286 @@ export function OTRoomsManagement() {
 
   if (error) {
     return (
-      <div className="px-4 pt-4 pb-0 bg-blue-100 h-full flex flex-col overflow-hidden">
-        <div className="flex items-center justify-between mb-4 flex-shrink-0">
-          <div>
-            <h1 className="text-gray-900 mb-0 text-xl">OT Rooms Management</h1>
-            <p className="text-gray-500 text-sm">Manage operation theater rooms and their configurations</p>
+      <div className="flex-1 bg-gray-50 flex flex-col overflow-hidden min-h-0 dashboard-scrollable" style={{ maxHeight: '100vh', minHeight: 0 }}>
+        <div className="overflow-y-auto overflow-x-hidden flex-1 flex flex-col min-h-0">
+          <div className="px-6 pt-6 pb-0 flex-shrink-0">
+            <div className="flex items-center justify-between mb-4 flex-shrink-0">
+              <div>
+                <h1 className="text-gray-900 mb-2 text-2xl">OT Rooms Management</h1>
+                <p className="text-gray-500 text-base">Manage operation theater rooms and their configurations</p>
+              </div>
+            </div>
           </div>
-        </div>
-        <div className="p-8">
-          <div className="text-center py-12 text-red-500">Error: {error}</div>
+          <div className="px-6 pt-4 pb-4 flex-1">
+            <div className="text-center py-12 text-red-600">Error: {error}</div>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="px-4 pt-4 pb-4 bg-blue-100 h-screen flex flex-col overflow-hidden">
-      <div className="flex-shrink-0">
-        <div className="flex items-center justify-between mb-4 flex-shrink-0">
-          <div>
-            <h1 className="text-gray-900 mb-0 text-xl">OT Rooms Management</h1>
-            <p className="text-gray-500 text-sm">Manage operation theater rooms and their configurations</p>
-          </div>
-          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="gap-2">
-                <Plus className="size-4" />
-                Add OT Room
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>Add New OT Room</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="otNo">OT No</Label>
-                    <Input
-                      id="otNo"
-                      placeholder="e.g., OT001"
-                      value={formData.otNo}
-                      onChange={(e) => setFormData({ ...formData, otNo: e.target.value })}
-                    />
+    <div className="flex-1 bg-gray-50 flex flex-col overflow-hidden min-h-0 dashboard-scrollable" style={{ maxHeight: '100vh', minHeight: 0 }}>
+      <div className="overflow-y-auto overflow-x-hidden flex-1 flex flex-col min-h-0">
+        <div className="px-6 pt-6 pb-0 flex-shrink-0">
+          <div className="flex items-center justify-between mb-4 flex-shrink-0">
+            <div>
+              <h1 className="text-gray-900 mb-2 text-2xl">OT Rooms Management</h1>
+              <p className="text-gray-500 text-base">Manage operation theater rooms and their configurations</p>
+            </div>
+            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+              <DialogTrigger asChild>
+                <Button className="flex items-center gap-2">
+                  <Plus className="size-4" />
+                  Add OT Room
+                </Button>
+              </DialogTrigger>
+            <DialogContent className="p-0 gap-0 large-dialog dialog-content-standard">
+              <div className="dialog-scrollable-wrapper dialog-content-scrollable">
+                <DialogHeader className="dialog-header-standard">
+                  <DialogTitle className="dialog-title-standard">Add New OT Room</DialogTitle>
+                </DialogHeader>
+                <div className="dialog-body-content-wrapper">
+                  <div className="dialog-form-container">
+                    <div className="dialog-form-field-grid">
+                      <div className="dialog-form-field">
+                        <Label htmlFor="otNo" className="dialog-label-standard">OT No</Label>
+                        <Input
+                          id="otNo"
+                          placeholder="e.g., OT001"
+                          value={formData.otNo}
+                          onChange={(e) => setFormData({ ...formData, otNo: e.target.value })}
+                          className="dialog-input-standard"
+                        />
+                      </div>
+                      <div className="dialog-form-field">
+                        <Label htmlFor="otType" className="dialog-label-standard">OT Type</Label>
+                        <select
+                          id="otType"
+                          aria-label="OT Type"
+                          className="dialog-select-standard"
+                          value={formData.otType}
+                          onChange={(e) => setFormData({ ...formData, otType: e.target.value })}
+                        >
+                          {otTypeOptions.map(type => (
+                            <option key={type} value={type}>{type}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                    <div className="dialog-form-field">
+                      <Label htmlFor="otName" className="dialog-label-standard">OT Name</Label>
+                      <Input
+                        id="otName"
+                        placeholder="e.g., General Operation Theater 1"
+                        value={formData.otName}
+                        onChange={(e) => setFormData({ ...formData, otName: e.target.value })}
+                        className="dialog-input-standard"
+                      />
+                    </div>
+                    <div className="dialog-form-field">
+                      <Label htmlFor="otDescription" className="dialog-label-standard">OT Description</Label>
+                      <Textarea
+                        id="otDescription"
+                        placeholder="Enter OT room description..."
+                        value={formData.otDescription}
+                        onChange={(e) => setFormData({ ...formData, otDescription: e.target.value })}
+                        rows={3}
+                        className="dialog-textarea-standard"
+                      />
+                    </div>
+                    <div className="dialog-form-field-grid dialog-form-field">
+                      <div>
+                        <Label htmlFor="startTimeofDay" className="dialog-label-standard flex items-center gap-2">
+                          <Clock className="size-4" />
+                          Start Time of Day
+                        </Label>
+                        <Input
+                          id="startTimeofDay"
+                          type="time"
+                          value={formData.startTimeofDay}
+                          onChange={(e) => setFormData({ ...formData, startTimeofDay: e.target.value })}
+                          className="dialog-input-standard"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="endTimeofDay" className="dialog-label-standard flex items-center gap-2">
+                          <Clock className="size-4" />
+                          End Time of Day
+                        </Label>
+                        <Input
+                          id="endTimeofDay"
+                          type="time"
+                          value={formData.endTimeofDay}
+                          onChange={(e) => setFormData({ ...formData, endTimeofDay: e.target.value })}
+                          className="dialog-input-standard"
+                        />
+                      </div>
+                    </div>
+                    <div className="dialog-form-field">
+                      <Label htmlFor="status" className="dialog-label-standard">Status</Label>
+                      <select
+                        id="status"
+                        aria-label="Status"
+                        className="dialog-select-standard"
+                        value={formData.status}
+                        onChange={(e) => setFormData({ ...formData, status: e.target.value as OTRoom['status'] })}
+                      >
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                      </select>
+                    </div>
                   </div>
-                  <div>
-                    <Label htmlFor="otType">OT Type</Label>
-                    <select
-                      id="otType"
-                      aria-label="OT Type"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-md"
-                      value={formData.otType}
-                      onChange={(e) => setFormData({ ...formData, otType: e.target.value })}
-                    >
-                      {otTypeOptions.map(type => (
-                        <option key={type} value={type}>{type}</option>
-                      ))}
-                    </select>
-                  </div>
                 </div>
-                <div>
-                  <Label htmlFor="otName">OT Name</Label>
-                  <Input
-                    id="otName"
-                    placeholder="e.g., General Operation Theater 1"
-                    value={formData.otName}
-                    onChange={(e) => setFormData({ ...formData, otName: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="otDescription">OT Description</Label>
-                  <Textarea
-                    id="otDescription"
-                    placeholder="Enter OT room description..."
-                    value={formData.otDescription}
-                    onChange={(e) => setFormData({ ...formData, otDescription: e.target.value })}
-                    rows={3}
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4 bg-orange-50 p-4 rounded-lg border border-orange-200">
-                  <div>
-                    <Label htmlFor="startTimeofDay" className="flex items-center gap-2">
-                      <Clock className="size-4" />
-                      Start Time of Day
-                    </Label>
-                    <Input
-                      id="startTimeofDay"
-                      type="time"
-                      value={formData.startTimeofDay}
-                      onChange={(e) => setFormData({ ...formData, startTimeofDay: e.target.value })}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="endTimeofDay" className="flex items-center gap-2">
-                      <Clock className="size-4" />
-                      End Time of Day
-                    </Label>
-                    <Input
-                      id="endTimeofDay"
-                      type="time"
-                      value={formData.endTimeofDay}
-                      onChange={(e) => setFormData({ ...formData, endTimeofDay: e.target.value })}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <Label htmlFor="status">Status</Label>
-                  <select
-                    id="status"
-                    aria-label="Status"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-md"
-                    value={formData.status}
-                    onChange={(e) => setFormData({ ...formData, status: e.target.value as OTRoom['status'] })}
-                  >
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
-                  </select>
-                </div>
-                <div className="flex justify-end gap-2 pt-4">
-                  <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>Cancel</Button>
-                  <Button onClick={handleAddSubmit}>Add OT Room</Button>
+                <div className="dialog-footer-standard">
+                  <Button variant="outline" onClick={() => setIsAddDialogOpen(false)} className="dialog-footer-button">Cancel</Button>
+                  <Button onClick={handleAddSubmit} className="dialog-footer-button">Add OT Room</Button>
                 </div>
               </div>
             </DialogContent>
-          </Dialog>
+            </Dialog>
+          </div>
         </div>
-      </div>
+        <div className="px-6 pt-4 pb-4 flex-1">
+        {/* OT Rooms Cards */}
+        <div className="mb-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Available Operating Rooms</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {otRooms.length === 0 ? (
+              <div className="col-span-full text-center py-8 text-gray-500 text-sm">
+                No OT rooms found. Add a new OT room to get started.
+              </div>
+            ) : (
+              otRooms.map((otRoom) => (
+                <Card
+                  key={otRoom.id}
+                  className="bg-white border border-gray-200 shadow-sm rounded-lg hover:shadow-md transition-shadow cursor-pointer"
+                  onClick={() => setSelectedOTId(otRoom.otId)}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <div>
+                        <h3 className="text-base font-semibold text-gray-900">{otRoom.otNo}</h3>
+                        <p className="text-xs text-gray-500">{otRoom.otName}</p>
+                      </div>
+                      {getStatusBadge(otRoom.status)}
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="text-gray-600 font-medium">Type:</span>
+                        <span className="text-gray-900">{otRoom.otType}</span>
+                      </div>
+                      
+                      <div className="flex items-center gap-2 text-sm">
+                        <Clock className="size-4 text-gray-600" />
+                        <span className="text-gray-700">
+                          {otRoom.startTimeofDay} - {otRoom.endTimeofDay}
+                        </span>
+                      </div>
+                      
+                      {otRoom.otDescription && (
+                        <p className="text-xs text-gray-600 line-clamp-2 mt-2">
+                          {otRoom.otDescription}
+                        </p>
+                      )}
+                    </div>
+                    
+                    <div className="mt-3 pt-3 border-t border-gray-100">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedOTId(otRoom.otId);
+                        }}
+                        className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                      >
+                        View Slots →
+                      </button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </div>
+        </div>
 
-      <div className="flex-1 flex flex-col overflow-hidden min-h-0">
         {/* OT Rooms Table */}
-        <Card className="flex-1 flex flex-col overflow-hidden min-h-0 mb-4">
-          <CardContent className="p-0 flex-1 overflow-hidden flex flex-col min-h-0">
-            <div className="overflow-x-auto overflow-y-scroll border border-gray-200 rounded flex-1 min-h-0 ot-rooms-scrollable doctors-scrollable" style={{ maxHeight: 'calc(100vh - 160px)' }}>
+        <Card className="bg-white border border-gray-200 shadow-sm rounded-lg mb-4">
+          <CardContent className="p-6">
+            {/* Search Filter */}
+            <Card className="mb-6 bg-white">
+              <CardContent className="p-6">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
+                  <Input
+                    placeholder="Search by OT ID, OT No, type, name, description, time, or status..."
+                    value={tableSearchTerm}
+                    onChange={(e) => setTableSearchTerm(e.target.value)}
+                    className="pl-10 bg-gray-50"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-gray-200 bg-gray-50">
-                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-700" colSpan={11}>
-                      <div className="flex items-center gap-2">
-                        <Scissors className="size-5" />
-                        <span>OT Rooms List ({total > 0 ? `${otRooms.length} of ${total}` : otRooms.length})</span>
-                      </div>
-                    </th>
-                  </tr>
                   <tr className="border-b border-gray-200">
-                    <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">OT ID</th>
-                    <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">OT No</th>
-                    <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">Type</th>
-                    <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">OT Name</th>
-                    <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">Description</th>
-                    <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">Start Time</th>
-                    <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">End Time</th>
-                    <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">Created By</th>
-                    <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">Created At</th>
-                    <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">Status</th>
-                    <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">Actions</th>
+                    <th className="text-left py-4 px-6 text-gray-700">OT ID</th>
+                    <th className="text-left py-4 px-6 text-gray-700">OT No</th>
+                    <th className="text-left py-4 px-6 text-gray-700">Type</th>
+                    <th className="text-left py-4 px-6 text-gray-700">OT Name</th>
+                    <th className="text-left py-4 px-6 text-gray-700">Description</th>
+                    <th className="text-left py-4 px-6 text-gray-700">Start Time</th>
+                    <th className="text-left py-4 px-6 text-gray-700">End Time</th>
+                    <th className="text-left py-4 px-6 text-gray-700">Status</th>
+                    <th className="text-left py-4 px-6 text-gray-700">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {otRooms.length === 0 ? (
-                    <tr>
-                      <td colSpan={11} className="text-center py-8 text-gray-500">
-                        No OT rooms found. Add a new OT room to get started.
-                      </td>
-                    </tr>
-                  ) : (
-                    otRooms.map((otRoom) => (
+                  {(() => {
+                    // Filter rooms based on search term
+                    const filteredRooms = tableSearchTerm.trim()
+                      ? otRooms.filter((otRoom) => {
+                          const searchLower = tableSearchTerm.toLowerCase().trim();
+                          
+                          // Search in all relevant fields
+                          const otId = otRoom.otId ? String(otRoom.otId).toLowerCase() : '';
+                          const otNo = otRoom.otNo ? String(otRoom.otNo).toLowerCase() : '';
+                          const otType = otRoom.otType ? String(otRoom.otType).toLowerCase() : '';
+                          const otName = otRoom.otName ? String(otRoom.otName).toLowerCase() : '';
+                          const otDescription = otRoom.otDescription ? String(otRoom.otDescription).toLowerCase() : '';
+                          const startTime = otRoom.startTimeofDay ? String(otRoom.startTimeofDay).toLowerCase() : '';
+                          const endTime = otRoom.endTimeofDay ? String(otRoom.endTimeofDay).toLowerCase() : '';
+                          const status = otRoom.status ? String(otRoom.status).toLowerCase() : '';
+                          
+                          // Check if search term matches any field
+                          return otId.includes(searchLower) ||
+                                 otNo.includes(searchLower) ||
+                                 otType.includes(searchLower) ||
+                                 otName.includes(searchLower) ||
+                                 otDescription.includes(searchLower) ||
+                                 startTime.includes(searchLower) ||
+                                 endTime.includes(searchLower) ||
+                                 status.includes(searchLower);
+                        })
+                      : otRooms;
+                    
+                    if (filteredRooms.length === 0) {
+                      return (
+                        <tr>
+                          <td colSpan={9} className="text-center py-8 text-gray-500 text-sm">
+                            {tableSearchTerm.trim()
+                              ? `No OT rooms found matching "${tableSearchTerm}"`
+                              : "No OT rooms found. Add a new OT room to get started."}
+                          </td>
+                        </tr>
+                      );
+                    }
+                    
+                    return filteredRooms.map((otRoom) => (
                       <tr key={otRoom.id} className="border-b border-gray-100 hover:bg-gray-50">
-                        <td className="py-3 px-4 text-sm font-mono font-medium whitespace-nowrap">
+                        <td className="py-4 px-6 text-gray-900 font-mono font-medium whitespace-nowrap">
                           <a
                             href={`#otrooms?otId=${encodeURIComponent(otRoom.otId)}`}
                             onClick={(e) => {
@@ -434,38 +552,38 @@ export function OTRoomsManagement() {
                             {otRoom.otId}
                           </a>
                         </td>
-                        <td className="py-3 px-4 text-sm text-gray-900 font-medium">{otRoom.otNo}</td>
-                        <td className="py-3 px-4 text-sm text-gray-700">{otRoom.otType}</td>
-                        <td className="py-3 px-4 text-sm text-gray-700">{otRoom.otName}</td>
-                        <td className="py-3 px-4 text-sm text-gray-700 max-w-xs break-words whitespace-normal">{otRoom.otDescription || '-'}</td>
-                        <td className="py-3 px-4 text-sm text-gray-700">{otRoom.startTimeofDay}</td>
-                        <td className="py-3 px-4 text-sm text-gray-700">{otRoom.endTimeofDay}</td>
-                        <td className="py-3 px-4 text-sm text-gray-700">{otRoom.createdBy}</td>
-                        <td className="py-3 px-4 text-sm text-gray-500">{new Date(otRoom.createdAt).toLocaleDateString()}</td>
-                        <td className="py-3 px-4 text-sm">{getStatusBadge(otRoom.status)}</td>
-                        <td className="py-3 px-4">
-                          <div className="flex items-center gap-2">
+                        <td className="py-4 px-6 text-gray-900 font-medium whitespace-nowrap">{otRoom.otNo}</td>
+                        <td className="py-4 px-6 text-gray-600 whitespace-nowrap">{otRoom.otType}</td>
+                        <td className="py-4 px-6 text-gray-600 whitespace-nowrap min-w-[150px]">{otRoom.otName}</td>
+                        <td className="py-4 px-6 text-gray-600 max-w-xs break-words whitespace-normal">{otRoom.otDescription || '-'}</td>
+                        <td className="py-4 px-6 text-gray-600 whitespace-nowrap">{otRoom.startTimeofDay}</td>
+                        <td className="py-4 px-6 text-gray-600 whitespace-nowrap">{otRoom.endTimeofDay}</td>
+                        <td className="py-4 px-6 whitespace-nowrap">{getStatusBadge(otRoom.status)}</td>
+                        <td className="py-4 px-6 whitespace-nowrap">
+                          <div className="flex items-center gap-1">
                             <Button
                               variant="ghost"
                               size="sm"
                               onClick={() => handleEdit(otRoom)}
-                              className="h-8 w-8 p-0"
+                              className="h-7 w-7 p-0"
+                              title="Edit OT Room"
                             >
-                              <Edit className="size-4" />
+                              <Edit className="size-3" />
                             </Button>
                             <Button
                               variant="ghost"
                               size="sm"
                               onClick={() => handleDelete(otRoom.id)}
-                              className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                              className="h-7 w-7 p-0 text-red-600 hover:text-red-700"
+                              title="Delete OT Room"
                             >
-                              <Trash2 className="size-4" />
+                              <Trash2 className="size-3" />
                             </Button>
                           </div>
                         </td>
                       </tr>
-                    ))
-                  )}
+                    ));
+                  })()}
                 </tbody>
               </table>
               {/* Infinite scroll trigger */}
@@ -486,125 +604,135 @@ export function OTRoomsManagement() {
             </div>
           </CardContent>
         </Card>
+        </div>
+
+        {/* Edit Dialog */}
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent className="p-0 gap-0 large-dialog dialog-content-standard">
+            <div className="dialog-scrollable-wrapper dialog-content-scrollable">
+              <DialogHeader className="dialog-header-standard">
+                <DialogTitle className="dialog-title-standard">Edit OT Room</DialogTitle>
+              </DialogHeader>
+              <div className="dialog-body-content-wrapper">
+                <div className="dialog-form-container">
+                  {selectedOTRoom && (
+                    <div className="dialog-form-field">
+                      <Label className="dialog-label-standard">OT ID</Label>
+                      <Input
+                        value={selectedOTRoom.otId}
+                        disabled
+                        className="dialog-input-standard dialog-input-disabled"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">OT ID is auto-generated and cannot be changed</p>
+                    </div>
+                  )}
+                  <div className="dialog-form-field-grid">
+                    <div className="dialog-form-field">
+                      <Label htmlFor="edit-otNo" className="dialog-label-standard">OT No</Label>
+                      <Input
+                        id="edit-otNo"
+                        placeholder="e.g., OT001"
+                        value={formData.otNo}
+                        onChange={(e) => setFormData({ ...formData, otNo: e.target.value })}
+                        className="dialog-input-standard"
+                      />
+                    </div>
+                    <div className="dialog-form-field">
+                      <Label htmlFor="edit-otType" className="dialog-label-standard">OT Type</Label>
+                      <select
+                        id="edit-otType"
+                        aria-label="OT Type"
+                        className="dialog-select-standard"
+                        value={formData.otType}
+                        onChange={(e) => setFormData({ ...formData, otType: e.target.value })}
+                      >
+                        {otTypeOptions.map(type => (
+                          <option key={type} value={type}>{type}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="dialog-form-field">
+                    <Label htmlFor="edit-otName" className="dialog-label-standard">OT Name</Label>
+                    <Input
+                      id="edit-otName"
+                      placeholder="e.g., General Operation Theater 1"
+                      value={formData.otName}
+                      onChange={(e) => setFormData({ ...formData, otName: e.target.value })}
+                      className="dialog-input-standard"
+                    />
+                  </div>
+                  <div className="dialog-form-field">
+                    <Label htmlFor="edit-otDescription" className="dialog-label-standard">OT Description</Label>
+                    <Textarea
+                      id="edit-otDescription"
+                      placeholder="Enter OT room description..."
+                      value={formData.otDescription}
+                      onChange={(e) => setFormData({ ...formData, otDescription: e.target.value })}
+                      rows={3}
+                      className="dialog-textarea-standard"
+                    />
+                  </div>
+                  <div className="dialog-form-field-grid dialog-form-field">
+                    <div>
+                      <Label htmlFor="edit-startTimeofDay" className="dialog-label-standard flex items-center gap-2">
+                        <Clock className="size-4" />
+                        Start Time of Day
+                      </Label>
+                      <Input
+                        id="edit-startTimeofDay"
+                        type="time"
+                        value={formData.startTimeofDay}
+                        onChange={(e) => setFormData({ ...formData, startTimeofDay: e.target.value })}
+                        className="dialog-input-standard"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-endTimeofDay" className="dialog-label-standard flex items-center gap-2">
+                        <Clock className="size-4" />
+                        End Time of Day
+                      </Label>
+                      <Input
+                        id="edit-endTimeofDay"
+                        type="time"
+                        value={formData.endTimeofDay}
+                        onChange={(e) => setFormData({ ...formData, endTimeofDay: e.target.value })}
+                        className="dialog-input-standard"
+                      />
+                    </div>
+                  </div>
+                  <div className="dialog-form-field">
+                    <Label htmlFor="edit-status" className="dialog-label-standard">Status</Label>
+                    <select
+                      id="edit-status"
+                      aria-label="Status"
+                      className="dialog-select-standard"
+                      value={formData.status}
+                      onChange={(e) => setFormData({ ...formData, status: e.target.value as OTRoom['status'] })}
+                    >
+                      <option value="active">Active</option>
+                      <option value="inactive">Inactive</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <div className="dialog-footer-standard">
+                <Button variant="outline" onClick={() => setIsEditDialogOpen(false)} className="dialog-footer-button">Cancel</Button>
+                <Button onClick={handleEditSubmit} className="dialog-footer-button">Update OT Room</Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* OT Slots Dialog */}
+        {selectedOTId && (
+          <OTSlotsManagement 
+            otId={selectedOTId}
+            otRoom={otRooms.find(r => r.otId === selectedOTId) || null}
+            onClose={() => setSelectedOTId(null)} 
+          />
+        )}
       </div>
-
-      {/* Edit Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Edit OT Room</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            {selectedOTRoom && (
-              <div>
-                <Label>OT ID</Label>
-                <Input
-                  value={selectedOTRoom.otId}
-                  disabled
-                  className="bg-gray-50 text-gray-500"
-                />
-                <p className="text-xs text-gray-500 mt-1">OT ID is auto-generated and cannot be changed</p>
-              </div>
-            )}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="edit-otNo">OT No</Label>
-                <Input
-                  id="edit-otNo"
-                  placeholder="e.g., OT001"
-                  value={formData.otNo}
-                  onChange={(e) => setFormData({ ...formData, otNo: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label htmlFor="edit-otType">OT Type</Label>
-                <select
-                  id="edit-otType"
-                  aria-label="OT Type"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-md"
-                  value={formData.otType}
-                  onChange={(e) => setFormData({ ...formData, otType: e.target.value })}
-                >
-                  {otTypeOptions.map(type => (
-                    <option key={type} value={type}>{type}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-            <div>
-              <Label htmlFor="edit-otName">OT Name</Label>
-              <Input
-                id="edit-otName"
-                placeholder="e.g., General Operation Theater 1"
-                value={formData.otName}
-                onChange={(e) => setFormData({ ...formData, otName: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label htmlFor="edit-otDescription">OT Description</Label>
-              <Textarea
-                id="edit-otDescription"
-                placeholder="Enter OT room description..."
-                value={formData.otDescription}
-                onChange={(e) => setFormData({ ...formData, otDescription: e.target.value })}
-                rows={3}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4 bg-orange-50 p-4 rounded-lg border border-orange-200">
-              <div>
-                <Label htmlFor="edit-startTimeofDay" className="flex items-center gap-2">
-                  <Clock className="size-4" />
-                  Start Time of Day
-                </Label>
-                <Input
-                  id="edit-startTimeofDay"
-                  type="time"
-                  value={formData.startTimeofDay}
-                  onChange={(e) => setFormData({ ...formData, startTimeofDay: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label htmlFor="edit-endTimeofDay" className="flex items-center gap-2">
-                  <Clock className="size-4" />
-                  End Time of Day
-                </Label>
-                <Input
-                  id="edit-endTimeofDay"
-                  type="time"
-                  value={formData.endTimeofDay}
-                  onChange={(e) => setFormData({ ...formData, endTimeofDay: e.target.value })}
-                />
-              </div>
-            </div>
-            <div>
-              <Label htmlFor="edit-status">Status</Label>
-              <select
-                id="edit-status"
-                aria-label="Status"
-                className="w-full px-3 py-2 border border-gray-200 rounded-md"
-                value={formData.status}
-                onChange={(e) => setFormData({ ...formData, status: e.target.value as OTRoom['status'] })}
-              >
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-              </select>
-            </div>
-            <div className="flex justify-end gap-2 pt-4">
-              <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancel</Button>
-              <Button onClick={handleEditSubmit}>Update OT Room</Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* OT Slots Dialog */}
-      {selectedOTId && (
-        <OTSlotsManagement 
-          otId={selectedOTId}
-          otRoom={otRooms.find(r => r.otId === selectedOTId) || null}
-          onClose={() => setSelectedOTId(null)} 
-        />
-      )}
     </div>
   );
 }
@@ -736,7 +864,7 @@ function OTSlotsManagement({ otId, otRoom, onClose }: { otId: string; otRoom: OT
   if (loading) {
     return (
       <Dialog open={true} onOpenChange={onClose}>
-        <DialogContent className="p-0 gap-0 large-dialog max-w-4xl">
+        <DialogContent className="p-0 gap-0 large-dialog max-w-4xl max-h-[90vh]">
           <DialogHeader className="px-6 pt-4 pb-3 flex-shrink-0">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -747,7 +875,7 @@ function OTSlotsManagement({ otId, otRoom, onClose }: { otId: string; otRoom: OT
                   {otRoom ? `OT Slots for ${otRoom.otName} (${otId})` : `OT Slots for ${otId}`}
                 </DialogTitle>
               </div>
-              <Button className="gap-2" onClick={(e) => {
+              <Button className="flex items-center gap-2" onClick={(e) => {
                 e.stopPropagation();
                 setIsAddDialogOpen(true);
               }}>
@@ -757,7 +885,7 @@ function OTSlotsManagement({ otId, otRoom, onClose }: { otId: string; otRoom: OT
             </div>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto px-6 pb-1 patient-list-scrollable min-h-0">
-            <div className="text-center py-12 text-blue-600">Loading OT slots...</div>
+            <div className="text-center py-12 text-gray-600">Loading OT slots...</div>
           </div>
         </DialogContent>
       </Dialog>
@@ -769,7 +897,7 @@ function OTSlotsManagement({ otId, otRoom, onClose }: { otId: string; otRoom: OT
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="p-0 gap-0 large-dialog max-w-4xl">
+      <DialogContent className="p-0 gap-0 large-dialog max-w-4xl max-h-[90vh]">
         <DialogHeader className="px-6 pt-4 pb-3 flex-shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -780,7 +908,7 @@ function OTSlotsManagement({ otId, otRoom, onClose }: { otId: string; otRoom: OT
                 {otRoom ? `OT Slots for ${otRoom.otName} (${otId})` : `OT Slots for ${otId}`}
               </DialogTitle>
             </div>
-            <Button className="gap-2" onClick={(e) => {
+            <Button className="flex items-center gap-2" onClick={(e) => {
               e.stopPropagation();
               setIsAddDialogOpen(true);
             }}>
@@ -793,60 +921,56 @@ function OTSlotsManagement({ otId, otRoom, onClose }: { otId: string; otRoom: OT
           <div className="space-y-4 py-4">
           {/* Show table only if no error and not loading */}
           {!error && !loading && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Clock className="size-5" />
-                  OT Slots List ({otSlots.length})
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
+            <Card className="bg-white border border-gray-200 shadow-sm rounded-lg">
+              <CardContent className="p-6">
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead>
                       <tr className="border-b border-gray-200">
-                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">OT Slot ID</th>
-                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">OT ID</th>
-                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">OT Slot No</th>
-                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Slot Start Time</th>
-                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Slot End Time</th>
-                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Status</th>
-                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Actions</th>
+                        <th className="text-left py-4 px-6 text-gray-700">OT Slot ID</th>
+                        <th className="text-left py-4 px-6 text-gray-700">OT ID</th>
+                        <th className="text-left py-4 px-6 text-gray-700">OT Slot No</th>
+                        <th className="text-left py-4 px-6 text-gray-700">Slot Start Time</th>
+                        <th className="text-left py-4 px-6 text-gray-700">Slot End Time</th>
+                        <th className="text-left py-4 px-6 text-gray-700">Status</th>
+                        <th className="text-left py-4 px-6 text-gray-700">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {otSlots.length === 0 ? (
                         <tr>
-                          <td colSpan={7} className="text-center py-8 text-gray-500">
+                          <td colSpan={7} className="text-center py-8 text-gray-500 text-sm">
                             No OT slots found. Add a new OT slot to get started.
                           </td>
                         </tr>
                       ) : (
                         otSlots.map((otSlot) => (
                           <tr key={otSlot.id} className="border-b border-gray-100 hover:bg-gray-50">
-                            <td className="py-3 px-4 text-sm text-gray-900 font-mono font-medium whitespace-nowrap">{otSlot.otSlotId}</td>
-                            <td className="py-3 px-4 text-sm text-gray-900 font-mono font-medium whitespace-nowrap">{otSlot.otId}</td>
-                            <td className="py-3 px-4 text-sm text-gray-900 font-medium">{otSlot.otSlotNo}</td>
-                            <td className="py-3 px-4 text-sm text-gray-700">{otSlot.slotStartTime}</td>
-                            <td className="py-3 px-4 text-sm text-gray-700">{otSlot.slotEndTime}</td>
-                            <td className="py-3 px-4 text-sm">{getStatusBadge(otSlot.status)}</td>
-                            <td className="py-3 px-4">
-                              <div className="flex items-center gap-2">
+                            <td className="py-4 px-6 text-gray-900 font-mono font-medium whitespace-nowrap">{otSlot.otSlotId}</td>
+                            <td className="py-4 px-6 text-gray-900 font-mono font-medium whitespace-nowrap">{otSlot.otId}</td>
+                            <td className="py-4 px-6 text-gray-600 whitespace-nowrap">{otSlot.otSlotNo}</td>
+                            <td className="py-4 px-6 text-gray-600 whitespace-nowrap">{otSlot.slotStartTime}</td>
+                            <td className="py-4 px-6 text-gray-600 whitespace-nowrap">{otSlot.slotEndTime}</td>
+                            <td className="py-4 px-6 whitespace-nowrap">{getStatusBadge(otSlot.status)}</td>
+                            <td className="py-4 px-6 whitespace-nowrap">
+                              <div className="flex items-center gap-1">
                                 <Button
                                   variant="ghost"
                                   size="sm"
                                   onClick={() => handleEdit(otSlot)}
-                                  className="h-8 w-8 p-0"
+                                  className="h-7 w-7 p-0"
+                                  title="Edit OT Slot"
                                 >
-                                  <Edit className="size-4" />
+                                  <Edit className="size-3" />
                                 </Button>
                                 <Button
                                   variant="ghost"
                                   size="sm"
                                   onClick={() => handleDelete(otSlot.id)}
-                                  className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                  className="h-7 w-7 p-0 text-red-600 hover:text-red-700"
+                                  title="Delete OT Slot"
                                 >
-                                  <Trash2 className="size-4" />
+                                  <Trash2 className="size-3" />
                                 </Button>
                               </div>
                             </td>
@@ -864,7 +988,7 @@ function OTSlotsManagement({ otId, otRoom, onClose }: { otId: string; otRoom: OT
 
         {/* Add Dialog */}
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-          <DialogContent className="p-0 gap-0 large-dialog max-w-2xl">
+          <DialogContent className="p-0 gap-0 large-dialog max-w-2xl max-h-[90vh]">
             <DialogHeader className="px-6 pt-4 pb-3 flex-shrink-0">
               <DialogTitle>Add New OT Slot</DialogTitle>
             </DialogHeader>
@@ -929,7 +1053,7 @@ function OTSlotsManagement({ otId, otRoom, onClose }: { otId: string; otRoom: OT
 
         {/* Edit Dialog */}
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent className="p-0 gap-0 large-dialog max-w-2xl">
+          <DialogContent className="p-0 gap-0 large-dialog max-w-2xl max-h-[90vh]">
             <DialogHeader className="px-6 pt-4 pb-3 flex-shrink-0">
               <DialogTitle>Edit OT Slot</DialogTitle>
             </DialogHeader>

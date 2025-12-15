@@ -1,11 +1,11 @@
 // Staff Management Component - Separated UI from logic
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Tabs, TabsList, TabsTrigger } from './ui/tabs';
-import { Plus, Trash2, Edit, Users } from 'lucide-react';
+import { Plus, Trash2, Edit, Users, Search } from 'lucide-react';
 import { useStaff } from '../hooks/useStaff';
 import { useDepartments } from '../hooks/useDepartments';
 import { useRoles } from '../hooks/useRoles';
@@ -88,7 +88,7 @@ export function StaffManagement() {
 
   return (
     <StaffView
-      staff={staff}
+      staff={allStaff}
       roles={roles}
       departments={departments}
       selectedStatus={selectedStatus}
@@ -116,10 +116,11 @@ function StaffView({
   console.log('[StaffView] Rendering with departments:', departments);
   console.log('[StaffView] Departments length:', departments?.length);
   console.log('[StaffView] Departments type:', typeof departments);
-  const allStaff = staff;
+  const allStaff = staff; // staff prop now contains all staff (unfiltered)
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState<Staff | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState<CreateUserDto>({
     RoleId: '',
     UserName: '',
@@ -282,11 +283,45 @@ function StaffView({
     }
   };
 
-  // Filter staff based on selected status
-  const filteredStaff = allStaff.filter(s => {
-    const statusMatch = selectedStatus === 'all' || s.Status === selectedStatus;
-    return statusMatch;
-  });
+  // Filter staff based on selected status and search term
+  const filteredStaff = useMemo(() => {
+    let filtered = allStaff;
+    
+    // First filter by status
+    if (selectedStatus !== 'all') {
+      filtered = filtered.filter(s => s.Status === selectedStatus);
+    }
+    
+    // Then filter by search term
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      filtered = filtered.filter(s => {
+        const userName = (s.UserName || '').toLowerCase();
+        const phone = (s.PhoneNo || '').toLowerCase();
+        const email = (s.EmailId || '').toLowerCase();
+        const status = (s.Status || '').toLowerCase();
+        const role = roles.find(r => r.id === s.RoleId);
+        const roleName = (role?.name || '').toLowerCase();
+        const department = s.DoctorDepartmentId && departments.length > 0
+          ? departments.find(d => {
+              if (!d || d.id === undefined || d.id === null) return false;
+              return String(d.id) === String(s.DoctorDepartmentId) || 
+                     d.id === Number(s.DoctorDepartmentId);
+            })
+          : null;
+        const departmentName = (department?.name || '').toLowerCase();
+        
+        return userName.includes(searchLower) ||
+               phone.includes(searchLower) ||
+               email.includes(searchLower) ||
+               status.includes(searchLower) ||
+               roleName.includes(searchLower) ||
+               departmentName.includes(searchLower);
+      });
+    }
+    
+    return filtered;
+  }, [allStaff, selectedStatus, searchTerm, roles, departments]);
 
   const headerActions = (
     <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
@@ -296,19 +331,19 @@ function StaffView({
           Add Staff
         </Button>
       </DialogTrigger>
-        <DialogContent className="p-0 gap-0 large-dialog">
-          <DialogHeader className="px-6 pt-4 pb-3 flex-shrink-0">
-            <DialogTitle>Add New Staff Member</DialogTitle>
+        <DialogContent className="p-0 gap-0 large-dialog bg-white">
+          <DialogHeader className="px-6 pt-4 pb-3 flex-shrink-0 bg-white">
+            <DialogTitle className="text-gray-700">Add New Staff Member</DialogTitle>
           </DialogHeader>
-          <div className="flex-1 overflow-y-auto px-6 pb-1 patient-list-scrollable min-h-0">
+          <div className="flex-1 overflow-y-auto px-6 pb-1 patient-list-scrollable min-h-0 bg-white">
             <div className="space-y-4 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="roleId">Role *</Label>
+                <Label htmlFor="roleId" className="text-gray-600">Role *</Label>
                 <select
                   id="roleId"
                   aria-label="Role"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-50 text-gray-900"
                   value={formData.RoleId}
                   onChange={(e) => {
                     const newRoleId = e.target.value;
@@ -338,55 +373,59 @@ function StaffView({
                 </select>
               </div>
               <div>
-                <Label htmlFor="userName">User Name *</Label>
+                <Label htmlFor="userName" className="text-gray-600">User Name *</Label>
                 <Input
                   id="userName"
                   placeholder="Enter user name"
                   value={formData.UserName}
                   onChange={(e) => setFormData({ ...formData, UserName: e.target.value })}
+                  className="bg-gray-50 text-gray-900"
                   required
                 />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="password">Password *</Label>
+                <Label htmlFor="password" className="text-gray-600">Password *</Label>
                 <Input
                   id="password"
                   type="password"
                   placeholder="Enter password"
                   value={formData.Password}
                   onChange={(e) => setFormData({ ...formData, Password: e.target.value })}
+                  className="bg-gray-50 text-gray-900"
                   required
                 />
               </div>
               <div>
-                <Label htmlFor="phoneNo">Phone Number</Label>
+                <Label htmlFor="phoneNo" className="text-gray-600">Phone Number</Label>
                 <Input
                   id="phoneNo"
                   placeholder="Enter phone number"
                   value={formData.PhoneNo}
                   onChange={(e) => setFormData({ ...formData, PhoneNo: e.target.value })}
+                  className="bg-gray-50 text-gray-900"
                 />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="emailId">Email</Label>
+                <Label htmlFor="emailId" className="text-gray-600">Email</Label>
                 <Input
                   id="emailId"
                   type="email"
                   placeholder="Enter email"
                   value={formData.EmailId}
                   onChange={(e) => setFormData({ ...formData, EmailId: e.target.value })}
+                  className="bg-gray-50 text-gray-900"
                 />
               </div>
               <div>
-                <Label htmlFor="status">Status</Label>
+                <Label htmlFor="status" className="text-gray-600">Status</Label>
                 <select
                   id="status"
                   aria-label="Status"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-50 text-gray-900"
                   value={formData.Status}
                   onChange={(e) => setFormData({ ...formData, Status: e.target.value as 'Active' | 'InActive' })}
                 >
@@ -404,11 +443,11 @@ function StaffView({
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="doctorDepartmentId">Department</Label>
+                    <Label htmlFor="doctorDepartmentId" className="text-gray-600">Department</Label>
                     <select
                       id="doctorDepartmentId"
                       aria-label="Department"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-50 text-gray-900"
                       value={formData.DoctorDepartmentId}
                       onChange={(e) => setFormData({ ...formData, DoctorDepartmentId: e.target.value })}
                     >
@@ -425,22 +464,23 @@ function StaffView({
                     </select>
                   </div>
                   <div>
-                    <Label htmlFor="doctorQualification">Qualification</Label>
+                    <Label htmlFor="doctorQualification" className="text-gray-600">Qualification</Label>
                     <Input
                       id="doctorQualification"
                       placeholder="e.g., MBBS, MD"
                       value={formData.DoctorQualification}
                       onChange={(e) => setFormData({ ...formData, DoctorQualification: e.target.value })}
+                      className="bg-gray-50 text-gray-900"
                     />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="doctorType">Doctor Type</Label>
+                    <Label htmlFor="doctorType" className="text-gray-600">Doctor Type</Label>
                     <select
                       id="doctorType"
                       aria-label="Doctor Type"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-50 text-gray-900"
                       value={formData.DoctorType || ''}
                       onChange={(e) => setFormData({ ...formData, DoctorType: e.target.value as 'INHOUSE' | 'VISITING' || undefined })}
                     >
@@ -450,35 +490,37 @@ function StaffView({
                     </select>
                   </div>
                   <div>
-                    <Label htmlFor="doctorOPDCharge">OPD Charge</Label>
+                    <Label htmlFor="doctorOPDCharge" className="text-gray-600">OPD Charge</Label>
                     <Input
                       id="doctorOPDCharge"
                       type="number"
                       placeholder="Enter OPD charge"
                       value={formData.DoctorOPDCharge || ''}
                       onChange={(e) => setFormData({ ...formData, DoctorOPDCharge: e.target.value ? Number(e.target.value) : undefined })}
+                      className="bg-gray-50 text-gray-900"
                     />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="doctorSurgeryCharge">Surgery Charge</Label>
+                    <Label htmlFor="doctorSurgeryCharge" className="text-gray-600">Surgery Charge</Label>
                     <Input
                       id="doctorSurgeryCharge"
                       type="number"
                       placeholder="Enter surgery charge"
                       value={formData.DoctorSurgeryCharge || ''}
                       onChange={(e) => setFormData({ ...formData, DoctorSurgeryCharge: e.target.value ? Number(e.target.value) : undefined })}
+                      className="bg-gray-50 text-gray-900"
                     />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="opdConsultation">OPD Consultation</Label>
+                    <Label htmlFor="opdConsultation" className="text-gray-600">OPD Consultation</Label>
                     <select
                       id="opdConsultation"
                       aria-label="OPD Consultation"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-50 text-gray-900"
                       value={formData.OPDConsultation || ''}
                       onChange={(e) => setFormData({ ...formData, OPDConsultation: e.target.value as 'Yes' | 'No' || undefined })}
                     >
@@ -488,11 +530,11 @@ function StaffView({
                     </select>
                   </div>
                   <div>
-                    <Label htmlFor="ipdVisit">IPD Visit</Label>
+                    <Label htmlFor="ipdVisit" className="text-gray-600">IPD Visit</Label>
                     <select
                       id="ipdVisit"
                       aria-label="IPD Visit"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-50 text-gray-900"
                       value={formData.IPDVisit || ''}
                       onChange={(e) => setFormData({ ...formData, IPDVisit: e.target.value as 'Yes' | 'No' || undefined })}
                     >
@@ -504,11 +546,11 @@ function StaffView({
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="otHandle">OT Handle</Label>
+                    <Label htmlFor="otHandle" className="text-gray-600">OT Handle</Label>
                     <select
                       id="otHandle"
                       aria-label="OT Handle"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-50 text-gray-900"
                       value={formData.OTHandle || ''}
                       onChange={(e) => setFormData({ ...formData, OTHandle: e.target.value as 'Yes' | 'No' || undefined })}
                     >
@@ -518,11 +560,11 @@ function StaffView({
                     </select>
                   </div>
                   <div>
-                    <Label htmlFor="icuVisits">ICU Visits</Label>
+                    <Label htmlFor="icuVisits" className="text-gray-600">ICU Visits</Label>
                     <select
                       id="icuVisits"
                       aria-label="ICU Visits"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-50 text-gray-900"
                       value={formData.ICUVisits || ''}
                       onChange={(e) => setFormData({ ...formData, ICUVisits: e.target.value as 'Yes' | 'No' || undefined })}
                     >
@@ -536,9 +578,9 @@ function StaffView({
             )}
             </div>
           </div>
-          <div className="flex justify-end gap-2 px-6 py-2 border-t bg-gray-50 flex-shrink-0">
-            <Button variant="outline" onClick={() => setIsAddDialogOpen(false)} className="py-1">Cancel</Button>
-            <Button onClick={handleAddSubmit} className="py-1">Add Staff</Button>
+          <div className="flex justify-end gap-2 pt-4 border-t bg-white px-6 pb-4">
+            <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleAddSubmit}>Add Staff</Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -578,6 +620,21 @@ function StaffView({
           </div>
         </div>
         <div className="px-6 pt-4 pb-4 flex-1">
+          {/* Search */}
+          <Card className="mb-6 bg-white">
+            <CardContent className="p-6">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
+                <Input
+                  placeholder="Search by user name, role, phone, email, department, or status..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 bg-gray-50"
+                />
+              </div>
+            </CardContent>
+          </Card>
+
             <Card className="bg-white border border-gray-200 shadow-sm rounded-lg mb-4">
           <CardContent className="p-0 flex-1 overflow-hidden flex flex-col min-h-0">
             <div className="overflow-x-auto overflow-y-scroll border border-gray-200 rounded flex-1 min-h-0 doctors-scrollable h-full">
@@ -638,7 +695,10 @@ function StaffView({
         </table>
         {filteredStaff.length === 0 && (
           <div className="text-center py-12 text-gray-500">
-            No staff members found
+            {searchTerm 
+              ? 'No staff members found matching your search.'
+              : 'No staff members found'
+            }
           </div>
         )}
             </div>
@@ -649,19 +709,19 @@ function StaffView({
 
       {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="p-0 gap-0 large-dialog">
-          <DialogHeader className="px-6 pt-4 pb-3 flex-shrink-0">
-            <DialogTitle>Edit Staff Member</DialogTitle>
+        <DialogContent className="p-0 gap-0 large-dialog bg-white">
+          <DialogHeader className="px-6 pt-4 pb-3 flex-shrink-0 bg-white">
+            <DialogTitle className="text-gray-700">Edit Staff Member</DialogTitle>
           </DialogHeader>
-          <div className="flex-1 overflow-y-auto px-6 pb-1 patient-list-scrollable min-h-0">
+          <div className="flex-1 overflow-y-auto px-6 pb-1 patient-list-scrollable min-h-0 bg-white">
             <div className="space-y-4 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="edit-roleId">Role *</Label>
+                <Label htmlFor="edit-roleId" className="text-gray-600">Role *</Label>
                 <select
                   id="edit-roleId"
                   aria-label="Role"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-50 text-gray-900"
                   value={formData.RoleId}
                   onChange={(e) => {
                     const newRoleId = e.target.value;
@@ -691,44 +751,47 @@ function StaffView({
                 </select>
               </div>
               <div>
-                <Label htmlFor="edit-userName">User Name *</Label>
+                <Label htmlFor="edit-userName" className="text-gray-600">User Name *</Label>
                 <Input
                   id="edit-userName"
                   placeholder="Enter user name"
                   value={formData.UserName}
                   onChange={(e) => setFormData({ ...formData, UserName: e.target.value })}
+                  className="bg-gray-50 text-gray-900"
                   required
                 />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="edit-phoneNo">Phone Number</Label>
+                <Label htmlFor="edit-phoneNo" className="text-gray-600">Phone Number</Label>
                 <Input
                   id="edit-phoneNo"
                   placeholder="Enter phone number"
                   value={formData.PhoneNo}
                   onChange={(e) => setFormData({ ...formData, PhoneNo: e.target.value })}
+                  className="bg-gray-50 text-gray-900"
                 />
               </div>
               <div>
-                <Label htmlFor="edit-emailId">Email</Label>
+                <Label htmlFor="edit-emailId" className="text-gray-600">Email</Label>
                 <Input
                   id="edit-emailId"
                   type="email"
                   placeholder="Enter email"
                   value={formData.EmailId}
                   onChange={(e) => setFormData({ ...formData, EmailId: e.target.value })}
+                  className="bg-gray-50 text-gray-900"
                 />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="edit-status">Status</Label>
+                <Label htmlFor="edit-status" className="text-gray-600">Status</Label>
                 <select
                   id="edit-status"
                   aria-label="Status"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-50 text-gray-900"
                   value={formData.Status}
                   onChange={(e) => setFormData({ ...formData, Status: e.target.value as 'Active' | 'InActive' })}
                 >
@@ -746,11 +809,11 @@ function StaffView({
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="edit-doctorDepartmentId">Department</Label>
+                    <Label htmlFor="edit-doctorDepartmentId" className="text-gray-600">Department</Label>
                     <select
                       id="edit-doctorDepartmentId"
                       aria-label="Department"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-50 text-gray-900"
                       value={formData.DoctorDepartmentId}
                       onChange={(e) => setFormData({ ...formData, DoctorDepartmentId: e.target.value })}
                     >
@@ -767,22 +830,23 @@ function StaffView({
                     </select>
                   </div>
                   <div>
-                    <Label htmlFor="edit-doctorQualification">Qualification</Label>
+                    <Label htmlFor="edit-doctorQualification" className="text-gray-600">Qualification</Label>
                     <Input
                       id="edit-doctorQualification"
                       placeholder="e.g., MBBS, MD"
                       value={formData.DoctorQualification}
                       onChange={(e) => setFormData({ ...formData, DoctorQualification: e.target.value })}
+                      className="bg-gray-50 text-gray-900"
                     />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="edit-doctorType">Doctor Type</Label>
+                    <Label htmlFor="edit-doctorType" className="text-gray-600">Doctor Type</Label>
                     <select
                       id="edit-doctorType"
                       aria-label="Doctor Type"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-50 text-gray-900"
                       value={formData.DoctorType || ''}
                       onChange={(e) => setFormData({ ...formData, DoctorType: e.target.value as 'INHOUSE' | 'VISITING' || undefined })}
                     >
@@ -792,35 +856,37 @@ function StaffView({
                     </select>
                   </div>
                   <div>
-                    <Label htmlFor="edit-doctorOPDCharge">OPD Charge</Label>
+                    <Label htmlFor="edit-doctorOPDCharge" className="text-gray-600">OPD Charge</Label>
                     <Input
                       id="edit-doctorOPDCharge"
                       type="number"
                       placeholder="Enter OPD charge"
                       value={formData.DoctorOPDCharge || ''}
                       onChange={(e) => setFormData({ ...formData, DoctorOPDCharge: e.target.value ? Number(e.target.value) : undefined })}
+                      className="bg-gray-50 text-gray-900"
                     />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="edit-doctorSurgeryCharge">Surgery Charge</Label>
+                    <Label htmlFor="edit-doctorSurgeryCharge" className="text-gray-600">Surgery Charge</Label>
                     <Input
                       id="edit-doctorSurgeryCharge"
                       type="number"
                       placeholder="Enter surgery charge"
                       value={formData.DoctorSurgeryCharge || ''}
                       onChange={(e) => setFormData({ ...formData, DoctorSurgeryCharge: e.target.value ? Number(e.target.value) : undefined })}
+                      className="bg-gray-50 text-gray-900"
                     />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="edit-opdConsultation">OPD Consultation</Label>
+                    <Label htmlFor="edit-opdConsultation" className="text-gray-600">OPD Consultation</Label>
                     <select
                       id="edit-opdConsultation"
                       aria-label="OPD Consultation"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-50 text-gray-900"
                       value={formData.OPDConsultation || ''}
                       onChange={(e) => setFormData({ ...formData, OPDConsultation: e.target.value as 'Yes' | 'No' || undefined })}
                     >
@@ -830,11 +896,11 @@ function StaffView({
                     </select>
                   </div>
                   <div>
-                    <Label htmlFor="edit-ipdVisit">IPD Visit</Label>
+                    <Label htmlFor="edit-ipdVisit" className="text-gray-600">IPD Visit</Label>
                     <select
                       id="edit-ipdVisit"
                       aria-label="IPD Visit"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-50 text-gray-900"
                       value={formData.IPDVisit || ''}
                       onChange={(e) => setFormData({ ...formData, IPDVisit: e.target.value as 'Yes' | 'No' || undefined })}
                     >
@@ -846,11 +912,11 @@ function StaffView({
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="edit-otHandle">OT Handle</Label>
+                    <Label htmlFor="edit-otHandle" className="text-gray-600">OT Handle</Label>
                     <select
                       id="edit-otHandle"
                       aria-label="OT Handle"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-50 text-gray-900"
                       value={formData.OTHandle || ''}
                       onChange={(e) => setFormData({ ...formData, OTHandle: e.target.value as 'Yes' | 'No' || undefined })}
                     >
@@ -860,11 +926,11 @@ function StaffView({
                     </select>
                   </div>
                   <div>
-                    <Label htmlFor="edit-icuVisits">ICU Visits</Label>
+                    <Label htmlFor="edit-icuVisits" className="text-gray-600">ICU Visits</Label>
                     <select
                       id="edit-icuVisits"
                       aria-label="ICU Visits"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-50 text-gray-900"
                       value={formData.ICUVisits || ''}
                       onChange={(e) => setFormData({ ...formData, ICUVisits: e.target.value as 'Yes' | 'No' || undefined })}
                     >
@@ -878,9 +944,9 @@ function StaffView({
             )}
             </div>
           </div>
-          <div className="flex justify-end gap-2 px-6 py-2 border-t bg-gray-50 flex-shrink-0">
-            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)} className="py-1">Cancel</Button>
-            <Button onClick={handleEditSubmit} className="py-1">Update Staff</Button>
+          <div className="flex justify-end gap-2 pt-4 border-t bg-white px-6 pb-4">
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleEditSubmit}>Update Staff</Button>
           </div>
         </DialogContent>
       </Dialog>

@@ -367,436 +367,395 @@ export function PatientRegistration() {
     <>
       <div className="flex-1 bg-gray-50 flex flex-col overflow-hidden min-h-0 dashboard-scrollable" style={{ maxHeight: '100vh', minHeight: 0 }}>
         <div className="overflow-y-auto overflow-x-hidden flex-1 flex flex-col min-h-0">
-          <div className="px-6 pt-6 pb-0 flex-shrink-0">
-            <div className="flex items-center justify-between mb-4 flex-shrink-0">
-              <div>
-                <h1 className="text-gray-900 mb-2 text-2xl">Patient Registration</h1>
-                <p className="text-gray-500 text-base">Register and manage patient information</p>
-              </div>
-              <Button 
-                className="gap-2"
-                onClick={() => setIsAddDialogOpen(true)}
-              >
-                <Plus className="size-4" />
-                Add New Patient
-              </Button>
-            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-            <DialogContent className="p-0 gap-0 large-dialog bg-white">
-              <DialogHeader className="px-6 pt-4 pb-3 flex-shrink-0 bg-white">
-                <DialogTitle className="text-gray-700">Add New Patient</DialogTitle>
-              </DialogHeader>
-              <div className="flex-1 overflow-y-auto px-6 pb-1 patient-list-scrollable min-h-0 bg-white">
-                <form onSubmit={handleSubmit} className="space-y-4 py-4">
-                  {error && (
-                    <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
-                      {error}
+        <div className="px-6 pt-6 pb-0 flex-shrink-0">
+          <div className="flex items-center justify-between mb-4 flex-shrink-0">
+            <div>
+              <h1 className="dashboard-header">Patient Registration</h1>
+              <p className="dashboard-subheader">Register and manage patient information</p>
+            </div>
+              <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button className="gap-2">
+                    <Plus className="size-4" />
+                    Add New Patient
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="p-0 gap-0 large-dialog dialog-content-standard">
+                  <div className="dialog-scrollable-wrapper dialog-content-scrollable">
+                    <DialogHeader className="dialog-header-standard">
+                      <DialogTitle className="dialog-title-standard">Add New Patient</DialogTitle>
+                    </DialogHeader>
+                    <div className="dialog-body-content-wrapper">
+                      <form onSubmit={handleSubmit} className="dialog-form-container space-y-4">
+                        {error && (
+                          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
+                            {error}
+                          </div>
+                        )}
+                        <div className="dialog-form-field">
+                          <Label htmlFor="patientName" className="dialog-label-standard">Patient Name *</Label>
+                          <Input
+                            id="patientName"
+                            required
+                            value={formData.patientName}
+                            onChange={(e) => setFormData({ ...formData, patientName: e.target.value })}
+                            placeholder="Enter patient's first name"
+                            className="dialog-input-standard"
+                          />
+                        </div>
+                        <div className="dialog-form-field">
+                          <Label htmlFor="patientNo" className="dialog-label-standard">Patient No (Optional)</Label>
+                          <Input
+                            id="patientNo"
+                            value={formData.patientNo}
+                            onChange={(e) => setFormData({ ...formData, patientNo: e.target.value })}
+                            placeholder="Optional manual patient number"
+                            className="dialog-input-standard"
+                          />
+                        </div>
+                        <div className="dialog-form-field-grid">
+                          <div className="dialog-form-field">
+                            <Label htmlFor="patientType" className="dialog-label-standard">Patient Type</Label>
+                            <select
+                              id="patientType"
+                              aria-label="Patient Type"
+                              className="dialog-select-standard"
+                              value={formData.patientType}
+                              onChange={(e) => setFormData({ ...formData, patientType: e.target.value })}
+                            >
+                              <option value="">Select type</option>
+                              <option value="OPD">OPD</option>
+                              <option value="IPD">IPD</option>
+                              <option value="Emergency">Emergency</option>
+                            </select>
+                          </div>
+                          <div className="dialog-form-field">
+                            <Label htmlFor="lastName" className="dialog-label-standard">Last Name</Label>
+                            <Input
+                              id="lastName"
+                              value={formData.lastName}
+                              onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                              placeholder="Enter patient's last name"
+                              className="dialog-input-standard"
+                            />
+                          </div>
+                        </div>
+                        <div className="dialog-form-field-grid">
+                          <div className="dialog-form-field">
+                            <Label htmlFor="adhaarID" className="dialog-label-standard flex items-center gap-2">
+                              Adhaar ID
+                              <span className="text-xs text-orange-500">(Important)</span>
+                            </Label>
+                            <Input
+                              id="adhaarID"
+                              type="text"
+                              inputMode="numeric"
+                              pattern="[0-9]*"
+                              value={formData.adhaarID}
+                              onChange={(e) => handleAdhaarChange(e.target.value)}
+                              placeholder="Enter 12-digit Aadhaar number"
+                              maxLength={12}
+                              className={`dialog-input-standard ${adhaarError ? 'border-red-300' : ''}`}
+                            />
+                            {adhaarError && (
+                              <p className="text-sm text-red-600 mt-1">{adhaarError}</p>
+                            )}
+                          </div>
+                          <div className="dialog-form-field">
+                            <Label htmlFor="panCard" className="dialog-label-standard">PAN Card</Label>
+                            <Input
+                              id="panCard"
+                              value={formData.panCard}
+                              onChange={(e) => setFormData({ ...formData, panCard: e.target.value.toUpperCase() })}
+                              placeholder="Enter PAN number"
+                              maxLength={10}
+                              className="dialog-input-standard"
+                            />
+                          </div>
+                        </div>
+                        <div className="dialog-form-field-grid">
+                          <div className="dialog-form-field">
+                            <Label htmlFor="phoneNo" className="dialog-label-standard">Phone No *</Label>
+                            <Input
+                              id="phoneNo"
+                              required
+                              type="tel"
+                              value={formData.phoneNo}
+                              onChange={(e) => setFormData({ ...formData, phoneNo: e.target.value })}
+                              placeholder="Enter phone number"
+                              className="dialog-input-standard"
+                            />
+                          </div>
+                          <div className="dialog-form-field">
+                            <Label htmlFor="gender" className="dialog-label-standard">Gender *</Label>
+                            <select
+                              id="gender"
+                              aria-label="Gender"
+                              required
+                              className="dialog-select-standard"
+                              value={formData.gender}
+                              onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
+                            >
+                              <option value="">Select gender</option>
+                              <option value="Male">Male</option>
+                              <option value="Female">Female</option>
+                              <option value="Other">Other</option>
+                            </select>
+                          </div>
+                        </div>
+                        <div className="dialog-form-field-grid">
+                          <div className="dialog-form-field">
+                            <Label htmlFor="age" className="dialog-label-standard">Age *</Label>
+                            <Input
+                              id="age"
+                              required
+                              type="number"
+                              min="0"
+                              max="150"
+                              value={formData.age}
+                              onChange={(e) => setFormData({ ...formData, age: e.target.value })}
+                              placeholder="Enter age"
+                              className="dialog-input-standard"
+                            />
+                          </div>
+                          <div className="dialog-form-field">
+                            <Label htmlFor="address" className="dialog-label-standard">Address</Label>
+                            <Input
+                              id="address"
+                              value={formData.address}
+                              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                              placeholder="Enter address"
+                              className="dialog-input-standard"
+                            />
+                          </div>
+                        </div>
+                        <div className="dialog-form-field">
+                          <Label htmlFor="chiefComplaint" className="dialog-label-standard">Chief Complaint</Label>
+                          <Input
+                            id="chiefComplaint"
+                            value={formData.chiefComplaint}
+                            onChange={(e) => setFormData({ ...formData, chiefComplaint: e.target.value })}
+                            placeholder="Enter chief complaint"
+                            className="dialog-input-standard"
+                          />
+                        </div>
+                        <div className="dialog-form-field">
+                          <Label htmlFor="description" className="dialog-label-standard">Description</Label>
+                          <textarea
+                            id="description"
+                            rows={4}
+                            className="dialog-textarea-standard"
+                            value={formData.description}
+                            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                            placeholder="Enter additional description or notes"
+                          />
+                        </div>
+                        <div className="dialog-form-field-grid">
+                          <div className="dialog-form-field">
+                            <Label htmlFor="status" className="dialog-label-standard">Status</Label>
+                            <select
+                              id="status"
+                              aria-label="Status"
+                              className="dialog-select-standard"
+                              value={formData.status}
+                              onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                            >
+                              <option value="Active">Active</option>
+                              <option value="Inactive">Inactive</option>
+                              <option value="Discharged">Discharged</option>
+                            </select>
+                          </div>
+                          <div className="dialog-form-field">
+                            <Label htmlFor="registeredBy" className="dialog-label-standard">Registered By</Label>
+                            <Input
+                              id="registeredBy"
+                              value={formData.registeredBy}
+                              onChange={(e) => setFormData({ ...formData, registeredBy: e.target.value })}
+                              placeholder="Registered by"
+                              className="dialog-input-standard"
+                            />
+                          </div>
+                          <div className="dialog-form-field">
+                            <Label htmlFor="registeredDate" className="dialog-label-standard">Registered Date</Label>
+                            <Input
+                              id="registeredDate"
+                              type="date"
+                              value={formData.registeredDate}
+                              onChange={(e) => setFormData({ ...formData, registeredDate: e.target.value })}
+                              className="dialog-input-standard"
+                            />
+                          </div>
+                        </div>
+                        <div className="dialog-footer-standard">
+                          <Button 
+                            type="button"
+                            variant="outline" 
+                            onClick={() => {
+                              setIsAddDialogOpen(false);
+                              setFormData({
+                                patientNo: '',
+                                patientName: '',
+                                patientType: '',
+                                lastName: '',
+                                adhaarID: '',
+                                panCard: '',
+                                phoneNo: '',
+                                gender: '',
+                                age: '',
+                                address: '',
+                                chiefComplaint: '',
+                                description: '',
+                              });
+                              setAdhaarError('');
+                            }} 
+                            className="dialog-footer-button"
+                          >
+                            Cancel
+                          </Button>
+                          <Button 
+                            type="submit"
+                            disabled={loading} 
+                            className="dialog-footer-button"
+                          >
+                            {loading ? 'Registering...' : 'Register Patient'}
+                          </Button>
+                        </div>
+                      </form>
                     </div>
-                  )}
-
-                  {/* Row 1: PatientName */}
-                  <div>
-                    <Label htmlFor="patientName" className="text-gray-600">Patient Name *</Label>
-                    <Input
-                      id="patientName"
-                      required
-                      value={formData.patientName}
-                      onChange={(e) => setFormData({ ...formData, patientName: e.target.value })}
-                      placeholder="Enter patient's first name"
-                      className="bg-gray-50 text-gray-900"
-                      
-                    />
                   </div>
-
-                  {/* Row 1.5: PatientNo */}
-                  <div>
-                    <Label htmlFor="patientNo" className="text-gray-600">Patient No (Optional)</Label>
-                    <Input
-                      id="patientNo"
-                      value={formData.patientNo}
-                      onChange={(e) => setFormData({ ...formData, patientNo: e.target.value })}
-                      placeholder="Optional manual patient number"
-                      className="bg-gray-50 text-gray-900"
-                      
-                    />
-                  </div>
-
-                  {/* Row 2: PatientType, LastName */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="patientType" className="text-gray-600">Patient Type</Label>
-                      <select
-                        id="patientType"
-                        aria-label="Patient Type"
-                        className="w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-50 text-gray-900"
-                        value={formData.patientType}
-                        onChange={(e) => setFormData({ ...formData, patientType: e.target.value })}
-                        
-                      >
-                        <option value="">Select type</option>
-                        <option value="OPD">OPD</option>
-                        <option value="IPD">IPD</option>
-                        <option value="Emergency">Emergency</option>
-                      </select>
-                    </div>
-                    <div>
-                      <Label htmlFor="lastName" className="text-gray-600">Last Name</Label>
-                      <Input
-                        id="lastName"
-                        value={formData.lastName}
-                        onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                        placeholder="Enter patient's last name"
-                        className="bg-gray-50 text-gray-900"
-                        
-                      />
-                    </div>
-                  </div>
-
-                  {/* Row 3: AdhaarID (highlighted), PANCard */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="adhaarID" className="flex items-center gap-2 text-gray-600">
-                        Adhaar ID
-                        <span className="text-xs text-orange-500">(Important)</span>
-                      </Label>
-                      <Input
-                        id="adhaarID"
-                        type="text"
-                        inputMode="numeric"
-                        pattern="[0-9]*"
-                        value={formData.adhaarID}
-                        onChange={(e) => handleAdhaarChange(e.target.value)}
-                        placeholder="Enter 12-digit Aadhaar number"
-                        maxLength={12}
-                        className={`bg-gray-50 text-gray-900 ${adhaarError ? 'border-red-300' : ''}`}
-                        
-                      />
-                      {adhaarError && (
-                        <p className="text-sm text-red-600 mt-1">{adhaarError}</p>
-                      )}
-                    </div>
-                    <div>
-                      <Label htmlFor="panCard" className="text-gray-600">PAN Card</Label>
-                      <Input
-                        id="panCard"
-                        value={formData.panCard}
-                        onChange={(e) => setFormData({ ...formData, panCard: e.target.value.toUpperCase() })}
-                        placeholder="Enter PAN number"
-                        maxLength={10}
-                        className="bg-gray-50 text-gray-900"
-                        
-                      />
-                    </div>
-                  </div>
-
-                  {/* Row 4: PhoneNo, Gender */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="phoneNo" className="text-gray-600">Phone No *</Label>
-                      <Input
-                        id="phoneNo"
-                        required
-                        type="tel"
-                        value={formData.phoneNo}
-                        onChange={(e) => setFormData({ ...formData, phoneNo: e.target.value })}
-                        placeholder="Enter phone number"
-                        className="bg-gray-50 text-gray-900"
-                        
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="gender" className="text-gray-600">Gender *</Label>
-                      <select
-                        id="gender"
-                        aria-label="Gender"
-                        required
-                        className="w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-50 text-gray-900"
-                        value={formData.gender}
-                        onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
-                        
-                      >
-                        <option value="" >Select gender</option>
-                        <option value="Male" >Male</option>
-                        <option value="Female" >Female</option>
-                        <option value="Other" >Other</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Row 5: Age, Address */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="age" className="text-gray-600">Age *</Label>
-                      <Input
-                        id="age"
-                        required
-                        type="number"
-                        min="0"
-                        max="150"
-                        value={formData.age}
-                        onChange={(e) => setFormData({ ...formData, age: e.target.value })}
-                        placeholder="Enter age"
-                        className="bg-gray-50 text-gray-900"
-                        
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="address" className="text-gray-600">Address</Label>
-                      <Input
-                        id="address"
-                        value={formData.address}
-                        onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                        placeholder="Enter address"
-                        className="bg-gray-50 text-gray-900"
-                        
-                      />
-                    </div>
-                  </div>
-
-                  {/* Row 6: ChiefComplaint */}
-                  <div>
-                    <Label htmlFor="chiefComplaint" className="text-gray-600">Chief Complaint</Label>
-                    <Input
-                      id="chiefComplaint"
-                      value={formData.chiefComplaint}
-                      onChange={(e) => setFormData({ ...formData, chiefComplaint: e.target.value })}
-                      placeholder="Enter chief complaint"
-                      className="bg-gray-50 text-gray-900"
-                      
-                    />
-                  </div>
-
-                  {/* Row 7: Description */}
-                  <div>
-                    <Label htmlFor="description" className="text-gray-600">Description</Label>
-                    <textarea
-                      id="description"
-                      rows={4}
-                      className="w-full px-3 py-2 border border-gray-200 rounded-md resize-none bg-gray-50 text-gray-900"
-                      value={formData.description}
-                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                      placeholder="Enter additional description or notes"
-                      
-                    />
-                  </div>
-
-                  {/* Row 8: Status, RegisteredBy, RegisteredDate */}
-                  <div className="grid grid-cols-3 gap-4">
-                    <div>
-                      <Label htmlFor="status" className="text-gray-600">Status</Label>
-                      <select
-                        id="status"
-                        aria-label="Status"
-                        className="w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-50 text-gray-900"
-                        value={formData.status}
-                        onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                        
-                      >
-                        <option value="Active" >Active</option>
-                        <option value="Inactive" >Inactive</option>
-                        <option value="Discharged" >Discharged</option>
-                      </select>
-                    </div>
-                    <div>
-                      <Label htmlFor="registeredBy" className="text-gray-600">Registered By</Label>
-                      <Input
-                        id="registeredBy"
-                        value={formData.registeredBy}
-                        onChange={(e) => setFormData({ ...formData, registeredBy: e.target.value })}
-                        placeholder="Registered by"
-                        className="bg-gray-50 text-gray-900"
-                        
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="registeredDate" className="text-gray-600">Registered Date</Label>
-                      <Input
-                        id="registeredDate"
-                        type="date"
-                        value={formData.registeredDate}
-                        onChange={(e) => setFormData({ ...formData, registeredDate: e.target.value })}
-                        className="bg-gray-50 text-gray-900"
-                        
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end gap-2 pt-4 border-t bg-white">
-                    <Button 
-                      type="button"
-                      variant="outline" 
-                      onClick={() => {
-                        setIsAddDialogOpen(false);
-                        setFormData({
-                          patientNo: '',
-                          patientName: '',
-                          patientType: '',
-                          lastName: '',
-                          adhaarID: '',
-                          panCard: '',
-                          phoneNo: '',
-                          gender: '',
-                          age: '',
-                          address: '',
-                          chiefComplaint: '',
-                          description: '',
-                        });
-                        setAdhaarError('');
-                      }} 
-                      className="py-1"
-                    >
-                      Cancel
-                    </Button>
-                    <Button 
-                      type="submit"
-                      disabled={loading} 
-                      className="py-1"
-                    >
-                      {loading ? 'Registering...' : 'Register Patient'}
-                    </Button>
-                  </div>
-                </form>
-              </div>
-            </DialogContent>
-          </Dialog>
+                </DialogContent>
+              </Dialog>
             </div>
           </div>
 
-          <div className="px-6 pt-4 pb-4 flex-1">
+          <div className="dashboard-main-content">
             {/* Search */}
-          <Card className="mb-6 bg-white">
-            <CardContent className="p-6">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
+          <Card className="mb-6 bg-white dashboard-search-card">
+            <CardContent className="p-6 dashboard-search-card-content">
+              <div className="relative dashboard-search-input-wrapper">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400 dashboard-search-icon" />
                 <Input
                   placeholder="Search by patient name, patient number, phone number, patient ID, or patient type..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 bg-gray-50"
+                  className="pl-10 bg-gray-50 dashboard-search-input"
                 />
               </div>
             </CardContent>
           </Card>
 
           {/* Patients Table */}
-          <Card className="bg-white border border-gray-200 shadow-sm rounded-lg mb-4">
-            <CardContent className="p-6">
-              <div className="overflow-x-auto">
-                <table className="w-full">
+          <Card className="bg-white border border-gray-200 shadow-sm rounded-lg mb-4 dashboard-table-card">
+            <CardContent className="p-6 dashboard-table-card-content">
+              <div className="overflow-x-auto dashboard-table-wrapper">
+                <table className="w-full dashboard-table">
                   <thead>
-                    <tr className="border-b border-gray-200">
-                      <th className="text-left py-4 px-6 text-gray-700">Patient No</th>
-                      <th className="text-left py-4 px-6 text-gray-700">Patient Name</th>
-                      <th className="text-left py-4 px-6 text-gray-700">Type</th>
-                      <th className="text-left py-4 px-6 text-gray-700">Age</th>
-                      <th className="text-left py-4 px-6 text-gray-700 break-words min-w-[120px]">Chief Complaint</th>
-                      <th className="text-left py-4 px-6 text-gray-700">Status</th>
-                      <th className="text-left py-4 px-6 text-gray-700">Registered Date</th>
-                      <th className="text-left py-4 px-6 text-gray-700">Actions</th>
+                    <tr className="border-b border-gray-200 dashboard-table-header-row">
+                      <th className="text-left py-4 px-6 text-gray-700 dashboard-table-header-cell">Patient No</th>
+                      <th className="text-left py-4 px-6 text-gray-700 dashboard-table-header-cell">Patient Name</th>
+                      <th className="text-left py-4 px-6 text-gray-700 dashboard-table-header-cell">Type</th>
+                      <th className="text-left py-4 px-6 text-gray-700 dashboard-table-header-cell">Age</th>
+                      <th className="text-left py-4 px-6 text-gray-700 dashboard-table-header-cell">Status</th>
+                      <th className="text-left py-4 px-6 text-gray-700 dashboard-table-header-cell">Registered Date</th>
+                      <th className="text-left py-4 px-6 text-gray-700 dashboard-table-header-cell">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredPatients.length === 0 ? (
                       <tr>
-                        <td colSpan={8} className="text-center py-8 text-gray-500 text-sm">
+                        <td colSpan={7} className="text-center py-8 text-gray-500 text-sm">
                           {searchTerm ? 'No patients found matching your search.' : 'No patients found. Click "Add New Patient" to register a new patient.'}
                         </td>
                       </tr>
                     ) : (
                       filteredPatients.map((patient, index) => {
-                      // Use patientId as primary key, fallback to id, then index
-                      const uniqueKey = patient.patientId || patient.PatientId || patient.id || `patient-${index}`;
-                      return (
-                      <tr key={uniqueKey} className="border-b border-gray-100 hover:bg-gray-50">
-                        <td className="py-4 px-6 text-gray-900 font-mono font-medium whitespace-nowrap">{patient.patientNo || '-'}</td>
-                        <td className="py-4 px-6 text-gray-600 whitespace-nowrap min-w-[120px]">
-                          {patient.patientName} {patient.lastName || ''}
-                        </td>
-                        <td className="py-4 px-6 whitespace-nowrap">
-                          <span className="px-1.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
-                            {patient.patientType || 'N/A'}
-                          </span>
-                        </td>
-                        <td className="py-4 px-6 text-gray-600 whitespace-nowrap">{patient.age}</td>
-                        <td className="py-4 px-6 text-gray-600 whitespace-nowrap min-w-[120px]" title={patient.chiefComplaint || patient.condition}>
-                          {patient.chiefComplaint || patient.condition || '-'}
-                        </td>
-                        <td className="py-4 px-6 whitespace-nowrap">
-                          <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${
-                            patient.status === 'Active' ? 'bg-green-100 text-green-700' :
-                            patient.status === 'Inactive' ? 'bg-gray-100 text-gray-700' :
-                            'bg-red-100 text-red-700'
-                          }`}>
-                            {patient.status || 'Active'}
-                          </span>
-                        </td>
-                        <td className="py-4 px-6 text-gray-600 whitespace-nowrap">
-                          {patient.registeredDate ? new Date(patient.registeredDate).toLocaleDateString() : '-'}
-                        </td>
-                        <td className="py-4 px-6 whitespace-nowrap">
-                          <div className="flex items-center gap-1">
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              className="h-7 w-7 p-0"
-                              onClick={() => {
-                                // Use PatientId (string) for the API call
-                                // The patient object from getAll is already mapped to camelCase
-                                const patientId = patient.patientId || patient.PatientId;
-                                if (!patientId) {
-                                  console.error('PatientId not found for patient:', patient);
-                                  alert('Patient ID not available');
-                                  return;
-                                }
-                                console.log('Viewing patient with PatientId:', patientId);
-                                handleViewPatient(patientId);
-                              }}
-                              title="View Patient Details"
-                            >
-                              <Eye className="size-3" />
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              className="h-7 w-7 p-0"
-                              onClick={() => {
-                                // Use PatientId (string) for the API call
-                                const patientId = patient.patientId || patient.PatientId;
-                                if (!patientId) {
-                                  console.error('PatientId not found for patient:', patient);
-                                  alert('Patient ID not available');
-                                  return;
-                                }
-                                console.log('Editing patient with PatientId:', patientId);
-                                handleEditPatient(patientId);
-                              }}
-                              title="Edit Patient Details"
-                            >
-                              <Pencil className="size-3" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                const patientId = patient.patientId || patient.PatientId;
-                                if (!patientId) {
-                                  console.error('PatientId not found for patient:', patient);
-                                  alert('Patient ID not available');
-                                  return;
-                                }
-                                handleDeletePatient(patientId);
-                              }}
-                              className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                              title="Delete Patient"
-                            >
-                              <Trash2 className="size-4" />
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                      );
-                    })
-                  )}
-                </tbody>
+                        const uniqueKey = patient.patientId || patient.PatientId || patient.id || `patient-${index}`;
+                        return (
+                          <tr key={uniqueKey} className="border-b border-gray-100 hover:bg-gray-50">
+                            <td className="py-4 px-6 text-gray-900 font-mono font-medium whitespace-nowrap">{patient.patientNo || '-'}</td>
+                            <td className="py-4 px-6 text-gray-600 whitespace-nowrap min-w-[120px]">
+                              {patient.patientName} {patient.lastName || ''}
+                            </td>
+                            <td className="py-4 px-6 whitespace-nowrap">
+                              <span className="px-1.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+                                {patient.patientType || 'N/A'}
+                              </span>
+                            </td>
+                            <td className="py-4 px-6 text-gray-600 whitespace-nowrap">{patient.age}</td>
+                            <td className="py-4 px-6 whitespace-nowrap">
+                              <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${
+                                patient.status === 'Active' ? 'bg-green-100 text-green-700' :
+                                patient.status === 'Inactive' ? 'bg-gray-100 text-gray-700' :
+                                'bg-red-100 text-red-700'
+                              }`}>
+                                {patient.status || 'Active'}
+                              </span>
+                            </td>
+                            <td className="py-4 px-6 text-gray-600 whitespace-nowrap">
+                              {patient.registeredDate ? new Date(patient.registeredDate).toLocaleDateString() : '-'}
+                            </td>
+                            <td className="py-4 px-6 whitespace-nowrap">
+                              <div className="flex items-center gap-1">
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  className="h-7 w-7 p-0"
+                                  onClick={() => {
+                                    const patientId = patient.patientId || patient.PatientId;
+                                    if (!patientId) {
+                                      console.error('PatientId not found for patient:', patient);
+                                      alert('Patient ID not available');
+                                      return;
+                                    }
+                                    console.log('Viewing patient with PatientId:', patientId);
+                                    handleViewPatient(patientId);
+                                  }}
+                                  title="View Patient Details"
+                                >
+                                  <Eye className="size-3" />
+                                </Button>
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  className="h-7 w-7 p-0"
+                                  onClick={() => {
+                                    const patientId = patient.patientId || patient.PatientId;
+                                    if (!patientId) {
+                                      console.error('PatientId not found for patient:', patient);
+                                      alert('Patient ID not available');
+                                      return;
+                                    }
+                                    console.log('Editing patient with PatientId:', patientId);
+                                    handleEditPatient(patientId);
+                                  }}
+                                  title="Edit Patient Details"
+                                >
+                                  <Pencil className="size-3" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    const patientId = patient.patientId || patient.PatientId;
+                                    if (!patientId) {
+                                      console.error('PatientId not found for patient:', patient);
+                                      alert('Patient ID not available');
+                                      return;
+                                    }
+                                    handleDeletePatient(patientId);
+                                  }}
+                                  className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                  title="Delete Patient"
+                                >
+                                  <Trash2 className="size-4" />
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
               </table>
             </div>
           </CardContent>
@@ -967,54 +926,57 @@ export function PatientRegistration() {
 
       {/* Edit Patient Details Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="p-0 gap-0 large-dialog">
-          <DialogHeader className="px-6 pt-4 pb-3 flex-shrink-0">
-            <DialogTitle className="flex items-center gap-2">
-              <Pencil className="size-5" />
-              Edit Patient Details
-            </DialogTitle>
-          </DialogHeader>
-          <div className="flex-1 overflow-y-auto px-6 pb-1 patient-list-scrollable min-h-0">
-            {loadingEditPatient ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="text-center">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                  <p className="text-blue-600">Loading patient details...</p>
+        <DialogContent className="p-0 gap-0 large-dialog dialog-content-standard">
+          <div className="dialog-scrollable-wrapper dialog-content-scrollable">
+            <DialogHeader className="dialog-header-standard">
+              <DialogTitle className="dialog-title-standard flex items-center gap-2">
+                <Pencil className="size-5" />
+                Edit Patient Details
+              </DialogTitle>
+            </DialogHeader>
+            <div className="dialog-body-content-wrapper">
+              {loadingEditPatient ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                    <p className="text-blue-600">Loading patient details...</p>
+                  </div>
                 </div>
-              </div>
-              ) : editingPatient && editFormData ? (
-                <form onSubmit={(e) => { e.preventDefault(); handleUpdatePatient(); }} className="space-y-4 py-4">
+                ) : editingPatient && editFormData ? (
+                <form onSubmit={(e) => { e.preventDefault(); handleUpdatePatient(); }} className="dialog-form-container space-y-4">
                   {/* Row 1: PatientName */}
-                  <div>
-                    <Label htmlFor="editPatientName">Patient Name *</Label>
+                  <div className="dialog-form-field">
+                    <Label htmlFor="editPatientName" className="dialog-label-standard">Patient Name *</Label>
                     <Input
                       id="editPatientName"
                       required
                       value={editFormData.patientName}
                       onChange={(e) => setEditFormData({ ...editFormData, patientName: e.target.value })}
                       placeholder="Enter patient's first name"
+                      className="dialog-input-standard"
                     />
                   </div>
 
                   {/* Row 1.5: PatientNo */}
-                  <div>
-                    <Label htmlFor="editPatientNo">Patient No (Optional)</Label>
+                  <div className="dialog-form-field">
+                    <Label htmlFor="editPatientNo" className="dialog-label-standard">Patient No (Optional)</Label>
                     <Input
                       id="editPatientNo"
                       value={editFormData.patientNo}
                       onChange={(e) => setEditFormData({ ...editFormData, patientNo: e.target.value })}
                       placeholder="Optional manual patient number"
+                      className="dialog-input-standard"
                     />
                   </div>
 
                   {/* Row 2: PatientType, LastName */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="editPatientType">Patient Type</Label>
+                  <div className="dialog-form-field-grid">
+                    <div className="dialog-form-field">
+                      <Label htmlFor="editPatientType" className="dialog-label-standard">Patient Type</Label>
                       <select
                         id="editPatientType"
                         aria-label="Patient Type"
-                        className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                        className="dialog-select-standard"
                         value={editFormData.patientType}
                         onChange={(e) => setEditFormData({ ...editFormData, patientType: e.target.value })}
                       >
@@ -1024,21 +986,22 @@ export function PatientRegistration() {
                         <option value="Emergency">Emergency</option>
                       </select>
                     </div>
-                    <div>
-                      <Label htmlFor="editLastName">Last Name</Label>
+                    <div className="dialog-form-field">
+                      <Label htmlFor="editLastName" className="dialog-label-standard">Last Name</Label>
                       <Input
                         id="editLastName"
                         value={editFormData.lastName}
                         onChange={(e) => setEditFormData({ ...editFormData, lastName: e.target.value })}
                         placeholder="Enter patient's last name"
+                        className="dialog-input-standard"
                       />
                     </div>
                   </div>
 
                   {/* Row 3: AdhaarID (highlighted), PANCard */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="editAdhaarID" className="flex items-center gap-2">
+                  <div className="dialog-form-field-grid">
+                    <div className="dialog-form-field">
+                      <Label htmlFor="editAdhaarID" className="dialog-label-standard flex items-center gap-2">
                         Adhaar ID
                         <span className="text-xs text-orange-500">(Important)</span>
                       </Label>
@@ -1060,28 +1023,29 @@ export function PatientRegistration() {
                         }}
                         placeholder="Enter 12-digit Aadhaar number"
                         maxLength={12}
-                        className={`bg-orange-50 border-orange-200 ${editAdhaarError ? 'border-red-300' : ''}`}
+                        className={`dialog-input-standard bg-orange-50 border-orange-200 ${editAdhaarError ? 'border-red-300' : ''}`}
                       />
                       {editAdhaarError && (
                         <p className="text-sm text-red-600 mt-1">{editAdhaarError}</p>
                       )}
                     </div>
-                    <div>
-                      <Label htmlFor="editPANCard">PAN Card</Label>
+                    <div className="dialog-form-field">
+                      <Label htmlFor="editPANCard" className="dialog-label-standard">PAN Card</Label>
                       <Input
                         id="editPANCard"
                         value={editFormData.panCard}
                         onChange={(e) => setEditFormData({ ...editFormData, panCard: e.target.value.toUpperCase() })}
                         placeholder="Enter PAN number"
                         maxLength={10}
+                        className="dialog-input-standard"
                       />
                     </div>
                   </div>
 
                   {/* Row 4: PhoneNo, Gender */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="editPhoneNo">Phone No *</Label>
+                  <div className="dialog-form-field-grid">
+                    <div className="dialog-form-field">
+                      <Label htmlFor="editPhoneNo" className="dialog-label-standard">Phone No *</Label>
                       <Input
                         id="editPhoneNo"
                         required
@@ -1089,15 +1053,16 @@ export function PatientRegistration() {
                         value={editFormData.phoneNo}
                         onChange={(e) => setEditFormData({ ...editFormData, phoneNo: e.target.value })}
                         placeholder="Enter phone number"
+                        className="dialog-input-standard"
                       />
                     </div>
-                    <div>
-                      <Label htmlFor="editGender">Gender *</Label>
+                    <div className="dialog-form-field">
+                      <Label htmlFor="editGender" className="dialog-label-standard">Gender *</Label>
                       <select
                         id="editGender"
                         aria-label="Gender"
                         required
-                        className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                        className="dialog-select-standard"
                         value={editFormData.gender}
                         onChange={(e) => setEditFormData({ ...editFormData, gender: e.target.value })}
                       >
@@ -1110,9 +1075,9 @@ export function PatientRegistration() {
                   </div>
 
                   {/* Row 5: Age, Address */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="editAge">Age *</Label>
+                  <div className="dialog-form-field-grid">
+                    <div className="dialog-form-field">
+                      <Label htmlFor="editAge" className="dialog-label-standard">Age *</Label>
                       <Input
                         id="editAge"
                         required
@@ -1122,57 +1087,60 @@ export function PatientRegistration() {
                         value={editFormData.age}
                         onChange={(e) => setEditFormData({ ...editFormData, age: e.target.value })}
                         placeholder="Enter age"
+                        className="dialog-input-standard"
                       />
                     </div>
-                    <div>
-                      <Label htmlFor="editAddress">Address</Label>
+                    <div className="dialog-form-field">
+                      <Label htmlFor="editAddress" className="dialog-label-standard">Address</Label>
                       <Input
                         id="editAddress"
                         value={editFormData.address}
                         onChange={(e) => setEditFormData({ ...editFormData, address: e.target.value })}
                         placeholder="Enter address"
+                        className="dialog-input-standard"
                       />
                     </div>
                   </div>
 
                   {/* Row 6: ChiefComplaint */}
-                  <div>
-                    <Label htmlFor="editChiefComplaint">Chief Complaint</Label>
+                  <div className="dialog-form-field">
+                    <Label htmlFor="editChiefComplaint" className="dialog-label-standard">Chief Complaint</Label>
                     <Input
                       id="editChiefComplaint"
                       value={editFormData.chiefComplaint}
                       onChange={(e) => setEditFormData({ ...editFormData, chiefComplaint: e.target.value })}
                       placeholder="Enter chief complaint"
+                      className="dialog-input-standard"
                     />
                   </div>
 
                   {/* Row 7: Description */}
-                  <div>
-                    <Label htmlFor="editDescription">Description</Label>
+                  <div className="dialog-form-field">
+                    <Label htmlFor="editDescription" className="dialog-label-standard">Description</Label>
                     <textarea
                       id="editDescription"
                       rows={4}
-                      className="w-full px-3 py-2 border border-gray-200 rounded-md resize-none"
+                      className="dialog-textarea-standard"
                       value={editFormData.description}
                       onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
                       placeholder="Enter additional description or notes"
                     />
                   </div>
 
-                  <div className="flex justify-end gap-2 pt-4 border-t">
+                  <div className="dialog-footer-standard">
                     <Button 
                       type="button"
                       variant="outline" 
                       onClick={handleCancelEdit}
                       disabled={updatingPatient}
-                      className="py-1"
+                      className="dialog-footer-button"
                     >
                       Cancel
                     </Button>
                     <Button 
                       type="submit"
                       disabled={updatingPatient} 
-                      className="py-1"
+                      className="dialog-footer-button"
                     >
                       {updatingPatient ? 'Updating...' : 'Update Patient'}
                     </Button>
@@ -1183,6 +1151,7 @@ export function PatientRegistration() {
                   <p className="text-lg">No patient data available for editing</p>
                 </div>
               )}
+            </div>
           </div>
         </DialogContent>
       </Dialog>
