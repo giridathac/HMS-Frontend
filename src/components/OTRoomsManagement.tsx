@@ -295,29 +295,30 @@ export function OTRoomsManagement() {
                   Add OT Room
                 </Button>
               </DialogTrigger>
-              <DialogContent className="p-0 gap-0 large-dialog bg-white">
-                <DialogHeader className="px-6 pt-4 pb-3 flex-shrink-0 bg-white">
-                  <DialogTitle className="text-gray-700">Add New OT Room</DialogTitle>
+            <DialogContent className="p-0 gap-0 large-dialog dialog-content-standard">
+              <div className="dialog-scrollable-wrapper dialog-content-scrollable">
+                <DialogHeader className="dialog-header-standard">
+                  <DialogTitle className="dialog-title-standard">Add New OT Room</DialogTitle>
                 </DialogHeader>
-                <div className="flex-1 overflow-y-auto px-6 pb-1 patient-list-scrollable min-h-0 bg-white">
-                  <div className="space-y-4 py-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="otNo" className="text-gray-600">OT No</Label>
+                <div className="dialog-body-content-wrapper">
+                  <div className="dialog-form-container">
+                    <div className="dialog-form-field-grid">
+                      <div className="dialog-form-field">
+                        <Label htmlFor="otNo" className="dialog-label-standard">OT No</Label>
                         <Input
                           id="otNo"
                           placeholder="e.g., OT001"
                           value={formData.otNo}
                           onChange={(e) => setFormData({ ...formData, otNo: e.target.value })}
-                          className="text-gray-700"
+                          className="dialog-input-standard"
                         />
                       </div>
-                      <div>
-                        <Label htmlFor="otType" className="text-gray-600">OT Type</Label>
+                      <div className="dialog-form-field">
+                        <Label htmlFor="otType" className="dialog-label-standard">OT Type</Label>
                         <select
                           id="otType"
                           aria-label="OT Type"
-                          className="w-full px-3 py-2 border border-gray-200 rounded-md text-gray-700"
+                          className="dialog-select-standard"
                           value={formData.otType}
                           onChange={(e) => setFormData({ ...formData, otType: e.target.value })}
                         >
@@ -327,30 +328,30 @@ export function OTRoomsManagement() {
                         </select>
                       </div>
                     </div>
-                    <div>
-                      <Label htmlFor="otName" className="text-gray-600">OT Name</Label>
+                    <div className="dialog-form-field">
+                      <Label htmlFor="otName" className="dialog-label-standard">OT Name</Label>
                       <Input
                         id="otName"
                         placeholder="e.g., General Operation Theater 1"
                         value={formData.otName}
                         onChange={(e) => setFormData({ ...formData, otName: e.target.value })}
-                        className="text-gray-700"
+                        className="dialog-input-standard"
                       />
                     </div>
-                    <div>
-                      <Label htmlFor="otDescription" className="text-gray-600">OT Description</Label>
+                    <div className="dialog-form-field">
+                      <Label htmlFor="otDescription" className="dialog-label-standard">OT Description</Label>
                       <Textarea
                         id="otDescription"
                         placeholder="Enter OT room description..."
                         value={formData.otDescription}
                         onChange={(e) => setFormData({ ...formData, otDescription: e.target.value })}
                         rows={3}
-                        className="text-gray-700"
+                        className="dialog-textarea-standard"
                       />
                     </div>
-                    <div className="grid grid-cols-2 gap-4 bg-gray-50 p-4 rounded-lg border border-gray-200">
+                    <div className="dialog-form-field-grid dialog-form-field">
                       <div>
-                        <Label htmlFor="startTimeofDay" className="flex items-center gap-2 text-gray-600">
+                        <Label htmlFor="startTimeofDay" className="dialog-label-standard flex items-center gap-2">
                           <Clock className="size-4" />
                           Start Time of Day
                         </Label>
@@ -359,11 +360,11 @@ export function OTRoomsManagement() {
                           type="time"
                           value={formData.startTimeofDay}
                           onChange={(e) => setFormData({ ...formData, startTimeofDay: e.target.value })}
-                          className="text-gray-700"
+                          className="dialog-input-standard"
                         />
                       </div>
                       <div>
-                        <Label htmlFor="endTimeofDay" className="flex items-center gap-2 text-gray-600">
+                        <Label htmlFor="endTimeofDay" className="dialog-label-standard flex items-center gap-2">
                           <Clock className="size-4" />
                           End Time of Day
                         </Label>
@@ -372,16 +373,16 @@ export function OTRoomsManagement() {
                           type="time"
                           value={formData.endTimeofDay}
                           onChange={(e) => setFormData({ ...formData, endTimeofDay: e.target.value })}
-                          className="text-gray-700"
+                          className="dialog-input-standard"
                         />
                       </div>
                     </div>
-                    <div>
-                      <Label htmlFor="status" className="text-gray-600">Status</Label>
+                    <div className="dialog-form-field">
+                      <Label htmlFor="status" className="dialog-label-standard">Status</Label>
                       <select
                         id="status"
                         aria-label="Status"
-                        className="w-full px-3 py-2 border border-gray-200 rounded-md text-gray-700"
+                        className="dialog-select-standard"
                         value={formData.status}
                         onChange={(e) => setFormData({ ...formData, status: e.target.value as OTRoom['status'] })}
                       >
@@ -391,11 +392,12 @@ export function OTRoomsManagement() {
                     </div>
                   </div>
                 </div>
-                <div className="flex justify-end gap-2 px-6 py-2 border-t bg-white flex-shrink-0">
-                  <Button variant="outline" onClick={() => setIsAddDialogOpen(false)} className="py-1">Cancel</Button>
-                  <Button onClick={handleAddSubmit} className="py-1">Add OT Room</Button>
+                <div className="dialog-footer-standard">
+                  <Button variant="outline" onClick={() => setIsAddDialogOpen(false)} className="dialog-footer-button">Cancel</Button>
+                  <Button onClick={handleAddSubmit} className="dialog-footer-button">Add OT Room</Button>
                 </div>
-              </DialogContent>
+              </div>
+            </DialogContent>
             </Dialog>
           </div>
         </div>
@@ -606,116 +608,118 @@ export function OTRoomsManagement() {
 
         {/* Edit Dialog */}
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent className="p-0 gap-0 large-dialog bg-white">
-            <DialogHeader className="px-6 pt-4 pb-3 flex-shrink-0 bg-white">
-              <DialogTitle className="text-gray-700">Edit OT Room</DialogTitle>
-            </DialogHeader>
-            <div className="flex-1 overflow-y-auto px-6 pb-1 patient-list-scrollable min-h-0 bg-white">
-              <div className="space-y-4 py-4">
-                {selectedOTRoom && (
-                  <div>
-                    <Label className="text-gray-600">OT ID</Label>
-                    <Input
-                      value={selectedOTRoom.otId}
-                      disabled
-                      className="bg-gray-50 text-gray-500"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">OT ID is auto-generated and cannot be changed</p>
+          <DialogContent className="p-0 gap-0 large-dialog dialog-content-standard">
+            <div className="dialog-scrollable-wrapper dialog-content-scrollable">
+              <DialogHeader className="dialog-header-standard">
+                <DialogTitle className="dialog-title-standard">Edit OT Room</DialogTitle>
+              </DialogHeader>
+              <div className="dialog-body-content-wrapper">
+                <div className="dialog-form-container">
+                  {selectedOTRoom && (
+                    <div className="dialog-form-field">
+                      <Label className="dialog-label-standard">OT ID</Label>
+                      <Input
+                        value={selectedOTRoom.otId}
+                        disabled
+                        className="dialog-input-standard dialog-input-disabled"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">OT ID is auto-generated and cannot be changed</p>
+                    </div>
+                  )}
+                  <div className="dialog-form-field-grid">
+                    <div className="dialog-form-field">
+                      <Label htmlFor="edit-otNo" className="dialog-label-standard">OT No</Label>
+                      <Input
+                        id="edit-otNo"
+                        placeholder="e.g., OT001"
+                        value={formData.otNo}
+                        onChange={(e) => setFormData({ ...formData, otNo: e.target.value })}
+                        className="dialog-input-standard"
+                      />
+                    </div>
+                    <div className="dialog-form-field">
+                      <Label htmlFor="edit-otType" className="dialog-label-standard">OT Type</Label>
+                      <select
+                        id="edit-otType"
+                        aria-label="OT Type"
+                        className="dialog-select-standard"
+                        value={formData.otType}
+                        onChange={(e) => setFormData({ ...formData, otType: e.target.value })}
+                      >
+                        {otTypeOptions.map(type => (
+                          <option key={type} value={type}>{type}</option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
-                )}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="edit-otNo" className="text-gray-600">OT No</Label>
+                  <div className="dialog-form-field">
+                    <Label htmlFor="edit-otName" className="dialog-label-standard">OT Name</Label>
                     <Input
-                      id="edit-otNo"
-                      placeholder="e.g., OT001"
-                      value={formData.otNo}
-                      onChange={(e) => setFormData({ ...formData, otNo: e.target.value })}
-                      className="text-gray-700"
+                      id="edit-otName"
+                      placeholder="e.g., General Operation Theater 1"
+                      value={formData.otName}
+                      onChange={(e) => setFormData({ ...formData, otName: e.target.value })}
+                      className="dialog-input-standard"
                     />
                   </div>
-                  <div>
-                    <Label htmlFor="edit-otType" className="text-gray-600">OT Type</Label>
+                  <div className="dialog-form-field">
+                    <Label htmlFor="edit-otDescription" className="dialog-label-standard">OT Description</Label>
+                    <Textarea
+                      id="edit-otDescription"
+                      placeholder="Enter OT room description..."
+                      value={formData.otDescription}
+                      onChange={(e) => setFormData({ ...formData, otDescription: e.target.value })}
+                      rows={3}
+                      className="dialog-textarea-standard"
+                    />
+                  </div>
+                  <div className="dialog-form-field-grid dialog-form-field">
+                    <div>
+                      <Label htmlFor="edit-startTimeofDay" className="dialog-label-standard flex items-center gap-2">
+                        <Clock className="size-4" />
+                        Start Time of Day
+                      </Label>
+                      <Input
+                        id="edit-startTimeofDay"
+                        type="time"
+                        value={formData.startTimeofDay}
+                        onChange={(e) => setFormData({ ...formData, startTimeofDay: e.target.value })}
+                        className="dialog-input-standard"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-endTimeofDay" className="dialog-label-standard flex items-center gap-2">
+                        <Clock className="size-4" />
+                        End Time of Day
+                      </Label>
+                      <Input
+                        id="edit-endTimeofDay"
+                        type="time"
+                        value={formData.endTimeofDay}
+                        onChange={(e) => setFormData({ ...formData, endTimeofDay: e.target.value })}
+                        className="dialog-input-standard"
+                      />
+                    </div>
+                  </div>
+                  <div className="dialog-form-field">
+                    <Label htmlFor="edit-status" className="dialog-label-standard">Status</Label>
                     <select
-                      id="edit-otType"
-                      aria-label="OT Type"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-md text-gray-700"
-                      value={formData.otType}
-                      onChange={(e) => setFormData({ ...formData, otType: e.target.value })}
+                      id="edit-status"
+                      aria-label="Status"
+                      className="dialog-select-standard"
+                      value={formData.status}
+                      onChange={(e) => setFormData({ ...formData, status: e.target.value as OTRoom['status'] })}
                     >
-                      {otTypeOptions.map(type => (
-                        <option key={type} value={type}>{type}</option>
-                      ))}
+                      <option value="active">Active</option>
+                      <option value="inactive">Inactive</option>
                     </select>
                   </div>
                 </div>
-                <div>
-                  <Label htmlFor="edit-otName" className="text-gray-600">OT Name</Label>
-                  <Input
-                    id="edit-otName"
-                    placeholder="e.g., General Operation Theater 1"
-                    value={formData.otName}
-                    onChange={(e) => setFormData({ ...formData, otName: e.target.value })}
-                    className="text-gray-700"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="edit-otDescription" className="text-gray-600">OT Description</Label>
-                  <Textarea
-                    id="edit-otDescription"
-                    placeholder="Enter OT room description..."
-                    value={formData.otDescription}
-                    onChange={(e) => setFormData({ ...formData, otDescription: e.target.value })}
-                    rows={3}
-                    className="text-gray-700"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4 bg-gray-50 p-4 rounded-lg border border-gray-200">
-                  <div>
-                    <Label htmlFor="edit-startTimeofDay" className="flex items-center gap-2 text-gray-600">
-                      <Clock className="size-4" />
-                      Start Time of Day
-                    </Label>
-                    <Input
-                      id="edit-startTimeofDay"
-                      type="time"
-                      value={formData.startTimeofDay}
-                      onChange={(e) => setFormData({ ...formData, startTimeofDay: e.target.value })}
-                      className="text-gray-700"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="edit-endTimeofDay" className="flex items-center gap-2 text-gray-600">
-                      <Clock className="size-4" />
-                      End Time of Day
-                    </Label>
-                    <Input
-                      id="edit-endTimeofDay"
-                      type="time"
-                      value={formData.endTimeofDay}
-                      onChange={(e) => setFormData({ ...formData, endTimeofDay: e.target.value })}
-                      className="text-gray-700"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <Label htmlFor="edit-status" className="text-gray-600">Status</Label>
-                  <select
-                    id="edit-status"
-                    aria-label="Status"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-md text-gray-700"
-                    value={formData.status}
-                    onChange={(e) => setFormData({ ...formData, status: e.target.value as OTRoom['status'] })}
-                  >
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
-                  </select>
-                </div>
               </div>
-            </div>
-            <div className="flex justify-end gap-2 px-6 py-2 border-t bg-white flex-shrink-0">
-              <Button variant="outline" onClick={() => setIsEditDialogOpen(false)} className="py-1">Cancel</Button>
-              <Button onClick={handleEditSubmit} className="py-1">Update OT Room</Button>
+              <div className="dialog-footer-standard">
+                <Button variant="outline" onClick={() => setIsEditDialogOpen(false)} className="dialog-footer-button">Cancel</Button>
+                <Button onClick={handleEditSubmit} className="dialog-footer-button">Update OT Room</Button>
+              </div>
             </div>
           </DialogContent>
         </Dialog>

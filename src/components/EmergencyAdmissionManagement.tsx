@@ -539,134 +539,176 @@ export function EmergencyAdmissionManagement() {
               <p className="text-gray-600 mt-1">Manage emergency patient admissions</p>
             </div>
             <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="flex items-center gap-2">
-              <Plus className="size-4" />
-              Add Emergency Admission
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="p-0 gap-0 large-dialog max-h-[90vh]">
-            <DialogHeader className="px-6 pt-4 pb-3 flex-shrink-0">
-              <DialogTitle>Add New Emergency Admission</DialogTitle>
-              {formData.patientId && (
-                <div className="mt-2 text-sm font-semibold text-gray-700">
-                  Patient: {(() => {
-                    const selectedPatient = patients.find(p => {
-                      const pid = (p as any).patientId || (p as any).PatientId || '';
-                      return pid === formData.patientId;
-                    });
-                    if (selectedPatient) {
-                      const patientNo = (selectedPatient as any).patientNo || (selectedPatient as any).PatientNo || '';
-                      const patientName = (selectedPatient as any).patientName || (selectedPatient as any).PatientName || '';
-                      const lastName = (selectedPatient as any).lastName || (selectedPatient as any).LastName || '';
-                      const fullName = `${patientName} ${lastName}`.trim();
-                      return `${patientNo ? `${patientNo} - ` : ''}${fullName || 'Unknown'}`;
-                    }
-                    return 'Unknown';
-                  })()}
-                </div>
-              )}
-            </DialogHeader>
-            <div className="flex-1 overflow-y-auto px-6 pb-1 patient-list-scrollable min-h-0">
-              <div className="space-y-4 py-4">
-                <div>
-                  <Label htmlFor="add-doctor-search">Doctor *</Label>
-                  <div className="relative mb-2">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
-                    <Input
-                      id="add-doctor-search"
-                      placeholder="Search by Doctor Name or Specialty..."
-                      value={doctorSearchTerm}
-                      onChange={(e) => setDoctorSearchTerm(e.target.value)}
-                      className="pl-10"
-                    />
-                  </div>
-                  {doctorSearchTerm && (
-                    <div className="border border-gray-200 rounded-md max-h-60 overflow-y-auto">
-                      <table className="w-full">
-                        <thead className="sticky top-0 bg-gray-50 border-b border-gray-200">
-                          <tr>
-                            <th className="text-left py-2 px-3 text-xs text-gray-700 font-bold">Name</th>
-                            <th className="text-left py-2 px-3 text-xs text-gray-700 font-bold">Role</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {doctors
-                            .filter(doctor => {
+              <DialogTrigger asChild>
+                <Button className="flex items-center gap-2">
+                  <Plus className="size-4" />
+                  Add Emergency Admission
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="p-0 gap-0 large-dialog dialog-content-standard max-h-[90vh]">
+                <div className="dialog-scrollable-wrapper dialog-content-scrollable">
+                  <DialogHeader className="dialog-header-standard">
+                    <DialogTitle className="dialog-title-standard">Add New Emergency Admission</DialogTitle>
+                    {formData.patientId && (
+                      <div className="mt-2 text-sm font-semibold text-gray-700">
+                        Patient: {(() => {
+                          const selectedPatient = patients.find(p => {
+                            const pid = (p as any).patientId || (p as any).PatientId || '';
+                            return pid === formData.patientId;
+                          });
+                          if (selectedPatient) {
+                            const patientNo = (selectedPatient as any).patientNo || (selectedPatient as any).PatientNo || '';
+                            const patientName = (selectedPatient as any).patientName || (selectedPatient as any).PatientName || '';
+                            const lastName = (selectedPatient as any).lastName || (selectedPatient as any).LastName || '';
+                            const fullName = `${patientName} ${lastName}`.trim();
+                            return `${patientNo ? `${patientNo} - ` : ''}${fullName || 'Unknown'}`;
+                          }
+                          return 'Unknown';
+                        })()}
+                      </div>
+                    )}
+                  </DialogHeader>
+                  <div className="dialog-body-content-wrapper">
+                    <div className="dialog-form-container space-y-4">
+                      <div className="dialog-form-field">
+                        <Label htmlFor="add-doctor-search" className="dialog-label-standard">Doctor *</Label>
+                        <div className="relative mb-2">
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
+                          <Input
+                            id="add-doctor-search"
+                            placeholder="Search by Doctor Name or Specialty..."
+                            value={doctorSearchTerm}
+                            onChange={(e) => setDoctorSearchTerm(e.target.value)}
+                            className="dialog-input-standard pl-10"
+                          />
+                        </div>
+                        {doctorSearchTerm && (
+                          <div className="border border-gray-200 rounded-md max-h-60 overflow-y-auto">
+                            <table className="w-full">
+                              <thead className="sticky top-0 bg-gray-50 border-b border-gray-200">
+                                <tr>
+                                  <th className="text-left py-2 px-3 text-xs text-gray-700 font-bold">Name</th>
+                                  <th className="text-left py-2 px-3 text-xs text-gray-700 font-bold">Role</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {doctors
+                                  .filter(doctor => {
+                                    if (!doctorSearchTerm) return false;
+                                    const searchLower = doctorSearchTerm.toLowerCase();
+                                    return (
+                                      doctor.name.toLowerCase().includes(searchLower) ||
+                                      doctor.role.toLowerCase().includes(searchLower)
+                                    );
+                                  })
+                                  .map(doctor => {
+                                    const isSelected = formData.doctorId === doctor.id.toString();
+                                    return (
+                                      <tr
+                                        key={doctor.id}
+                                        onClick={() => {
+                                          setFormData({ ...formData, doctorId: doctor.id.toString() });
+                                          setDoctorSearchTerm(`${doctor.name} - ${doctor.role}`);
+                                        }}
+                                        className={`border-b border-gray-100 cursor-pointer hover:bg-gray-50 ${isSelected ? 'bg-gray-100' : ''}`}
+                                      >
+                                        <td className="py-2 px-3 text-sm text-gray-900">{doctor.name}</td>
+                                        <td className="py-2 px-3 text-sm text-gray-600">{doctor.role}</td>
+                                      </tr>
+                                    );
+                                  })}
+                              </tbody>
+                            </table>
+                            {doctors.filter(doctor => {
                               if (!doctorSearchTerm) return false;
                               const searchLower = doctorSearchTerm.toLowerCase();
                               return (
                                 doctor.name.toLowerCase().includes(searchLower) ||
                                 doctor.role.toLowerCase().includes(searchLower)
                               );
-                            })
-                            .map(doctor => {
-                              const isSelected = formData.doctorId === doctor.id.toString();
-                              return (
-                                <tr
-                                  key={doctor.id}
-                                  onClick={() => {
-                                    setFormData({ ...formData, doctorId: doctor.id.toString() });
-                                    setDoctorSearchTerm(`${doctor.name} - ${doctor.role}`);
-                                  }}
-                                  className={`border-b border-gray-100 cursor-pointer hover:bg-gray-50 ${isSelected ? 'bg-gray-100' : ''}`}
-                                >
-                                  <td className="py-2 px-3 text-sm text-gray-900">{doctor.name}</td>
-                                  <td className="py-2 px-3 text-sm text-gray-600">{doctor.role}</td>
-                                </tr>
-                              );
-                            })}
-                        </tbody>
-                      </table>
-                      {doctors.filter(doctor => {
-                        if (!doctorSearchTerm) return false;
-                        const searchLower = doctorSearchTerm.toLowerCase();
-                        return (
-                          doctor.name.toLowerCase().includes(searchLower) ||
-                          doctor.role.toLowerCase().includes(searchLower)
-                        );
-                      }).length === 0 && (
-                        <div className="text-center py-8 text-sm text-gray-700">
-                          No doctors found. Try a different search term.
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  {formData.doctorId && (
-                    <div className="mt-2 p-2 bg-gray-50 border border-gray-200 rounded text-sm text-gray-700">
-                      Selected: {(() => {
-                        const selectedDoctor = doctors.find(d => d.id.toString() === formData.doctorId);
-                        return selectedDoctor ? `${selectedDoctor.name} - ${selectedDoctor.role}` : 'Unknown';
-                      })()}
-                    </div>
-                  )}
-                </div>
+                            }).length === 0 && (
+                              <div className="text-center py-8 text-sm text-gray-700">
+                                No doctors found. Try a different search term.
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        {formData.doctorId && (
+                          <div className="mt-2 p-2 bg-gray-50 border border-gray-200 rounded text-sm text-gray-700">
+                            Selected: {(() => {
+                              const selectedDoctor = doctors.find(d => d.id.toString() === formData.doctorId);
+                              return selectedDoctor ? `${selectedDoctor.name} - ${selectedDoctor.role}` : 'Unknown';
+                            })()}
+                          </div>
+                        )}
+                      </div>
 
-                <div>
-                  <Label htmlFor="add-patient-search">Patient *</Label>
-                  <div className="relative mb-2">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
-                    <Input
-                      id="add-patient-search"
-                      placeholder="Search by Patient ID, Name, or Mobile Number..."
-                      value={patientSearchTerm}
-                      onChange={(e) => setPatientSearchTerm(e.target.value)}
-                      className="pl-10"
-                    />
-                  </div>
-                  {patientSearchTerm && (
-                    <div className="border border-gray-200 rounded-md max-h-60 overflow-y-auto">
-                      <table className="w-full">
-                        <thead className="sticky top-0 bg-gray-50 border-b border-gray-200">
-                          <tr>
-                            <th className="text-left py-2 px-3 text-xs text-gray-700 font-bold">Patient ID</th>
-                            <th className="text-left py-2 px-3 text-xs text-gray-700 font-bold">Name</th>
-                            <th className="text-left py-2 px-3 text-xs text-gray-700 font-bold">Mobile</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {patients
-                            .filter(patient => {
+                      <div className="dialog-form-field">
+                        <Label htmlFor="add-patient-search" className="dialog-label-standard">Patient *</Label>
+                        <div className="relative mb-2">
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
+                          <Input
+                            id="add-patient-search"
+                            placeholder="Search by Patient ID, Name, or Mobile Number..."
+                            value={patientSearchTerm}
+                            onChange={(e) => setPatientSearchTerm(e.target.value)}
+                            className="dialog-input-standard pl-10"
+                          />
+                        </div>
+                        {patientSearchTerm && (
+                          <div className="border border-gray-200 rounded-md max-h-60 overflow-y-auto">
+                            <table className="w-full">
+                              <thead className="sticky top-0 bg-gray-50 border-b border-gray-200">
+                                <tr>
+                                  <th className="text-left py-2 px-3 text-xs text-gray-700 font-bold">Patient ID</th>
+                                  <th className="text-left py-2 px-3 text-xs text-gray-700 font-bold">Name</th>
+                                  <th className="text-left py-2 px-3 text-xs text-gray-700 font-bold">Mobile</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {patients
+                                  .filter(patient => {
+                                    if (!patientSearchTerm) return false;
+                                    const searchLower = patientSearchTerm.toLowerCase();
+                                    const patientId = (patient as any).patientId || (patient as any).PatientId || '';
+                                    const patientNo = (patient as any).patientNo || (patient as any).PatientNo || '';
+                                    const patientName = (patient as any).patientName || (patient as any).PatientName || '';
+                                    const lastName = (patient as any).lastName || (patient as any).LastName || '';
+                                    const fullName = `${patientName} ${lastName}`.trim();
+                                    const phoneNo = (patient as any).phoneNo || (patient as any).PhoneNo || (patient as any).phone || '';
+                                    return (
+                                      patientId.toLowerCase().includes(searchLower) ||
+                                      patientNo.toLowerCase().includes(searchLower) ||
+                                      fullName.toLowerCase().includes(searchLower) ||
+                                      phoneNo.includes(patientSearchTerm)
+                                    );
+                                  })
+                                  .map(patient => {
+                                    const patientId = (patient as any).patientId || (patient as any).PatientId || '';
+                                    const patientNo = (patient as any).patientNo || (patient as any).PatientNo || '';
+                                    const patientName = (patient as any).patientName || (patient as any).PatientName || '';
+                                    const lastName = (patient as any).lastName || (patient as any).LastName || '';
+                                    const fullName = `${patientName} ${lastName}`.trim();
+                                    const phoneNo = (patient as any).phoneNo || (patient as any).PhoneNo || (patient as any).phone || '';
+                                    const isSelected = formData.patientId === patientId;
+                                    return (
+                                      <tr
+                                        key={patientId}
+                                        onClick={() => {
+                                          setFormData({ ...formData, patientId });
+                                          setPatientSearchTerm(`${patientNo ? `${patientNo} - ` : ''}${fullName || 'Unknown'}`);
+                                        }}
+                                        className={`border-b border-gray-100 cursor-pointer hover:bg-gray-50 ${isSelected ? 'bg-gray-100' : ''}`}
+                                      >
+                                        <td className="py-2 px-3 text-sm text-gray-900 font-mono">{patientNo || patientId.substring(0, 8)}</td>
+                                        <td className="py-2 px-3 text-sm text-gray-600">{fullName || 'Unknown'}</td>
+                                        <td className="py-2 px-3 text-sm text-gray-600">{phoneNo || '-'}</td>
+                                      </tr>
+                                    );
+                                  })}
+                              </tbody>
+                            </table>
+                            {patients.filter(patient => {
                               if (!patientSearchTerm) return false;
                               const searchLower = patientSearchTerm.toLowerCase();
                               const patientId = (patient as any).patientId || (patient as any).PatientId || '';
@@ -681,226 +723,192 @@ export function EmergencyAdmissionManagement() {
                                 fullName.toLowerCase().includes(searchLower) ||
                                 phoneNo.includes(patientSearchTerm)
                               );
-                            })
-                            .map(patient => {
-                              const patientId = (patient as any).patientId || (patient as any).PatientId || '';
-                              const patientNo = (patient as any).patientNo || (patient as any).PatientNo || '';
-                              const patientName = (patient as any).patientName || (patient as any).PatientName || '';
-                              const lastName = (patient as any).lastName || (patient as any).LastName || '';
-                              const fullName = `${patientName} ${lastName}`.trim();
-                              const phoneNo = (patient as any).phoneNo || (patient as any).PhoneNo || (patient as any).phone || '';
-                              const isSelected = formData.patientId === patientId;
+                            }).length === 0 && (
+                              <div className="text-center py-8 text-sm text-gray-700">
+                                No patients found. Try a different search term.
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        {formData.patientId && (
+                          <div className="mt-2 p-2 bg-gray-50 border border-gray-200 rounded text-sm text-gray-700">
+                            Selected: {(() => {
+                              const selectedPatient = patients.find(p => {
+                                const pid = (p as any).patientId || (p as any).PatientId || '';
+                                return pid === formData.patientId;
+                              });
+                              if (selectedPatient) {
+                                const patientId = (selectedPatient as any).patientId || (selectedPatient as any).PatientId || '';
+                                const patientNo = (selectedPatient as any).patientNo || (selectedPatient as any).PatientNo || '';
+                                const patientName = (selectedPatient as any).patientName || (selectedPatient as any).PatientName || '';
+                                const lastName = (selectedPatient as any).lastName || (selectedPatient as any).LastName || '';
+                                const fullName = `${patientName} ${lastName}`.trim();
+                                return `${patientNo ? `${patientNo} - ` : ''}${fullName || 'Unknown'} (ID: ${patientId.substring(0, 8)})`;
+                              }
+                              return `Unknown (ID: ${formData.patientId.substring(0, 8)})`;
+                            })()}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="dialog-form-field">
+                        <Label htmlFor="add-emergencyBedSlotId" className="dialog-label-standard">Emergency Bed Slot *</Label>
+                        <select
+                          id="add-emergencyBedSlotId"
+                          aria-label="Emergency Bed Slot"
+                          className="dialog-select-standard"
+                          value={formData.emergencyBedSlotId}
+                          onChange={(e) => setFormData({ ...formData, emergencyBedSlotId: e.target.value })}
+                        >
+                          <option value="">Select Emergency Bed Slot *</option>
+                          {emergencyBedSlots
+                            .filter(slot => slot.status === 'Active')
+                            .map(slot => {
+                              const bed = emergencyBeds.find(b => b.id === slot.emergencyBedId);
+                              const roomNameNo = bed?.emergencyRoomNameNo || '-';
+                              const bedId = bed?.emergencyBedId || '-';
                               return (
-                                <tr
-                                  key={patientId}
-                                  onClick={() => {
-                                    setFormData({ ...formData, patientId });
-                                    setPatientSearchTerm(`${patientNo ? `${patientNo} - ` : ''}${fullName || 'Unknown'}`);
-                                  }}
-                                  className={`border-b border-gray-100 cursor-pointer hover:bg-gray-50 ${isSelected ? 'bg-gray-100' : ''}`}
-                                >
-                                  <td className="py-2 px-3 text-sm text-gray-900 font-mono">{patientNo || patientId.substring(0, 8)}</td>
-                                  <td className="py-2 px-3 text-sm text-gray-600">{fullName || 'Unknown'}</td>
-                                  <td className="py-2 px-3 text-sm text-gray-600">{phoneNo || '-'}</td>
-                                </tr>
+                                <option key={slot.id} value={slot.id.toString()}>
+                                  Slot {slot.eBedSlotNo}({roomNameNo}, Bed Id {bedId})
+                                </option>
                               );
                             })}
-                        </tbody>
-                      </table>
-                      {patients.filter(patient => {
-                        if (!patientSearchTerm) return false;
-                        const searchLower = patientSearchTerm.toLowerCase();
-                        const patientId = (patient as any).patientId || (patient as any).PatientId || '';
-                        const patientNo = (patient as any).patientNo || (patient as any).PatientNo || '';
-                        const patientName = (patient as any).patientName || (patient as any).PatientName || '';
-                        const lastName = (patient as any).lastName || (patient as any).LastName || '';
-                        const fullName = `${patientName} ${lastName}`.trim();
-                        const phoneNo = (patient as any).phoneNo || (patient as any).PhoneNo || (patient as any).phone || '';
-                        return (
-                          patientId.toLowerCase().includes(searchLower) ||
-                          patientNo.toLowerCase().includes(searchLower) ||
-                          fullName.toLowerCase().includes(searchLower) ||
-                          phoneNo.includes(patientSearchTerm)
-                        );
-                      }).length === 0 && (
-                        <div className="text-center py-8 text-sm text-gray-700">
-                          No patients found. Try a different search term.
+                        </select>
+                      </div>
+
+                      <div className="dialog-form-field">
+                        <Label htmlFor="add-emergencyAdmissionDate" className="dialog-label-standard">Emergency Admission Date *</Label>
+                        <Input
+                          id="add-emergencyAdmissionDate"
+                          type="date"
+                          value={formData.emergencyAdmissionDate}
+                          onChange={(e) => setFormData({ ...formData, emergencyAdmissionDate: e.target.value })}
+                          className="dialog-input-standard"
+                        />
+                      </div>
+
+                      <div className="dialog-form-field">
+                        <Label htmlFor="add-emergencyStatus" className="dialog-label-standard">Emergency Status</Label>
+                        <select
+                          id="add-emergencyStatus"
+                          aria-label="Emergency Status"
+                          className="dialog-select-standard"
+                          value={formData.emergencyStatus}
+                          onChange={(e) => setFormData({ ...formData, emergencyStatus: e.target.value as EmergencyAdmission['emergencyStatus'] })}
+                        >
+                          <option value="Admitted">Admitted</option>
+                          <option value="IPD">IPD</option>
+                          <option value="OT">OT</option>
+                          <option value="ICU">ICU</option>
+                          <option value="Discharged">Discharged</option>
+                        </select>
+                      </div>
+
+                      <div className="dialog-form-field">
+                        <Label htmlFor="add-diagnosis" className="dialog-label-standard">Diagnosis</Label>
+                        <Textarea
+                          id="add-diagnosis"
+                          placeholder="Enter diagnosis..."
+                          value={formData.diagnosis}
+                          onChange={(e) => setFormData({ ...formData, diagnosis: e.target.value })}
+                          rows={3}
+                          className="dialog-textarea-standard"
+                        />
+                      </div>
+
+                      <div className="dialog-form-field">
+                        <Label htmlFor="add-treatmentDetails" className="dialog-label-standard">Treatment Details</Label>
+                        <Textarea
+                          id="add-treatmentDetails"
+                          placeholder="Enter treatment details..."
+                          value={formData.treatmentDetails}
+                          onChange={(e) => setFormData({ ...formData, treatmentDetails: e.target.value })}
+                          rows={3}
+                          className="dialog-textarea-standard"
+                        />
+                      </div>
+
+                      <div className="dialog-form-field">
+                        <Label htmlFor="add-patientCondition" className="dialog-label-standard">Patient Condition</Label>
+                        <select
+                          id="add-patientCondition"
+                          aria-label="Patient Condition"
+                          className="dialog-select-standard"
+                          value={formData.patientCondition}
+                          onChange={(e) => setFormData({ ...formData, patientCondition: e.target.value as EmergencyAdmission['patientCondition'] })}
+                        >
+                          <option value="Stable">Stable</option>
+                          <option value="Critical">Critical</option>
+                        </select>
+                      </div>
+
+                      <div className="dialog-form-field">
+                        <div className="dialog-checkbox-container">
+                          <input
+                            type="checkbox"
+                            id="add-transferToIPDOTICU"
+                            aria-label="Transfer To IPD/OT/ICU"
+                            checked={formData.transferToIPDOTICU}
+                            onChange={(e) => setFormData({ ...formData, transferToIPDOTICU: e.target.checked, transferTo: e.target.checked ? formData.transferTo : undefined })}
+                            className="rounded"
+                          />
+                          <Label htmlFor="add-transferToIPDOTICU" className="dialog-checkbox-label-standard cursor-pointer">Transfer To IPD/OT/ICU</Label>
                         </div>
+                      </div>
+
+                      {formData.transferToIPDOTICU && (
+                        <>
+                          <div className="dialog-form-field">
+                            <Label htmlFor="add-transferTo" className="dialog-label-standard">Transfer To *</Label>
+                            <select
+                              id="add-transferTo"
+                              aria-label="Transfer To"
+                              className="dialog-select-standard"
+                              value={formData.transferTo || ''}
+                              onChange={(e) => setFormData({ ...formData, transferTo: e.target.value as 'IPD Room Admission' | 'ICU' | 'OT' })}
+                            >
+                              <option value="">Select Transfer Destination</option>
+                              <option value="IPD Room Admission">IPD Room Admission</option>
+                              <option value="ICU">ICU</option>
+                              <option value="OT">OT</option>
+                            </select>
+                          </div>
+                          <div className="dialog-form-field">
+                            <Label htmlFor="add-transferDetails" className="dialog-label-standard">Transfer Details</Label>
+                            <Textarea
+                              id="add-transferDetails"
+                              placeholder="Enter transfer details..."
+                              value={formData.transferDetails}
+                              onChange={(e) => setFormData({ ...formData, transferDetails: e.target.value })}
+                              rows={2}
+                              className="dialog-textarea-standard"
+                            />
+                          </div>
+                        </>
                       )}
+
+                      <div className="dialog-form-field">
+                        <Label htmlFor="add-status" className="dialog-label-standard">Status</Label>
+                        <select
+                          id="add-status"
+                          aria-label="Status"
+                          className="dialog-select-standard"
+                          value={formData.status}
+                          onChange={(e) => setFormData({ ...formData, status: e.target.value as EmergencyAdmission['status'] })}
+                        >
+                          <option value="Active">Active</option>
+                          <option value="Inactive">Inactive</option>
+                        </select>
+                      </div>
                     </div>
-                  )}
-                  {formData.patientId && (
-                    <div className="mt-2 p-2 bg-gray-50 border border-gray-200 rounded text-sm text-gray-700">
-                      Selected: {(() => {
-                        const selectedPatient = patients.find(p => {
-                          const pid = (p as any).patientId || (p as any).PatientId || '';
-                          return pid === formData.patientId;
-                        });
-                        if (selectedPatient) {
-                          const patientId = (selectedPatient as any).patientId || (selectedPatient as any).PatientId || '';
-                          const patientNo = (selectedPatient as any).patientNo || (selectedPatient as any).PatientNo || '';
-                          const patientName = (selectedPatient as any).patientName || (selectedPatient as any).PatientName || '';
-                          const lastName = (selectedPatient as any).lastName || (selectedPatient as any).LastName || '';
-                          const fullName = `${patientName} ${lastName}`.trim();
-                          return `${patientNo ? `${patientNo} - ` : ''}${fullName || 'Unknown'} (ID: ${patientId.substring(0, 8)})`;
-                        }
-                        return `Unknown (ID: ${formData.patientId.substring(0, 8)})`;
-                      })()}
-                    </div>
-                  )}
+                  </div>
+                  <div className="dialog-footer-standard">
+                    <Button variant="outline" onClick={() => setIsAddDialogOpen(false)} className="dialog-footer-button">Cancel</Button>
+                    <Button onClick={handleAddSubmit} className="dialog-footer-button">Create Emergency Admission</Button>
+                  </div>
                 </div>
-
-                <div>
-                  <Label htmlFor="add-emergencyBedSlotId">Emergency Bed Slot *</Label>
-                  <select
-                    id="add-emergencyBedSlotId"
-                    aria-label="Emergency Bed Slot"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-md"
-                    value={formData.emergencyBedSlotId}
-                    onChange={(e) => setFormData({ ...formData, emergencyBedSlotId: e.target.value })}
-                  >
-                    <option value="">Select Emergency Bed Slot *</option>
-                    {emergencyBedSlots
-                      .filter(slot => slot.status === 'Active')
-                      .map(slot => {
-                        const bed = emergencyBeds.find(b => b.id === slot.emergencyBedId);
-                        const roomNameNo = bed?.emergencyRoomNameNo || '-';
-                        const bedId = bed?.emergencyBedId || '-';
-                        return (
-                          <option key={slot.id} value={slot.id.toString()}>
-                            Slot {slot.eBedSlotNo}({roomNameNo}, Bed Id {bedId})
-                          </option>
-                        );
-                      })}
-                  </select>
-                </div>
-
-                <div>
-                  <Label htmlFor="add-emergencyAdmissionDate">Emergency Admission Date *</Label>
-                  <Input
-                    id="add-emergencyAdmissionDate"
-                    type="date"
-                    value={formData.emergencyAdmissionDate}
-                    onChange={(e) => setFormData({ ...formData, emergencyAdmissionDate: e.target.value })}
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="add-emergencyStatus">Emergency Status</Label>
-                  <select
-                    id="add-emergencyStatus"
-                    aria-label="Emergency Status"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-md"
-                    value={formData.emergencyStatus}
-                    onChange={(e) => setFormData({ ...formData, emergencyStatus: e.target.value as EmergencyAdmission['emergencyStatus'] })}
-                  >
-                    <option value="Admitted">Admitted</option>
-                    <option value="IPD">IPD</option>
-                    <option value="OT">OT</option>
-                    <option value="ICU">ICU</option>
-                    <option value="Discharged">Discharged</option>
-                  </select>
-                </div>
-
-                <div>
-                  <Label htmlFor="add-diagnosis">Diagnosis</Label>
-                  <Textarea
-                    id="add-diagnosis"
-                    placeholder="Enter diagnosis..."
-                    value={formData.diagnosis}
-                    onChange={(e) => setFormData({ ...formData, diagnosis: e.target.value })}
-                    rows={3}
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="add-treatmentDetails">Treatment Details</Label>
-                  <Textarea
-                    id="add-treatmentDetails"
-                    placeholder="Enter treatment details..."
-                    value={formData.treatmentDetails}
-                    onChange={(e) => setFormData({ ...formData, treatmentDetails: e.target.value })}
-                    rows={3}
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="add-patientCondition">Patient Condition</Label>
-                  <select
-                    id="add-patientCondition"
-                    aria-label="Patient Condition"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-md"
-                    value={formData.patientCondition}
-                    onChange={(e) => setFormData({ ...formData, patientCondition: e.target.value as EmergencyAdmission['patientCondition'] })}
-                  >
-                    <option value="Stable">Stable</option>
-                    <option value="Critical">Critical</option>
-                  </select>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    id="add-transferToIPDOTICU"
-                    aria-label="Transfer To IPD/OT/ICU"
-                    checked={formData.transferToIPDOTICU}
-                    onChange={(e) => setFormData({ ...formData, transferToIPDOTICU: e.target.checked, transferTo: e.target.checked ? formData.transferTo : undefined })}
-                    className="rounded"
-                  />
-                  <Label htmlFor="add-transferToIPDOTICU" className="cursor-pointer">Transfer To IPD/OT/ICU</Label>
-                </div>
-
-                {formData.transferToIPDOTICU && (
-                  <>
-                    <div>
-                      <Label htmlFor="add-transferTo">Transfer To *</Label>
-                      <select
-                        id="add-transferTo"
-                        aria-label="Transfer To"
-                        className="w-full px-3 py-2 border border-gray-200 rounded-md"
-                        value={formData.transferTo || ''}
-                        onChange={(e) => setFormData({ ...formData, transferTo: e.target.value as 'IPD Room Admission' | 'ICU' | 'OT' })}
-                      >
-                        <option value="">Select Transfer Destination</option>
-                        <option value="IPD Room Admission">IPD Room Admission</option>
-                        <option value="ICU">ICU</option>
-                        <option value="OT">OT</option>
-                      </select>
-                    </div>
-                    <div>
-                      <Label htmlFor="add-transferDetails">Transfer Details</Label>
-                      <Textarea
-                        id="add-transferDetails"
-                        placeholder="Enter transfer details..."
-                        value={formData.transferDetails}
-                        onChange={(e) => setFormData({ ...formData, transferDetails: e.target.value })}
-                        rows={2}
-                      />
-                    </div>
-                  </>
-                )}
-
-                <div>
-                  <Label htmlFor="add-status">Status</Label>
-                  <select
-                    id="add-status"
-                    aria-label="Status"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-md"
-                    value={formData.status}
-                    onChange={(e) => setFormData({ ...formData, status: e.target.value as EmergencyAdmission['status'] })}
-                  >
-                    <option value="Active">Active</option>
-                    <option value="Inactive">Inactive</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-            <div className="flex justify-end gap-2 px-6 py-2 border-t bg-gray-50 flex-shrink-0">
-              <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>Cancel</Button>
-              <Button onClick={handleAddSubmit}>Create Emergency Admission</Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
         <div className="px-6 pt-4 pb-4 flex-1">
@@ -1152,349 +1160,357 @@ export function EmergencyAdmissionManagement() {
 
       {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="p-0 gap-0 large-dialog max-h-[90vh]">
-          <DialogHeader className="px-6 pt-4 pb-3 flex-shrink-0">
-            <DialogTitle>Edit Emergency Admission</DialogTitle>
-          </DialogHeader>
-          <div className="flex-1 overflow-y-auto px-6 pb-1 patient-list-scrollable min-h-0">
-            <Tabs defaultValue="admission" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 mb-4">
-                <TabsTrigger value="admission">Admission Details</TabsTrigger>
-                <TabsTrigger value="vitals">Vitals</TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="admission" className="space-y-4 py-4">
-              <div>
-                <Label htmlFor="edit-patientId">Patient *</Label>
-                <Input
-                  id="edit-patientId"
-                  value={(() => {
-                    const selectedPatient = patients.find(p => {
-                      const pid = (p as any).patientId || (p as any).PatientId || '';
-                      return pid === formData.patientId;
-                    });
-                    if (selectedPatient) {
-                      const patientId = (selectedPatient as any).patientId || (selectedPatient as any).PatientId || '';
-                      const patientNo = (selectedPatient as any).patientNo || (selectedPatient as any).PatientNo || '';
-                      const patientName = (selectedPatient as any).patientName || (selectedPatient as any).PatientName || '';
-                      const lastName = (selectedPatient as any).lastName || (selectedPatient as any).LastName || '';
-                      const fullName = `${patientName} ${lastName}`.trim();
-                      return `${patientNo ? `${patientNo} - ` : ''}${fullName || 'Unknown'} (ID: ${patientId.substring(0, 8)})`;
-                    }
-                    return `Unknown (ID: ${formData.patientId ? formData.patientId.substring(0, 8) : 'N/A'})`;
-                  })()}
-                  disabled
-                  className="bg-gray-50 text-gray-700"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="edit-doctorId">Doctor *</Label>
-                <Input
-                  id="edit-doctorId"
-                  value={(() => {
-                    const doctor = doctors.find(d => d.id.toString() === formData.doctorId);
-                    if (doctor) {
-                      return `${doctor.name} - ${doctor.role}`;
-                    }
-                    return formData.doctorId || 'Unknown';
-                  })()}
-                  disabled
-                  className="bg-gray-50 text-gray-700"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="edit-emergencyBedSlotId">Emergency Bed Slot</Label>
-                <select
-                  id="edit-emergencyBedSlotId"
-                  aria-label="Emergency Bed Slot"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-md"
-                  value={formData.emergencyBedSlotId}
-                  onChange={(e) => setFormData({ ...formData, emergencyBedSlotId: e.target.value })}
-                >
-                  <option value="">Select Emergency Bed Slot (Optional)</option>
-                  {emergencyBedSlots
-                    .filter(slot => slot.status === 'Active')
-                    .map(slot => {
-                      const bed = emergencyBeds.find(b => b.id === slot.emergencyBedId);
-                      const roomNameNo = bed?.emergencyRoomNameNo || '-';
-                      const bedId = bed?.emergencyBedId || '-';
-                      return (
-                        <option key={slot.id} value={slot.id.toString()}>
-                          Room: {roomNameNo} | Bed ID: {bedId} | Slot: {slot.eBedSlotNo} ({slot.eSlotStartTime} - {slot.eSlotEndTime})
-                        </option>
-                      );
-                    })}
-                </select>
-              </div>
-
-              <div>
-                <Label htmlFor="edit-emergencyAdmissionDate">Emergency Admission Date *</Label>
-                <Input
-                  id="edit-emergencyAdmissionDate"
-                  type="date"
-                  value={formData.emergencyAdmissionDate}
-                  onChange={(e) => setFormData({ ...formData, emergencyAdmissionDate: e.target.value })}
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="edit-emergencyStatus">Emergency Status</Label>
-                <select
-                  id="edit-emergencyStatus"
-                  aria-label="Emergency Status"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-md"
-                  value={formData.emergencyStatus}
-                  onChange={(e) => setFormData({ ...formData, emergencyStatus: e.target.value as EmergencyAdmission['emergencyStatus'] })}
-                >
-                  <option value="Admitted">Admitted</option>
-                  <option value="IPD">IPD</option>
-                  <option value="OT">OT</option>
-                  <option value="ICU">ICU</option>
-                  <option value="Discharged">Discharged</option>
-                </select>
-              </div>
-
-              <div>
-                <Label htmlFor="edit-diagnosis">Diagnosis</Label>
-                <Textarea
-                  id="edit-diagnosis"
-                  placeholder="Enter diagnosis..."
-                  value={formData.diagnosis}
-                  onChange={(e) => setFormData({ ...formData, diagnosis: e.target.value })}
-                  rows={3}
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="edit-treatmentDetails">Treatment Details</Label>
-                <Textarea
-                  id="edit-treatmentDetails"
-                  placeholder="Enter treatment details..."
-                  value={formData.treatmentDetails}
-                  onChange={(e) => setFormData({ ...formData, treatmentDetails: e.target.value })}
-                  rows={3}
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="edit-patientCondition">Patient Condition</Label>
-                <select
-                  id="edit-patientCondition"
-                  aria-label="Patient Condition"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-md"
-                  value={formData.patientCondition}
-                  onChange={(e) => setFormData({ ...formData, patientCondition: e.target.value as EmergencyAdmission['patientCondition'] })}
-                >
-                  <option value="Stable">Stable</option>
-                  <option value="Critical">Critical</option>
-                </select>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="edit-transferToIPDOTICU"
-                  aria-label="Transfer To IPD/OT/ICU"
-                  checked={formData.transferToIPDOTICU}
-                  onChange={(e) => setFormData({ ...formData, transferToIPDOTICU: e.target.checked, transferTo: e.target.checked ? formData.transferTo : undefined })}
-                  className="rounded"
-                />
-                <Label htmlFor="edit-transferToIPDOTICU" className="cursor-pointer">Transfer To IPD/OT/ICU</Label>
-              </div>
-
-              {formData.transferToIPDOTICU && (
-                <>
-                  <div>
-                    <Label htmlFor="edit-transferTo">Transfer To *</Label>
-                    <select
-                      id="edit-transferTo"
-                      aria-label="Transfer To"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-md"
-                      value={formData.transferTo || ''}
-                      onChange={(e) => setFormData({ ...formData, transferTo: e.target.value as 'IPD Room Admission' | 'ICU' | 'OT' })}
-                    >
-                      <option value="">Select Transfer Destination</option>
-                      <option value="IPD Room Admission">IPD Room Admission</option>
-                      <option value="ICU">ICU</option>
-                      <option value="OT">OT</option>
-                    </select>
-                  </div>
-                  <div>
-                    <Label htmlFor="edit-transferDetails">Transfer Details</Label>
-                    <Textarea
-                      id="edit-transferDetails"
-                      placeholder="Enter transfer details..."
-                      value={formData.transferDetails}
-                      onChange={(e) => setFormData({ ...formData, transferDetails: e.target.value })}
-                      rows={2}
+        <DialogContent className="p-0 gap-0 large-dialog dialog-content-standard max-h-[90vh]">
+          <div className="dialog-scrollable-wrapper dialog-content-scrollable">
+            <DialogHeader className="dialog-header-standard">
+              <DialogTitle className="dialog-title-standard">Edit Emergency Admission</DialogTitle>
+            </DialogHeader>
+            <div className="dialog-body-content-wrapper">
+              <Tabs defaultValue="admission" className="w-full">
+                <TabsList className="grid w-full grid-cols-2 mb-4">
+                  <TabsTrigger value="admission">Admission Details</TabsTrigger>
+                  <TabsTrigger value="vitals">Vitals</TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="admission" className="dialog-form-container space-y-4">
+                  <div className="dialog-form-field">
+                    <Label htmlFor="edit-patientId" className="dialog-label-standard">Patient *</Label>
+                    <Input
+                      id="edit-patientId"
+                      value={(() => {
+                        const selectedPatient = patients.find(p => {
+                          const pid = (p as any).patientId || (p as any).PatientId || '';
+                          return pid === formData.patientId;
+                        });
+                        if (selectedPatient) {
+                          const patientId = (selectedPatient as any).patientId || (selectedPatient as any).PatientId || '';
+                          const patientNo = (selectedPatient as any).patientNo || (selectedPatient as any).PatientNo || '';
+                          const patientName = (selectedPatient as any).patientName || (selectedPatient as any).PatientName || '';
+                          const lastName = (selectedPatient as any).lastName || (selectedPatient as any).LastName || '';
+                          const fullName = `${patientName} ${lastName}`.trim();
+                          return `${patientNo ? `${patientNo} - ` : ''}${fullName || 'Unknown'} (ID: ${patientId.substring(0, 8)})`;
+                        }
+                        return `Unknown (ID: ${formData.patientId ? formData.patientId.substring(0, 8) : 'N/A'})`;
+                      })()}
+                      disabled
+                      className="dialog-input-standard dialog-input-disabled"
                     />
                   </div>
-                </>
-              )}
 
-              <div>
-                <Label htmlFor="edit-status">Status</Label>
-                <select
-                  id="edit-status"
-                  aria-label="Status"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-md"
-                  value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value as EmergencyAdmission['status'] })}
-                >
-                  <option value="Active">Active</option>
-                  <option value="Inactive">Inactive</option>
-                </select>
-              </div>
-              </TabsContent>
-              
-              <TabsContent value="vitals" className="space-y-4 py-4">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold">Vitals Records</h3>
-                  <Button 
-                    onClick={() => {
-                      if (selectedAdmission) {
-                        setVitalsFormData({
-                          emergencyAdmissionId: selectedAdmission.emergencyAdmissionId,
-                          nurseId: 0,
-                          recordedDateTime: new Date().toISOString().slice(0, 16),
-                          heartRate: undefined,
-                          bloodPressure: '',
-                          temperature: undefined,
-                          o2Saturation: undefined,
-                          respiratoryRate: undefined,
-                          pulseRate: undefined,
-                          vitalsStatus: 'Stable',
-                          vitalsRemarks: '',
-                          status: 'Active',
-                        });
-                        setIsAddVitalsDialogOpen(true);
-                      }
-                    }}
-                    className="flex items-center gap-2"
-                  >
-                    <Plus className="size-4" />
-                    Add Vitals
-                  </Button>
-                </div>
-                
-                {vitalsLoading ? (
-                  <div className="text-center py-8 text-gray-500">Loading vitals...</div>
-                ) : vitals.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500">No vitals records found. Click "Add Vitals" to create one.</div>
-                ) : (
-                  <div className="space-y-2">
-                    {vitals.map((vital) => (
-                      <Card key={vital.emergencyAdmissionVitalsId} className="p-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-2">
-                              <Badge variant={vital.vitalsStatus === 'Critical' ? 'destructive' : 'default'}>
-                                {vital.vitalsStatus}
-                              </Badge>
-                              <span className="text-sm text-gray-600">
-                                {new Date(vital.recordedDateTime).toLocaleString()}
-                              </span>
-                              {vital.nurseName && (
-                                <span className="text-sm text-gray-500">by {vital.nurseName}</span>
-                              )}
-                            </div>
-                            <div className="grid grid-cols-3 gap-2 text-sm">
-                              {vital.heartRate !== undefined && (
-                                <div><span className="text-gray-600">HR:</span> {vital.heartRate} bpm</div>
-                              )}
-                              {vital.bloodPressure && (
-                                <div><span className="text-gray-600">BP:</span> {vital.bloodPressure}</div>
-                              )}
-                              {vital.temperature !== undefined && (
-                                <div><span className="text-gray-600">Temp:</span> {vital.temperature}°C</div>
-                              )}
-                              {vital.o2Saturation !== undefined && (
-                                <div><span className="text-gray-600">O2 Sat:</span> {vital.o2Saturation}%</div>
-                              )}
-                              {vital.respiratoryRate !== undefined && (
-                                <div><span className="text-gray-600">RR:</span> {vital.respiratoryRate}</div>
-                              )}
-                              {vital.pulseRate !== undefined && (
-                                <div><span className="text-gray-600">Pulse:</span> {vital.pulseRate} bpm</div>
-                              )}
-                            </div>
-                            {vital.vitalsRemarks && (
-                              <div className="mt-2 text-sm text-gray-600">
-                                <span className="font-medium">Remarks:</span> {vital.vitalsRemarks}
-                              </div>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                setSelectedVitals(vital);
-                                setIsViewVitalsDialogOpen(true);
-                              }}
-                              className="h-8 w-8 p-0"
-                            >
-                              <Eye className="size-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                setSelectedVitals(vital);
-                                setVitalsFormData({
-                                  emergencyAdmissionId: vital.emergencyAdmissionId,
-                                  nurseId: vital.nurseId,
-                                  recordedDateTime: new Date(vital.recordedDateTime).toISOString().slice(0, 16),
-                                  heartRate: vital.heartRate,
-                                  bloodPressure: vital.bloodPressure || '',
-                                  temperature: vital.temperature,
-                                  o2Saturation: vital.o2Saturation,
-                                  respiratoryRate: vital.respiratoryRate,
-                                  pulseRate: vital.pulseRate,
-                                  vitalsStatus: vital.vitalsStatus,
-                                  vitalsRemarks: vital.vitalsRemarks || '',
-                                  status: vital.status || 'Active',
-                                });
-                                setIsEditVitalsDialogOpen(true);
-                              }}
-                              className="h-8 w-8 p-0"
-                            >
-                              <Edit className="size-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={async () => {
-                                if (confirm('Are you sure you want to delete this vitals record?')) {
-                                  try {
-                                    if (selectedAdmission) {
-                                      await emergencyAdmissionVitalsApi.delete(selectedAdmission.emergencyAdmissionId, vital.emergencyAdmissionVitalsId);
-                                      await fetchVitals(selectedAdmission.emergencyAdmissionId);
-                                    }
-                                  } catch (err) {
-                                    console.error('Error deleting vitals:', err);
-                                    alert('Failed to delete vitals record. Please try again.');
-                                  }
-                                }
-                              }}
-                              className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
-                            >
-                              <Trash2 className="size-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      </Card>
-                    ))}
+                  <div className="dialog-form-field">
+                    <Label htmlFor="edit-doctorId" className="dialog-label-standard">Doctor *</Label>
+                    <Input
+                      id="edit-doctorId"
+                      value={(() => {
+                        const doctor = doctors.find(d => d.id.toString() === formData.doctorId);
+                        if (doctor) {
+                          return `${doctor.name} - ${doctor.role}`;
+                        }
+                        return formData.doctorId || 'Unknown';
+                      })()}
+                      disabled
+                      className="dialog-input-standard dialog-input-disabled"
+                    />
                   </div>
-                )}
-              </TabsContent>
-            </Tabs>
-          </div>
-          <div className="flex justify-end gap-2 px-6 py-2 border-t bg-gray-50 flex-shrink-0">
-            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleEditSubmit}>Update Emergency Admission</Button>
+
+                  <div className="dialog-form-field">
+                    <Label htmlFor="edit-emergencyBedSlotId" className="dialog-label-standard">Emergency Bed Slot</Label>
+                    <select
+                      id="edit-emergencyBedSlotId"
+                      aria-label="Emergency Bed Slot"
+                      className="dialog-select-standard"
+                      value={formData.emergencyBedSlotId}
+                      onChange={(e) => setFormData({ ...formData, emergencyBedSlotId: e.target.value })}
+                    >
+                      <option value="">Select Emergency Bed Slot (Optional)</option>
+                      {emergencyBedSlots
+                        .filter(slot => slot.status === 'Active')
+                        .map(slot => {
+                          const bed = emergencyBeds.find(b => b.id === slot.emergencyBedId);
+                          const roomNameNo = bed?.emergencyRoomNameNo || '-';
+                          const bedId = bed?.emergencyBedId || '-';
+                          return (
+                            <option key={slot.id} value={slot.id.toString()}>
+                              Room: {roomNameNo} | Bed ID: {bedId} | Slot: {slot.eBedSlotNo} ({slot.eSlotStartTime} - {slot.eSlotEndTime})
+                            </option>
+                          );
+                        })}
+                    </select>
+                  </div>
+
+                  <div className="dialog-form-field">
+                    <Label htmlFor="edit-emergencyAdmissionDate" className="dialog-label-standard">Emergency Admission Date *</Label>
+                    <Input
+                      id="edit-emergencyAdmissionDate"
+                      type="date"
+                      value={formData.emergencyAdmissionDate}
+                      onChange={(e) => setFormData({ ...formData, emergencyAdmissionDate: e.target.value })}
+                      className="dialog-input-standard"
+                    />
+                  </div>
+
+                  <div className="dialog-form-field">
+                    <Label htmlFor="edit-emergencyStatus" className="dialog-label-standard">Emergency Status</Label>
+                    <select
+                      id="edit-emergencyStatus"
+                      aria-label="Emergency Status"
+                      className="dialog-select-standard"
+                      value={formData.emergencyStatus}
+                      onChange={(e) => setFormData({ ...formData, emergencyStatus: e.target.value as EmergencyAdmission['emergencyStatus'] })}
+                    >
+                      <option value="Admitted">Admitted</option>
+                      <option value="IPD">IPD</option>
+                      <option value="OT">OT</option>
+                      <option value="ICU">ICU</option>
+                      <option value="Discharged">Discharged</option>
+                    </select>
+                  </div>
+
+                  <div className="dialog-form-field">
+                    <Label htmlFor="edit-diagnosis" className="dialog-label-standard">Diagnosis</Label>
+                    <Textarea
+                      id="edit-diagnosis"
+                      placeholder="Enter diagnosis..."
+                      value={formData.diagnosis}
+                      onChange={(e) => setFormData({ ...formData, diagnosis: e.target.value })}
+                      rows={3}
+                      className="dialog-textarea-standard"
+                    />
+                  </div>
+
+                  <div className="dialog-form-field">
+                    <Label htmlFor="edit-treatmentDetails" className="dialog-label-standard">Treatment Details</Label>
+                    <Textarea
+                      id="edit-treatmentDetails"
+                      placeholder="Enter treatment details..."
+                      value={formData.treatmentDetails}
+                      onChange={(e) => setFormData({ ...formData, treatmentDetails: e.target.value })}
+                      rows={3}
+                      className="dialog-textarea-standard"
+                    />
+                  </div>
+
+                  <div className="dialog-form-field">
+                    <Label htmlFor="edit-patientCondition" className="dialog-label-standard">Patient Condition</Label>
+                    <select
+                      id="edit-patientCondition"
+                      aria-label="Patient Condition"
+                      className="dialog-select-standard"
+                      value={formData.patientCondition}
+                      onChange={(e) => setFormData({ ...formData, patientCondition: e.target.value as EmergencyAdmission['patientCondition'] })}
+                    >
+                      <option value="Stable">Stable</option>
+                      <option value="Critical">Critical</option>
+                    </select>
+                  </div>
+
+                  <div className="dialog-form-field">
+                    <div className="dialog-checkbox-container">
+                      <input
+                        type="checkbox"
+                        id="edit-transferToIPDOTICU"
+                        aria-label="Transfer To IPD/OT/ICU"
+                        checked={formData.transferToIPDOTICU}
+                        onChange={(e) => setFormData({ ...formData, transferToIPDOTICU: e.target.checked, transferTo: e.target.checked ? formData.transferTo : undefined })}
+                        className="rounded"
+                      />
+                      <Label htmlFor="edit-transferToIPDOTICU" className="dialog-checkbox-label-standard cursor-pointer">Transfer To IPD/OT/ICU</Label>
+                    </div>
+                  </div>
+
+                  {formData.transferToIPDOTICU && (
+                    <>
+                      <div className="dialog-form-field">
+                        <Label htmlFor="edit-transferTo" className="dialog-label-standard">Transfer To *</Label>
+                        <select
+                          id="edit-transferTo"
+                          aria-label="Transfer To"
+                          className="dialog-select-standard"
+                          value={formData.transferTo || ''}
+                          onChange={(e) => setFormData({ ...formData, transferTo: e.target.value as 'IPD Room Admission' | 'ICU' | 'OT' })}
+                        >
+                          <option value="">Select Transfer Destination</option>
+                          <option value="IPD Room Admission">IPD Room Admission</option>
+                          <option value="ICU">ICU</option>
+                          <option value="OT">OT</option>
+                        </select>
+                      </div>
+                      <div className="dialog-form-field">
+                        <Label htmlFor="edit-transferDetails" className="dialog-label-standard">Transfer Details</Label>
+                        <Textarea
+                          id="edit-transferDetails"
+                          placeholder="Enter transfer details..."
+                          value={formData.transferDetails}
+                          onChange={(e) => setFormData({ ...formData, transferDetails: e.target.value })}
+                          rows={2}
+                          className="dialog-textarea-standard"
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  <div className="dialog-form-field">
+                    <Label htmlFor="edit-status" className="dialog-label-standard">Status</Label>
+                    <select
+                      id="edit-status"
+                      aria-label="Status"
+                      className="dialog-select-standard"
+                      value={formData.status}
+                      onChange={(e) => setFormData({ ...formData, status: e.target.value as EmergencyAdmission['status'] })}
+                    >
+                      <option value="Active">Active</option>
+                      <option value="Inactive">Inactive</option>
+                    </select>
+                  </div>
+                </TabsContent>
+                
+                <TabsContent value="vitals" className="space-y-4 py-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold">Vitals Records</h3>
+                    <Button 
+                      onClick={() => {
+                        if (selectedAdmission) {
+                          setVitalsFormData({
+                            emergencyAdmissionId: selectedAdmission.emergencyAdmissionId,
+                            nurseId: 0,
+                            recordedDateTime: new Date().toISOString().slice(0, 16),
+                            heartRate: undefined,
+                            bloodPressure: '',
+                            temperature: undefined,
+                            o2Saturation: undefined,
+                            respiratoryRate: undefined,
+                            pulseRate: undefined,
+                            vitalsStatus: 'Stable',
+                            vitalsRemarks: '',
+                            status: 'Active',
+                          });
+                          setIsAddVitalsDialogOpen(true);
+                        }
+                      }}
+                      className="flex items-center gap-2"
+                    >
+                      <Plus className="size-4" />
+                      Add Vitals
+                    </Button>
+                  </div>
+                  
+                  {vitalsLoading ? (
+                    <div className="text-center py-8 text-gray-500">Loading vitals...</div>
+                  ) : vitals.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">No vitals records found. Click "Add Vitals" to create one.</div>
+                  ) : (
+                    <div className="space-y-2">
+                      {vitals.map((vital) => (
+                        <Card key={vital.emergencyAdmissionVitalsId} className="p-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <Badge variant={vital.vitalsStatus === 'Critical' ? 'destructive' : 'default'}>
+                                  {vital.vitalsStatus}
+                                </Badge>
+                                <span className="text-sm text-gray-600">
+                                  {new Date(vital.recordedDateTime).toLocaleString()}
+                                </span>
+                                {vital.nurseName && (
+                                  <span className="text-sm text-gray-500">by {vital.nurseName}</span>
+                                )}
+                              </div>
+                              <div className="grid grid-cols-3 gap-2 text-sm">
+                                {vital.heartRate !== undefined && (
+                                  <div><span className="text-gray-600">HR:</span> {vital.heartRate} bpm</div>
+                                )}
+                                {vital.bloodPressure && (
+                                  <div><span className="text-gray-600">BP:</span> {vital.bloodPressure}</div>
+                                )}
+                                {vital.temperature !== undefined && (
+                                  <div><span className="text-gray-600">Temp:</span> {vital.temperature}°C</div>
+                                )}
+                                {vital.o2Saturation !== undefined && (
+                                  <div><span className="text-gray-600">O2 Sat:</span> {vital.o2Saturation}%</div>
+                                )}
+                                {vital.respiratoryRate !== undefined && (
+                                  <div><span className="text-gray-600">RR:</span> {vital.respiratoryRate}</div>
+                                )}
+                                {vital.pulseRate !== undefined && (
+                                  <div><span className="text-gray-600">Pulse:</span> {vital.pulseRate} bpm</div>
+                                )}
+                              </div>
+                              {vital.vitalsRemarks && (
+                                <div className="mt-2 text-sm text-gray-600">
+                                  <span className="font-medium">Remarks:</span> {vital.vitalsRemarks}
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedVitals(vital);
+                                  setIsViewVitalsDialogOpen(true);
+                                }}
+                                className="h-8 w-8 p-0"
+                              >
+                                <Eye className="size-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedVitals(vital);
+                                  setVitalsFormData({
+                                    emergencyAdmissionId: vital.emergencyAdmissionId,
+                                    nurseId: vital.nurseId,
+                                    recordedDateTime: new Date(vital.recordedDateTime).toISOString().slice(0, 16),
+                                    heartRate: vital.heartRate,
+                                    bloodPressure: vital.bloodPressure || '',
+                                    temperature: vital.temperature,
+                                    o2Saturation: vital.o2Saturation,
+                                    respiratoryRate: vital.respiratoryRate,
+                                    pulseRate: vital.pulseRate,
+                                    vitalsStatus: vital.vitalsStatus,
+                                    vitalsRemarks: vital.vitalsRemarks || '',
+                                    status: vital.status || 'Active',
+                                  });
+                                  setIsEditVitalsDialogOpen(true);
+                                }}
+                                className="h-8 w-8 p-0"
+                              >
+                                <Edit className="size-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={async () => {
+                                  if (confirm('Are you sure you want to delete this vitals record?')) {
+                                    try {
+                                      if (selectedAdmission) {
+                                        await emergencyAdmissionVitalsApi.delete(selectedAdmission.emergencyAdmissionId, vital.emergencyAdmissionVitalsId);
+                                        await fetchVitals(selectedAdmission.emergencyAdmissionId);
+                                      }
+                                    } catch (err) {
+                                      console.error('Error deleting vitals:', err);
+                                      alert('Failed to delete vitals record. Please try again.');
+                                    }
+                                  }
+                                }}
+                                className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
+                              >
+                                <Trash2 className="size-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
+                </TabsContent>
+              </Tabs>
+            </div>
+            <div className="dialog-footer-standard">
+              <Button variant="outline" onClick={() => setIsEditDialogOpen(false)} className="dialog-footer-button">Cancel</Button>
+              <Button onClick={handleEditSubmit} className="dialog-footer-button">Update Emergency Admission</Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

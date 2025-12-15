@@ -1187,8 +1187,8 @@ export function PatientOTAllocationManagement() {
           <div className="px-6 pt-6 pb-0 flex-shrink-0">
             <div className="flex items-center justify-between mb-4 flex-shrink-0">
               <div>
-                <h1 className="text-gray-900 mb-2 text-2xl">Patient OT Allocation Management</h1>
-                <p className="text-gray-500 text-base">Manage patient operating theater allocations</p>
+                <h1 className="text-gray-900 mb-2 text-2xl">Operation Theater Management</h1>
+                <p className="text-gray-500 text-base">Schedule and monitor surgical procedures</p>
               </div>
               <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
@@ -1197,24 +1197,24 @@ export function PatientOTAllocationManagement() {
                 Add OT Allocation
               </Button>
             </DialogTrigger>
-            <DialogContent className="p-0 gap-0 large-dialog bg-white">
-              <div className="flex-1 overflow-y-auto dialog-content-scrollable min-h-0 bg-white max-h-[90vh]">
-                <DialogHeader className="px-6 pt-4 pb-3 bg-white">
-                  <DialogTitle className="text-gray-700">Add New Patient OT Allocation</DialogTitle>
+            <DialogContent className="p-0 gap-0 large-dialog dialog-content-standard">
+              <div className="dialog-scrollable-wrapper dialog-content-scrollable max-h-[90vh]">
+                <DialogHeader className="dialog-header-standard">
+                  <DialogTitle className="dialog-title-standard">Add New Patient OT Allocation</DialogTitle>
                 </DialogHeader>
-                <div className="px-6 pb-1">
-                  <div className="space-y-4 py-4">
-                  <div className="text-sm text-gray-600 p-3 bg-gray-300 rounded-md">
+                <div className="dialog-body-content-wrapper">
+                  <div className="dialog-form-container space-y-4">
+                  <div className="dialog-form-field text-sm text-gray-600 p-3 bg-gray-50 rounded-md border border-gray-200">
                     <p className="font-medium mb-1">Patient Source (Select one):</p>
                     <p className="text-xs">Choose either Patient (Direct OT), Room Admission (IPD), Patient Appointment (OPD), or Emergency Bed</p>
                   </div>
                   
-                  <div>
-                    <Label htmlFor="add-patientId" className="text-gray-600">Patient (Direct OT - Optional)</Label>
+                  <div className="dialog-form-field">
+                    <Label htmlFor="add-patientId" className="dialog-label-standard">Patient (Direct OT - Optional)</Label>
                     <select
                       id="add-patientId"
                       aria-label="Patient"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-md text-gray-700 bg-gray-100"
+                      className="dialog-select-standard"
                       value={formData.patientId}
                       onChange={(e) => setFormData({ ...formData, patientId: e.target.value, roomAdmissionId: '', patientAppointmentId: '', emergencyBedSlotId: '' })}
                     >

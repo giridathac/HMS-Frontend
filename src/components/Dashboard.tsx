@@ -234,8 +234,8 @@ export function DashboardView({
         <div className="px-6 pt-6 pb-0 flex-shrink-0">
           <div className="flex items-center justify-between mb-4 flex-shrink-0">
             <div>
-              <h1 className="text-gray-900 mb-2 text-2xl">Dashboard Overview</h1>
-              <p className="text-gray-500 text-base">Real-time hospital operations monitoring</p>
+              <h1 className="dashboard-header">Dashboard Overview</h1>
+              <p className="dashboard-subheader">Real-time hospital operations monitoring</p>
             </div>
           </div>
         </div>

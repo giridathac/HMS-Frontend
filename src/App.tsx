@@ -26,7 +26,6 @@ import { Tooltip, TooltipTrigger, TooltipContent } from './components/ui/tooltip
 const Dashboard = lazy(() => import('./components/Dashboard').then(m => ({ default: m.Dashboard })));
 const DoctorConsultation = lazy(() => import('./components/DoctorConsultation').then(m => ({ default: m.DoctorConsultation })));
 const Admissions = lazy(() => import('./components/Admissions').then(m => ({ default: m.Admissions })));
-const OTManagement = lazy(() => import('./components/OTManagement').then(m => ({ default: m.OTManagement })));
 const ICUManagement = lazy(() => import('./components/ICUManagement').then(m => ({ default: m.ICUManagement })));
 const Laboratory = lazy(() => import('./components/Laboratory').then(m => ({ default: m.Laboratory })));
 const Emergency = lazy(() => import('./components/Emergency').then(m => ({ default: m.Emergency })));
@@ -133,10 +132,10 @@ export default function App() {
     { id: 'consultation' as View, label: 'Doctor Consultation', icon: Stethoscope },
     { id: 'laboratory' as View, label: 'Laboratory Management', icon: TestTube },    
     { id: 'admissions' as View, label: 'Admissions (IPD)', icon: BedDouble },
-    { id: 'ot' as View, label: 'OT Management', icon: Scissors },
+    // { id: 'ot' as View, label: 'OT Management', icon: Scissors },
     { id: 'otrooms' as View, label: 'OT Rooms Management', icon: Scissors },
     //{ id: 'surgerymanagement' as View, label: 'Surgery Procedures Mgmt', icon: Activity },
-    { id: 'patientotallocation' as View, label: 'Patient OT Allocation', icon: Scissors },
+    { id: 'ot' as View, label: 'OT Management', icon: Scissors },
     { id: 'icu' as View, label: 'ICU Management', icon: HeartPulse },
     { id: 'icubeds' as View, label: 'ICU Bed Management', icon: HeartPulse },
     { id: 'emergencybeds' as View, label: 'Emergency Bed Management', icon: BedDouble },
@@ -148,7 +147,7 @@ export default function App() {
     { id: 'staff' as View, label: 'Staff', icon: UserCog },   
     { id: 'roombeds' as View, label: 'Room & Beds', icon: BedDouble },
     { id: 'labtests' as View, label: 'Lab Tests Management', icon: FlaskConical },    
-    { id: 'emergency' as View, label: 'Emergency', icon: Siren },
+    // { id: 'emergency' as View, label: 'Emergency', icon: Siren },
      
     { id: 'reports' as View, label: 'Reports', icon: FileBarChart, color: 'text-blue-700' },
   ];
@@ -181,8 +180,8 @@ export default function App() {
                         <Activity className="size-10 text-blue-600" strokeWidth={2.5} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h1 className="text-base font-normal text-gray-900 leading-tight">MediCare HMS</h1>
-                        <p className="text-sm text-gray-600 leading-tight mt-0.5">Hospital Management</p>
+                        <h1 className="text-lg font-normal text-gray-900 leading-tight">MediCare HMS</h1>
+                        <p className="text-base text-gray-600 leading-tight mt-0.5">Hospital Management</p>
                       </div>
                     </div>
                   </div>
@@ -209,19 +208,19 @@ export default function App() {
                                   }}
                                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
                                     isActive
-                                      ? 'bg-gray-50 text-gray-900 shadow-sm'
+                                      ? 'bg-gray-100 text-blue-600 shadow-sm'
                                       : 'text-gray-900 hover:bg-gray-50'
                                   }`}
                                 >
                                   <Icon className={`size-6 flex-shrink-0 ${
-                                    isActive ? item.color || 'text-gray-700' : item.color || 'text-gray-500'
+                                    isActive ? 'text-blue-600' : item.color || 'text-gray-500'
                                   }`} strokeWidth={isActive ? 2.5 : 2} />
-                                  <span className={`text-base font-normal truncate ${
-                                    isActive ? 'text-gray-900' : 'text-gray-900'
+                                  <span className={`text-lg font-normal truncate ${
+                                    isActive ? 'text-blue-600' : 'text-gray-900'
                                   }`}>{item.label}</span>
                                 </a>
                               </TooltipTrigger>
-                              <TooltipContent side="right" className="bg-gray-900 text-white text-xs px-2 py-1.5 border-0 shadow-lg">
+                              <TooltipContent side="right" className="bg-gray-900 text-white text-sm px-2 py-1.5 border-0 shadow-lg">
                                 {item.label}
                               </TooltipContent>
                             </Tooltip>
@@ -235,11 +234,11 @@ export default function App() {
                   <div className="px-6 py-8 border-t border-gray-200 bg-white">
                     <div className="flex items-center gap-3">
                       <div className="size-12 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                        <span className="text-base font-bold text-blue-600">AD</span>
+                        <span className="text-lg font-bold text-blue-600">AD</span>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-base font-normal text-gray-900 truncate leading-tight">Admin User</p>
-                        <p className="text-sm text-gray-600 truncate leading-tight mt-0.5">Administrator</p>
+                        <p className="text-lg font-normal text-gray-900 truncate leading-tight">Admin User</p>
+                        <p className="text-base text-gray-600 truncate leading-tight mt-0.5">Administrator</p>
                       </div>
                     </div>
                   </div>
@@ -272,7 +271,7 @@ export default function App() {
               {currentView === 'labtests' && <LabTests />}
               {currentView === 'consultation' && <DoctorConsultation />}
               {currentView === 'admissions' && <Admissions />}
-              {currentView === 'ot' && <OTManagement />}
+              {currentView === 'ot' && <PatientOTAllocationManagement />}
               {currentView === 'otrooms' && <OTRoomsManagement />}
 
               {currentView === 'patientotallocation' && <PatientOTAllocationManagement />}

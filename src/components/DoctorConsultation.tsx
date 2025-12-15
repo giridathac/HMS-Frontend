@@ -388,28 +388,29 @@ export function DoctorConsultation() {
 
       {/* View Appointment Dialog */}
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-        <DialogContent className="p-0 gap-0 large-dialog max-h-[90vh]">
-          <DialogHeader className="px-6 pt-4 pb-3 flex-shrink-0">
-            <DialogTitle>View Patient Appointment</DialogTitle>
-          </DialogHeader>
-          {selectedAppointment && (() => {
-            const patient = patients.find(p => 
-              (p as any).patientId === selectedAppointment.patientId || 
-              (p as any).PatientId === selectedAppointment.patientId
-            );
-            const doctor = appointmentDoctors.find(d => d.id.toString() === selectedAppointment.doctorId);
-            const patientName = patient 
-              ? `${(patient as any).patientName || (patient as any).PatientName || ''} ${(patient as any).lastName || (patient as any).LastName || ''}`.trim() 
-              : selectedAppointment.patientId;
-            const doctorName = doctor ? doctor.name : selectedAppointment.doctorId;
+        <DialogContent className="p-0 gap-0 large-dialog dialog-content-standard">
+          <div className="dialog-scrollable-wrapper dialog-content-scrollable">
+            {selectedAppointment && (() => {
+              const patient = patients.find(p => 
+                (p as any).patientId === selectedAppointment.patientId || 
+                (p as any).PatientId === selectedAppointment.patientId
+              );
+              const doctor = appointmentDoctors.find(d => d.id.toString() === selectedAppointment.doctorId);
+              const patientName = patient 
+                ? `${(patient as any).patientName || (patient as any).PatientName || ''} ${(patient as any).lastName || (patient as any).LastName || ''}`.trim() 
+                : selectedAppointment.patientId;
+              const doctorName = doctor ? doctor.name : selectedAppointment.doctorId;
 
-            return (
-              <>
-                <div className="flex-1 overflow-y-auto px-6 pb-1 patient-list-scrollable min-h-0">
-                  <div className="space-y-4 py-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label>Patient *</Label>
+              return (
+                <>
+                  <DialogHeader className="dialog-header-standard">
+                    <DialogTitle className="dialog-title-standard-view">View Patient Appointment</DialogTitle>
+                  </DialogHeader>
+                  <div className="dialog-body-content-wrapper">
+                  <div className="dialog-form-container">
+                    <div className="dialog-form-field-grid">
+                      <div className="dialog-field-single-column">
+                        <Label className="dialog-label-standard">Patient *</Label>
                         <Input
                           value={(() => {
                             const patient = patients.find(p => 
@@ -424,86 +425,88 @@ export function DoctorConsultation() {
                             return `${patientName} (ID: ${selectedAppointment.patientId ? selectedAppointment.patientId.substring(0, 8) : 'N/A'})`;
                           })()}
                           disabled
-                          className="bg-gray-50 text-gray-700"
+                          className="dialog-input-disabled"
                         />
                       </div>
-                      <div>
-                        <Label>Doctor *</Label>
+                      <div className="dialog-field-single-column">
+                        <Label className="dialog-label-standard">Doctor *</Label>
                         <Input
                           value={doctorName}
                           disabled
-                          className="bg-gray-50 text-gray-700"
+                          className="dialog-input-disabled"
                         />
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label>Appointment Date *</Label>
+                    <div className="dialog-form-field-grid">
+                      <div className="dialog-field-single-column">
+                        <Label className="dialog-label-standard">Appointment Date *</Label>
                         <Input
                           type="date"
                           value={selectedAppointment.appointmentDate}
                           disabled
-                          className="bg-gray-50 text-gray-700"
+                          className="dialog-input-disabled"
                         />
                       </div>
-                      <div>
-                        <Label>Appointment Time *</Label>
+                      <div className="dialog-field-single-column">
+                        <Label className="dialog-label-standard">Appointment Time *</Label>
                         <Input
                           type="time"
                           value={selectedAppointment.appointmentTime}
                           disabled
-                          className="bg-gray-50 text-gray-700"
+                          className="dialog-input-disabled"
                         />
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label>Appointment Status</Label>
+                    <div className="dialog-form-field-grid">
+                      <div className="dialog-field-single-column">
+                        <Label className="dialog-label-standard">Appointment Status</Label>
                         <Input
                           value={selectedAppointment.appointmentStatus}
                           disabled
-                          className="bg-gray-50 text-gray-700"
+                          className="dialog-input-disabled"
                         />
                       </div>
-                      <div>
-                        <Label>Consultation Charge (₹) *</Label>
+                      <div className="dialog-field-single-column">
+                        <Label className="dialog-label-standard">Consultation Charge (₹) *</Label>
                         <Input
                           type="number"
                           value={selectedAppointment.consultationCharge}
                           disabled
-                          className="bg-gray-50 text-gray-700"
+                          className="dialog-input-disabled"
                         />
                       </div>
                     </div>
-                    <div>
-                      <Label>Diagnosis</Label>
+                    <div className="dialog-form-field">
+                      <Label className="dialog-label-standard">Diagnosis</Label>
                       <Textarea
                         value={selectedAppointment.diagnosis || ''}
                         disabled
-                        className="bg-gray-50 text-gray-700"
+                        className="dialog-textarea-standard"
+                        style={{ fontSize: '1.125rem' }}
                         rows={3}
                       />
                     </div>
-                    <div>
-                      <Label>Follow Up Details</Label>
+                    <div className="dialog-form-field">
+                      <Label className="dialog-label-standard">Follow Up Details</Label>
                       <Textarea
                         value={selectedAppointment.followUpDetails || ''}
                         disabled
-                        className="bg-gray-50 text-gray-700"
+                        className="dialog-textarea-standard"
+                        style={{ fontSize: '1.125rem' }}
                         rows={2}
                       />
                     </div>
-                    <div>
-                      <Label>Prescriptions URL</Label>
+                    <div className="dialog-form-field">
+                      <Label className="dialog-label-standard">Prescriptions URL</Label>
                       <Input
                         type="url"
                         value={selectedAppointment.prescriptionsUrl || ''}
                         disabled
-                        className="bg-gray-50 text-gray-700"
+                        className="dialog-input-disabled"
                       />
-                      <p className="text-xs text-gray-700 mt-1">Folder URL - multiple prescriptions should be saved</p>
+                      <p className="dialog-helper-text">Folder URL - multiple prescriptions should be saved</p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="dialog-checkbox-container">
                       <input
                         type="checkbox"
                         id="view-toBeAdmitted"
@@ -512,9 +515,9 @@ export function DoctorConsultation() {
                         disabled
                         className="rounded"
                       />
-                      <Label htmlFor="view-toBeAdmitted">To Be Admitted (Yes - converted to IPD)</Label>
+                      <Label htmlFor="view-toBeAdmitted" className="dialog-checkbox-label-standard">To Be Admitted (Yes - converted to IPD)</Label>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="dialog-checkbox-container">
                       <input
                         type="checkbox"
                         id="view-referToAnotherDoctor"
@@ -523,23 +526,23 @@ export function DoctorConsultation() {
                         disabled
                         className="rounded"
                       />
-                      <Label htmlFor="view-referToAnotherDoctor">Refer To Another Doctor</Label>
+                      <Label htmlFor="view-referToAnotherDoctor" className="dialog-checkbox-label-standard">Refer To Another Doctor</Label>
                     </div>
                     {selectedAppointment.referToAnotherDoctor && (
-                      <div>
-                        <Label>Referred Doctor *</Label>
+                      <div className="dialog-form-field">
+                        <Label className="dialog-label-standard">Referred Doctor *</Label>
                         <Input
                           value={(() => {
                             const referredDoctor = appointmentDoctors.find(d => d.id.toString() === selectedAppointment.referredDoctorId);
                             return referredDoctor ? `${referredDoctor.name} - ${referredDoctor.specialty}` : selectedAppointment.referredDoctorId || '';
                           })()}
                           disabled
-                          className="bg-gray-50 text-gray-700"
+                          className="dialog-input-disabled"
                         />
-                        <p className="text-xs text-gray-700 mt-1">Once this is made as Yes, Appointment created for this doctor id</p>
+                        <p className="dialog-helper-text">Once this is made as Yes, Appointment created for this doctor id</p>
                       </div>
                     )}
-                    <div className="flex items-center gap-2">
+                    <div className="dialog-checkbox-container">
                       <input
                         type="checkbox"
                         id="view-transferToIPDOTICU"
@@ -548,63 +551,66 @@ export function DoctorConsultation() {
                         disabled
                         className="rounded"
                       />
-                      <Label htmlFor="view-transferToIPDOTICU">Transfer To IPD/OT/ICU</Label>
+                      <Label htmlFor="view-transferToIPDOTICU" className="dialog-checkbox-label-standard">Transfer To IPD/OT/ICU</Label>
                     </div>
                     {selectedAppointment.transferToIPDOTICU && (
-                      <div>
-                        <Label>Transfer To *</Label>
+                      <div className="dialog-form-field">
+                        <Label className="dialog-label-standard">Transfer To *</Label>
                         <Input
                           value={selectedAppointment.transferTo || ''}
                           disabled
-                          className="bg-gray-50 text-gray-700"
+                          className="dialog-input-disabled"
                         />
                       </div>
                     )}
                     {selectedAppointment.transferToIPDOTICU && (
-                      <div>
-                        <Label>Transfer Details</Label>
+                      <div className="dialog-form-field">
+                        <Label className="dialog-label-standard">Transfer Details</Label>
                         <Textarea
                           value={selectedAppointment.transferDetails || ''}
                           disabled
-                          className="bg-gray-50 text-gray-700"
+                          className="dialog-textarea-standard"
+                          style={{ fontSize: '1.125rem' }}
                           rows={2}
                         />
                       </div>
                     )}
-                    <div>
-                      <Label>Bill ID</Label>
+                    <div className="dialog-form-field">
+                      <Label className="dialog-label-standard">Bill ID</Label>
                       <Input
                         type="text"
                         value={selectedAppointment.billId || ''}
                         disabled
-                        className="bg-gray-50 text-gray-700"
+                        className="dialog-input-disabled"
                       />
-                      <p className="text-xs text-gray-700 mt-1">Foreign Key to BillId</p>
+                      <p className="dialog-helper-text">Foreign Key to BillId</p>
                     </div>
                   </div>
-                </div>
-                <div className="flex justify-end gap-2 px-6 py-2 border-t bg-gray-50 flex-shrink-0">
-                  <Button variant="outline" onClick={() => setIsViewDialogOpen(false)} className="py-1">Close</Button>
-                </div>
-              </>
-            );
-          })()}
+                  </div>
+                  <div className="dialog-footer-standard">
+                    <Button variant="outline" onClick={() => setIsViewDialogOpen(false)} className="dialog-footer-button">Close</Button>
+                  </div>
+                </>
+              );
+            })()}
+          </div>
         </DialogContent>
       </Dialog>
 
       {/* Edit Appointment Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="p-0 gap-0 large-dialog max-h-[90vh]">
-          <DialogHeader className="px-6 pt-4 pb-3 flex-shrink-0">
-            <DialogTitle>Edit Patient Appointment</DialogTitle>
-          </DialogHeader>
-          {selectedAppointment && (
-            <>
-              <div className="flex-1 overflow-y-auto px-6 pb-1 patient-list-scrollable min-h-0">
-                <div className="space-y-4 py-4">
+        <DialogContent className="p-0 gap-0 large-dialog bg-white">
+          <div className="flex-1 overflow-y-auto dialog-content-scrollable min-h-0 bg-white">
+            {selectedAppointment && (
+              <>
+                <DialogHeader className="px-6 pt-4 pb-3 bg-white">
+                  <DialogTitle className="text-gray-700" style={{ fontSize: '1.25rem' }}>Edit Patient Appointment</DialogTitle>
+                </DialogHeader>
+                <div className="px-6 pb-1">
+                  <div className="space-y-4 py-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="edit-patientId">Patient *</Label>
+                      <Label htmlFor="edit-patientId" className="text-gray-600" style={{ fontSize: '1.125rem' }}>Patient *</Label>
                       <Input
                         id="edit-patientId"
                         value={(() => {
@@ -624,10 +630,11 @@ export function DoctorConsultation() {
                         })()}
                         disabled
                         className="bg-gray-50 text-gray-700"
+                        style={{ fontSize: '1.125rem' }}
                       />
                     </div>
                     <div>
-                      <Label htmlFor="edit-doctorId">Doctor *</Label>
+                      <Label htmlFor="edit-doctorId" className="text-gray-600" style={{ fontSize: '1.125rem' }}>Doctor *</Label>
                       <Input
                         id="edit-doctorId"
                         value={(() => {
@@ -639,38 +646,44 @@ export function DoctorConsultation() {
                         })()}
                         disabled
                         className="bg-gray-50 text-gray-700"
+                        style={{ fontSize: '1.125rem' }}
                       />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="edit-appointmentDate">Appointment Date *</Label>
+                      <Label htmlFor="edit-appointmentDate" className="text-gray-600" style={{ fontSize: '1.125rem' }}>Appointment Date *</Label>
                       <Input
                         id="edit-appointmentDate"
                         type="date"
                         value={editFormData.appointmentDate}
                         onChange={(e) => setEditFormData({ ...editFormData, appointmentDate: e.target.value })}
+                        className="text-gray-700 bg-gray-100"
+                        style={{ fontSize: '1.125rem' }}
                       />
                     </div>
                     <div>
-                      <Label htmlFor="edit-appointmentTime">Appointment Time *</Label>
+                      <Label htmlFor="edit-appointmentTime" className="text-gray-600" style={{ fontSize: '1.125rem' }}>Appointment Time *</Label>
                       <Input
                         id="edit-appointmentTime"
                         type="time"
                         value={editFormData.appointmentTime}
                         onChange={(e) => setEditFormData({ ...editFormData, appointmentTime: e.target.value })}
+                        className="text-gray-700 bg-gray-100"
+                        style={{ fontSize: '1.125rem' }}
                       />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="edit-appointmentStatus">Appointment Status</Label>
+                      <Label htmlFor="edit-appointmentStatus" className="text-gray-600" style={{ fontSize: '1.125rem' }}>Appointment Status</Label>
                       <select
                         id="edit-appointmentStatus"
                         aria-label="Appointment Status"
-                        className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                        className="w-full px-3 py-2 border border-gray-200 rounded-md text-gray-700 bg-gray-100"
                         value={editFormData.appointmentStatus}
                         onChange={(e) => setEditFormData({ ...editFormData, appointmentStatus: e.target.value as PatientAppointment['appointmentStatus'] })}
+                        style={{ fontSize: '1.125rem' }}
                       >
                         <option value="Waiting">Waiting</option>
                         <option value="Consulting">Consulting</option>
@@ -678,7 +691,7 @@ export function DoctorConsultation() {
                       </select>
                     </div>
                     <div>
-                      <Label htmlFor="edit-consultationCharge">Consultation Charge (₹) *</Label>
+                      <Label htmlFor="edit-consultationCharge" className="text-gray-600" style={{ fontSize: '1.125rem' }}>Consultation Charge (₹) *</Label>
                       <Input
                         id="edit-consultationCharge"
                         type="number"
@@ -687,37 +700,45 @@ export function DoctorConsultation() {
                         placeholder="e.g., 500"
                         value={editFormData.consultationCharge}
                         onChange={(e) => setEditFormData({ ...editFormData, consultationCharge: parseFloat(e.target.value) || 0 })}
+                        className="text-gray-700 bg-gray-100"
+                        style={{ fontSize: '1.125rem' }}
                       />
                     </div>
                   </div>
                   <div>
-                    <Label htmlFor="edit-diagnosis">Diagnosis</Label>
+                    <Label htmlFor="edit-diagnosis" className="text-gray-600" style={{ fontSize: '1.125rem' }}>Diagnosis</Label>
                     <Textarea
                       id="edit-diagnosis"
                       placeholder="Enter diagnosis..."
                       value={editFormData.diagnosis}
                       onChange={(e) => setEditFormData({ ...editFormData, diagnosis: e.target.value })}
                       rows={3}
+                      className="text-gray-700 bg-gray-100"
+                      style={{ fontSize: '1.125rem' }}
                     />
                   </div>
                   <div>
-                    <Label htmlFor="edit-followUpDetails">Follow Up Details</Label>
+                    <Label htmlFor="edit-followUpDetails" className="text-gray-600" style={{ fontSize: '1.125rem' }}>Follow Up Details</Label>
                     <Textarea
                       id="edit-followUpDetails"
                       placeholder="Enter follow up details..."
                       value={editFormData.followUpDetails}
                       onChange={(e) => setEditFormData({ ...editFormData, followUpDetails: e.target.value })}
                       rows={2}
+                      className="text-gray-700 bg-gray-100"
+                      style={{ fontSize: '1.125rem' }}
                     />
                   </div>
                   <div>
-                    <Label htmlFor="edit-prescriptionsUrl">Prescriptions URL</Label>
+                    <Label htmlFor="edit-prescriptionsUrl" className="text-gray-600" style={{ fontSize: '1.125rem' }}>Prescriptions URL</Label>
                     <Input
                       id="edit-prescriptionsUrl"
                       type="url"
                       placeholder="https://prescriptions.example.com/..."
                       value={editFormData.prescriptionsUrl}
                       onChange={(e) => setEditFormData({ ...editFormData, prescriptionsUrl: e.target.value })}
+                      className="text-gray-700 bg-gray-100"
+                      style={{ fontSize: '1.125rem' }}
                     />
                     <p className="text-xs text-gray-700 mt-1">Folder URL - multiple prescriptions should be saved</p>
                   </div>
@@ -730,7 +751,7 @@ export function DoctorConsultation() {
                       onChange={(e) => setEditFormData({ ...editFormData, toBeAdmitted: e.target.checked })}
                       className="rounded"
                     />
-                    <Label htmlFor="edit-toBeAdmitted" className="cursor-pointer">To Be Admitted (Yes - converted to IPD)</Label>
+                    <Label htmlFor="edit-toBeAdmitted" className="cursor-pointer text-gray-600" style={{ fontSize: '1.125rem' }}>To Be Admitted (Yes - converted to IPD)</Label>
                   </div>
                   <div className="flex items-center gap-2">
                     <input
@@ -746,17 +767,18 @@ export function DoctorConsultation() {
                       })}
                       className="rounded"
                     />
-                    <Label htmlFor="edit-referToAnotherDoctor" className="cursor-pointer">Refer To Another Doctor</Label>
+                    <Label htmlFor="edit-referToAnotherDoctor" className="cursor-pointer text-gray-600" style={{ fontSize: '1.125rem' }}>Refer To Another Doctor</Label>
                   </div>
                   {editFormData.referToAnotherDoctor && (
                     <div>
-                      <Label htmlFor="edit-referredDoctorId">Referred Doctor *</Label>
+                      <Label htmlFor="edit-referredDoctorId" className="text-gray-600" style={{ fontSize: '1.125rem' }}>Referred Doctor *</Label>
                       <select
                         id="edit-referredDoctorId"
                         aria-label="Referred Doctor"
-                        className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                        className="w-full px-3 py-2 border border-gray-200 rounded-md text-gray-700 bg-gray-100"
                         value={editFormData.referredDoctorId}
                         onChange={(e) => setEditFormData({ ...editFormData, referredDoctorId: e.target.value })}
+                        style={{ fontSize: '1.125rem' }}
                       >
                         <option value="">Select Referred Doctor</option>
                         {appointmentDoctors.length > 0 ? (
@@ -781,17 +803,18 @@ export function DoctorConsultation() {
                       onChange={(e) => setEditFormData({ ...editFormData, transferToIPDOTICU: e.target.checked, transferTo: e.target.checked ? editFormData.transferTo : undefined })}
                       className="rounded"
                     />
-                    <Label htmlFor="edit-transferToIPDOTICU" className="cursor-pointer">Transfer To IPD/OT/ICU</Label>
+                    <Label htmlFor="edit-transferToIPDOTICU" className="cursor-pointer text-gray-600" style={{ fontSize: '1.125rem' }}>Transfer To IPD/OT/ICU</Label>
                   </div>
                   {editFormData.transferToIPDOTICU && (
                     <div>
-                      <Label htmlFor="edit-transferTo">Transfer To *</Label>
+                      <Label htmlFor="edit-transferTo" className="text-gray-600" style={{ fontSize: '1.125rem' }}>Transfer To *</Label>
                       <select
                         id="edit-transferTo"
                         aria-label="Transfer To"
-                        className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                        className="w-full px-3 py-2 border border-gray-200 rounded-md text-gray-700 bg-gray-100"
                         value={editFormData.transferTo || ''}
                         onChange={(e) => setEditFormData({ ...editFormData, transferTo: e.target.value as 'IPD Room Admission' | 'ICU' | 'OT' })}
+                        style={{ fontSize: '1.125rem' }}
                       >
                         <option value="">Select Transfer Destination</option>
                         <option value="IPD Room Admission">IPD Room Admission</option>
@@ -802,81 +825,86 @@ export function DoctorConsultation() {
                   )}
                   {editFormData.transferToIPDOTICU && (
                     <div>
-                      <Label htmlFor="edit-transferDetails">Transfer Details</Label>
+                      <Label htmlFor="edit-transferDetails" className="text-gray-600" style={{ fontSize: '1.125rem' }}>Transfer Details</Label>
                       <Textarea
                         id="edit-transferDetails"
                         placeholder="Enter transfer details..."
                         value={editFormData.transferDetails}
                         onChange={(e) => setEditFormData({ ...editFormData, transferDetails: e.target.value })}
                         rows={2}
+                        className="text-gray-700 bg-gray-100"
+                        style={{ fontSize: '1.125rem' }}
                       />
                     </div>
                   )}
                   <div>
-                    <Label htmlFor="edit-billId">Bill ID</Label>
+                    <Label htmlFor="edit-billId" className="text-gray-600" style={{ fontSize: '1.125rem' }}>Bill ID</Label>
                     <Input
                       id="edit-billId"
                       type="text"
                       placeholder="e.g., BILL001"
                       value={editFormData.billId}
                       onChange={(e) => setEditFormData({ ...editFormData, billId: e.target.value })}
+                      className="text-gray-700 bg-gray-100"
+                      style={{ fontSize: '1.125rem' }}
                     />
                     <p className="text-xs text-gray-700 mt-1">Foreign Key to BillId</p>
                   </div>
                 </div>
-              </div>
-              <div className="flex justify-end gap-2 px-6 py-2 border-t bg-gray-50 flex-shrink-0">
-                <Button variant="outline" onClick={() => setIsEditDialogOpen(false)} className="py-1">Cancel</Button>
-                <Button 
-                  onClick={async () => {
-                    if (!selectedAppointment) return;
-                    if (!editFormData.patientId || !editFormData.doctorId || !editFormData.appointmentDate || !editFormData.appointmentTime) {
-                      alert('Please fill in all required fields.');
-                      return;
-                    }
-                    if (editFormData.referToAnotherDoctor && !editFormData.referredDoctorId) {
-                      alert('Please select a referred doctor when "Refer To Another Doctor" is checked.');
-                      return;
-                    }
-                    if (editFormData.transferToIPDOTICU && !editFormData.transferTo) {
-                      alert('Please select a transfer destination when "Transfer To IPD/OT/ICU" is checked.');
-                      return;
-                    }
-                    try {
-                      await updatePatientAppointment({
-                        id: selectedAppointment.id,
-                        patientId: editFormData.patientId,
-                        doctorId: editFormData.doctorId,
-                        appointmentDate: editFormData.appointmentDate,
-                        appointmentTime: editFormData.appointmentTime,
-                        appointmentStatus: editFormData.appointmentStatus,
-                        consultationCharge: editFormData.consultationCharge,
-                        diagnosis: editFormData.diagnosis || undefined,
-                        followUpDetails: editFormData.followUpDetails || undefined,
-                        prescriptionsUrl: editFormData.prescriptionsUrl || undefined,
-                        toBeAdmitted: editFormData.toBeAdmitted,
-                        referToAnotherDoctor: editFormData.referToAnotherDoctor,
-                        referredDoctorId: editFormData.referToAnotherDoctor ? editFormData.referredDoctorId : undefined,
-                        transferToIPDOTICU: editFormData.transferToIPDOTICU,
-                        transferTo: editFormData.transferToIPDOTICU ? editFormData.transferTo : undefined,
-                        transferDetails: editFormData.transferDetails || undefined,
-                        billId: editFormData.billId || undefined,
-                      });
-                      await fetchPatientAppointments();
-                      setIsEditDialogOpen(false);
-                      setSelectedAppointment(null);
-                    } catch (err) {
-                      console.error('Failed to update appointment:', err);
-                      alert('Failed to update appointment. Please try again.');
-                    }
-                  }} 
-                  className="py-1"
-                >
-                  Update Appointment
-                </Button>
-              </div>
-            </>
-          )}
+                </div>
+                <div className="flex justify-end gap-2 px-6 py-2 border-t bg-white flex-shrink-0">
+                  <Button variant="outline" onClick={() => setIsEditDialogOpen(false)} className="py-1">Cancel</Button>
+                  <Button 
+                    onClick={async () => {
+                      if (!selectedAppointment) return;
+                      if (!editFormData.patientId || !editFormData.doctorId || !editFormData.appointmentDate || !editFormData.appointmentTime) {
+                        alert('Please fill in all required fields.');
+                        return;
+                      }
+                      if (editFormData.referToAnotherDoctor && !editFormData.referredDoctorId) {
+                        alert('Please select a referred doctor when "Refer To Another Doctor" is checked.');
+                        return;
+                      }
+                      if (editFormData.transferToIPDOTICU && !editFormData.transferTo) {
+                        alert('Please select a transfer destination when "Transfer To IPD/OT/ICU" is checked.');
+                        return;
+                      }
+                      try {
+                        await updatePatientAppointment({
+                          id: selectedAppointment.id,
+                          patientId: editFormData.patientId,
+                          doctorId: editFormData.doctorId,
+                          appointmentDate: editFormData.appointmentDate,
+                          appointmentTime: editFormData.appointmentTime,
+                          appointmentStatus: editFormData.appointmentStatus,
+                          consultationCharge: editFormData.consultationCharge,
+                          diagnosis: editFormData.diagnosis || undefined,
+                          followUpDetails: editFormData.followUpDetails || undefined,
+                          prescriptionsUrl: editFormData.prescriptionsUrl || undefined,
+                          toBeAdmitted: editFormData.toBeAdmitted,
+                          referToAnotherDoctor: editFormData.referToAnotherDoctor,
+                          referredDoctorId: editFormData.referToAnotherDoctor ? editFormData.referredDoctorId : undefined,
+                          transferToIPDOTICU: editFormData.transferToIPDOTICU,
+                          transferTo: editFormData.transferToIPDOTICU ? editFormData.transferTo : undefined,
+                          transferDetails: editFormData.transferDetails || undefined,
+                          billId: editFormData.billId || undefined,
+                        });
+                        await fetchPatientAppointments();
+                        setIsEditDialogOpen(false);
+                        setSelectedAppointment(null);
+                      } catch (err) {
+                        console.error('Failed to update appointment:', err);
+                        alert('Failed to update appointment. Please try again.');
+                      }
+                    }} 
+                    className="py-1"
+                  >
+                    Update Appointment
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>

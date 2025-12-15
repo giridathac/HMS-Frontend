@@ -950,14 +950,15 @@ export function Laboratory() {
   };
 
   return (
-    <div className="flex-1 bg-blue-100 flex flex-col overflow-hidden min-h-0">
-      <div className="px-4 pt-4 pb-0 flex-shrink-0">
-        <div className="flex items-center justify-between mb-4 flex-shrink-0">
-          <div>
-            <h1 className="text-gray-900 mb-1 text-2xl">Laboratory Management</h1>
-            <p className="text-gray-500 text-sm">Manage lab tests, samples, and reports</p>
-          </div>
-          <div className="flex gap-2">
+    <div className="dashboard-container">
+      <div className="dashboard-scrollable-container">
+        <div className="dashboard-header-section">
+          <div className="dashboard-header-content">
+            <div>
+              <h1 className="dashboard-header">Laboratory Management</h1>
+              <p className="dashboard-subheader">Manage lab tests, samples, and reports</p>
+            </div>
+            <div className="flex gap-2">
           <Button variant="outline" className="gap-2" onClick={() => setShowReportsDialog(true)}>
             <FileText className="size-4" />
             View Reports
@@ -1333,17 +1334,16 @@ export function Laboratory() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+            </div>
           </div>
         </div>
-      </div>
-
-      <div className="overflow-y-auto overflow-x-hidden px-4 pt-4 pb-4 laboratory-scrollable" style={{ maxHeight: 'calc(100vh - 60px)', minHeight: 0 }}>
+        <div className="px-6 pt-4 pb-4 flex-1">
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <Card>
-          <CardContent className="p-6">
+        <Card className="dashboard-stats-card">
+          <CardContent className="dashboard-stats-card-content">
             <div className="flex items-center justify-between mb-2">
-              <p className="text-sm text-gray-500">Total Tests Today</p>
+              <p className="dashboard-stats-status-label">Total Tests Today</p>
               <TestTube className="size-5 text-blue-600" />
             </div>
             {countsLoading ? (
@@ -1352,17 +1352,17 @@ export function Laboratory() {
               </div>
             ) : (
               <>
-                <h3 className="text-gray-900">{totalCount}</h3>
-                <p className="text-xs text-gray-500">Active orders</p>
+                <h3 className="dashboard-stats-number">{totalCount}</h3>
+                <p className="dashboard-stats-label">Active orders</p>
               </>
             )}
           </CardContent>
         </Card>
 
-        <Card>
-          <CardContent className="p-6">
+        <Card className="dashboard-stats-card">
+          <CardContent className="dashboard-stats-card-content">
             <div className="flex items-center justify-between mb-2">
-              <p className="text-sm text-gray-500">Pending</p>
+              <p className="dashboard-stats-status-label">Pending</p>
               <Clock className="size-5 text-orange-600" />
             </div>
             {countsLoading ? (
@@ -1371,17 +1371,17 @@ export function Laboratory() {
               </div>
             ) : (
               <>
-                <h3 className="text-gray-900">{pendingCount}</h3>
-                <p className="text-xs text-gray-500">Awaiting sample</p>
+                <h3 className="dashboard-stats-number">{pendingCount}</h3>
+                <p className="dashboard-stats-label">Awaiting sample</p>
               </>
             )}
           </CardContent>
         </Card>
 
-        <Card>
-          <CardContent className="p-6">
+        <Card className="dashboard-stats-card">
+          <CardContent className="dashboard-stats-card-content">
             <div className="flex items-center justify-between mb-2">
-              <p className="text-sm text-gray-500">In Progress</p>
+              <p className="dashboard-stats-status-label">In Progress</p>
               <AlertCircle className="size-5 text-blue-600" />
             </div>
             {countsLoading ? (
@@ -1390,17 +1390,17 @@ export function Laboratory() {
               </div>
             ) : (
               <>
-                <h3 className="text-gray-900">{inProgressCount}</h3>
-                <p className="text-xs text-gray-500">Being processed</p>
+                <h3 className="dashboard-stats-number">{inProgressCount}</h3>
+                <p className="dashboard-stats-label">Being processed</p>
               </>
             )}
           </CardContent>
         </Card>
 
-        <Card>
-          <CardContent className="p-6">
+        <Card className="dashboard-stats-card">
+          <CardContent className="dashboard-stats-card-content">
             <div className="flex items-center justify-between mb-2">
-              <p className="text-sm text-gray-500">Completed</p>
+              <p className="dashboard-stats-status-label">Completed</p>
               <CheckCircle className="size-5 text-green-600" />
             </div>
             {countsLoading ? (
@@ -1409,8 +1409,8 @@ export function Laboratory() {
               </div>
             ) : (
               <>
-                <h3 className="text-gray-900">{completedCount}</h3>
-                <p className="text-xs text-gray-500">Reports ready</p>
+                <h3 className="dashboard-stats-number">{completedCount}</h3>
+                <p className="dashboard-stats-label">Reports ready</p>
               </>
             )}
           </CardContent>
@@ -1418,15 +1418,15 @@ export function Laboratory() {
       </div>
 
       {/* Search */}
-      <Card className="mb-6">
-        <CardContent className="p-6">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
+      <Card className="dashboard-search-card">
+        <CardContent className="dashboard-search-card-content">
+          <div className="dashboard-search-input-wrapper">
+            <Search className="dashboard-search-icon" />
             <Input
               placeholder="Search by patient name, test ID, or test name..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
+              className="dashboard-search-input"
             />
           </div>
         </CardContent>
@@ -1518,7 +1518,7 @@ export function Laboratory() {
           </TabsContent>
         </Tabs>
       )}
-      </div>
+        </div>
 
       {/* Test Details Dialog */}
       <Dialog open={!!selectedTest} onOpenChange={() => setSelectedTest(null)}>
@@ -2070,6 +2070,7 @@ export function Laboratory() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      </div>
     </div>
   );
 }
