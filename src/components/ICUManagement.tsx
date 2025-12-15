@@ -511,9 +511,9 @@ export function ICUManagement() {
         throw new Error('ICU Allocation From Date is required.');
       }
 
-      // Check ICU availability before proceeding
+      // Check ICU occupancy before proceeding
       try {
-        console.log('Checking ICU availability, ICUId:', addICUAdmissionForm.icuId, 'ICUAllocationFromDate:', addICUAdmissionForm.icuAllocationFromDate);
+        console.log('Checking ICU occupancy, ICUId:', addICUAdmissionForm.icuId, 'ICUAllocationFromDate:', addICUAdmissionForm.icuAllocationFromDate);
         
         // Call the ICU occupied check API
         const checkResponse = await apiRequest<any>(`/patient-icu-admissions/check-occupied?ICUId=${addICUAdmissionForm.icuId}&ICUAllocationFromDate=${addICUAdmissionForm.icuAllocationFromDate}`, {
@@ -539,19 +539,33 @@ export function ICUManagement() {
         if (checkError?.message && (checkError.message.includes('not available') || checkError.message.includes('already occupied') || checkError.message.includes('occupied'))) {
           throw checkError;
         }
-        // If the API returns an error indicating unavailability, throw it
+        // If the API returns an error indicating occupancy, throw it
         if (checkError?.response?.data?.message || checkError?.message) {
           const errorMessage = checkError.response?.data?.message || checkError.message;
           if (errorMessage.toLowerCase().includes('not available') || 
               errorMessage.toLowerCase().includes('occupied') ||
               errorMessage.toLowerCase().includes('unavailable')) {
-            throw new Error(errorMessage || 'The selected ICU is not available for the selected allocation date.');
+            throw new Error(errorMessage || 'The selected ICU is already occupied for the selected allocation date. Please select another ICU or choose a different date.');
           }
         }
-        // If it's a network error or other issue, log it but continue (or you can choose to throw)
-        console.warn('ICU occupied check failed:', checkError);
-        // For now, we'll continue if it's not an explicit "occupied" error
-        // You can change this to throw if you want to be more strict
+        // Check for HTTP errors (404, 500, etc.)
+        if (checkError?.response?.status) {
+          const status = checkError.response.status;
+          if (status === 404) {
+            console.warn('ICU occupied check endpoint not found (404). The API endpoint may not be implemented yet.');
+            // Continue without blocking - the backend might not have this endpoint yet
+          } else if (status >= 500) {
+            console.error('ICU occupied check server error:', status, checkError);
+            throw new Error('Server error while checking ICU occupancy. Please try again later.');
+          } else {
+            console.warn('ICU occupied check failed with status:', status, checkError);
+          }
+        } else {
+          // Network error or other issue
+          console.warn('ICU occupied check failed:', checkError);
+          // For network errors, we'll continue to allow the admission to proceed
+          // You can change this to throw if you want to be more strict
+        }
       }
 
       const payload = {
@@ -598,20 +612,38 @@ export function ICUManagement() {
           }
           return defaultValue;
         };
-        console.log('Bed data:', bed);
-
-        // Extract ICUBedId (primary key) from bed data
-        const icuBedId = extractField(bed, [
-          'icuBedId', 'ICUBedId', 'icu_bed_id', 'ICU_Bed_Id',
-          'id', 'icuId', 'ICUId', 'ID', 'bedId', 'BedId', 'bedID', 'BedID'
-        ], null);
-       
-
+        // Extract bedNumber first
         const bedNumber = extractField(bed, [
           'bedNumber', 'BedNumber', 'bed_number', 'Bed_Number',
           'bed', 'Bed', 'icuBedNo', 'ICUBedNo', 'icuBedNumber', 'ICUBedNumber',
           'bedId', 'BedId', 'bedID', 'BedID'
         ], '');
+
+        // Extract ICUBedId (primary key) from bed data
+        // Try multiple field name variations - the API might use different naming
+        // Note: The API returns 'icuId' as the field name for the ICU Bed ID
+        const icuBedId = extractField(bed, [
+          'icuId', 'ICUId', 'icu_id', 'ICU_ID', 'ICUID', // Primary field name from API
+          'icuBedId', 'ICUBedId', 'icu_bed_id', 'ICU_Bed_Id', 'ICUBedID', 'ICUBed_Id',
+          'id', 'Id', 'ID', 
+          'bedId', 'BedId', 'bedID', 'BedID', 'Bed_Id', 'bed_id',
+          'ICUBedId', 'ICUBedID', 'icuBedID',
+          // Also check nested structures
+        ], null);
+        
+        // If still not found, check if there's a nested bed object
+        let finalIcuBedId = icuBedId;
+        if (!finalIcuBedId && bed.bed) {
+          finalIcuBedId = extractField(bed.bed, [
+            'icuBedId', 'ICUBedId', 'id', 'Id', 'ID'
+          ], null);
+        }
+        if (!finalIcuBedId && bed.icuBed) {
+          finalIcuBedId = extractField(bed.icuBed, [
+            'icuBedId', 'ICUBedId', 'id', 'Id', 'ID'
+          ], null);
+        }
+        
 
         const status = extractField(bed, [
           'status', 'Status', 'icuAdmissionStatus', 'ICUAdmissionStatus', 'bedStatus', 'BedStatus', 'bed_status', 'Bed_Status'
@@ -829,13 +861,18 @@ export function ICUManagement() {
           }
         }
 
+        // finalIcuBedId is already declared above, just use it here
+        
         return {
           bedNumber,
-          icuBedId: icuBedId, // Store ICU Bed ID in bed object
+          icuBedId: finalIcuBedId, // Store ICU Bed ID in bed object (ensure it's always set if available)
+          id: finalIcuBedId, // Also set id for compatibility
           status: status === 'Occupied' || patient ? 'Occupied' : 'Available',
           icuPatientStatus: bedStatusDisplay, // Store ICUPatientStatus for display (Critical or Green)
           icuAdmissionStatus: finalICUAdmissionStatus, // Store ICUAdmissionStatus (Occupied/Discharged)
           patient,
+          // Store raw bed data for debugging
+          _rawBedData: bed,
         };
       })
     : Array.from({ length: 15 }, (_, i) => {
@@ -856,8 +893,9 @@ export function ICUManagement() {
 
   // Helper function to map API bed details to ICUPatient
   const mapBedDetailsToPatient = (bedDetails: any): ICUPatient | null => {
-    console.log('Bed details:', bedDetails);
-    if (!bedDetails) return null;
+    if (!bedDetails) {
+      return null;
+    }
 
     const extractField = (data: any, fieldVariations: string[], defaultValue: any = '') => {
       for (const field of fieldVariations) {
@@ -869,8 +907,27 @@ export function ICUManagement() {
       return defaultValue;
     };
 
-    const patientData = bedDetails.patient || bedDetails.Patient || bedDetails.patientData || bedDetails.PatientData || bedDetails;
-    const bedData = bedDetails;
+    // Handle API response structure: data.admissions[0] contains patient data
+    // The API returns: { success: true, data: { icuId: 5, icuBedNo: "B02", admissions: [...] } }
+    let actualBedData = bedDetails;
+    let patientData = null;
+    
+    // Check if response has a 'data' wrapper
+    if (bedDetails.data) {
+      actualBedData = bedDetails.data;
+    }
+    
+    // Extract patient data from admissions array (most recent admission)
+    if (actualBedData.admissions && Array.isArray(actualBedData.admissions) && actualBedData.admissions.length > 0) {
+      patientData = actualBedData.admissions[0]; // Get the first/most recent admission
+    } else if (bedDetails.admissions && Array.isArray(bedDetails.admissions) && bedDetails.admissions.length > 0) {
+      patientData = bedDetails.admissions[0];
+    } else {
+      // Fallback to old structure
+      patientData = bedDetails.patient || bedDetails.Patient || bedDetails.patientData || bedDetails.PatientData || bedDetails;
+    }
+    
+    const bedData = actualBedData;
 
     // Extract icuPatientStatus and map to severity
     let icuPatientStatusRaw = extractField(bedData, [
@@ -901,33 +958,40 @@ export function ICUManagement() {
     }
 
     const ventilatorSupportRaw = extractField(patientData, [
+      'onVentilator', 'OnVentilator', 'on_ventilator', 'On_Ventilator', // Primary field name from API
       'ventilatorSupport', 'VentilatorSupport', 'ventilator_support', 'Ventilator_Support',
-      'onVentilator', 'OnVentilator', 'isVentilatorAttached', 'IsVentilatorAttached',
+      'isVentilatorAttached', 'IsVentilatorAttached',
       'ventilator', 'Ventilator'
     ], false);
     const ventilatorSupport = typeof ventilatorSupportRaw === 'boolean' 
       ? ventilatorSupportRaw 
       : (String(ventilatorSupportRaw).toLowerCase() === 'true' || String(ventilatorSupportRaw).toLowerCase() === 'yes');
 
-    const patientICUAdmissionId = extractField(bedData, [
+    // Extract patientICUAdmissionId from patientData (admission record)
+    const patientICUAdmissionId = extractField(patientData, [
+      'patientICUAdmissionId', 'PatientICUAdmissionId', 'patient_icu_admission_id', 'Patient_ICU_Admission_Id',
+      'icuAdmissionId', 'ICUAdmissionId', 'icu_admission_id', 'ICU_Admission_Id',
+      'id', 'Id', 'admissionId', 'AdmissionId'
+    ], null) || extractField(bedData, [
       'patientICUAdmissionId', 'PatientICUAdmissionId', 'patient_icu_admission_id', 'Patient_ICU_Admission_Id',
       'icuAdmissionId', 'ICUAdmissionId', 'icu_admission_id', 'ICU_Admission_Id'
-    ], null) || extractField(patientData, [
-      'patientICUAdmissionId', 'PatientICUAdmissionId', 'patient_icu_admission_id', 'Patient_ICU_Admission_Id',
-      'id', 'Id', 'admissionId', 'AdmissionId'
     ], null);
 
+    // Extract icuBedId from bedData (icuId field)
     const icuBedId = extractField(bedData, [
+      'icuId', 'ICUId', 'icu_id', 'ICU_ID', // Primary field name
       'icuBedId', 'ICUBedId', 'icu_bed_id', 'ICU_Bed_Id',
       'id', 'Id', 'ID', 'bedId', 'BedId', 'bedID', 'BedID'
     ], null);
 
+    // Extract bedNumber from bedData
     const bedNumber = extractField(bedData, [
+      'icuBedNo', 'ICUBedNo', 'icuBedNumber', 'ICUBedNumber', // Primary field name from API
       'bedNumber', 'BedNumber', 'bed_number', 'Bed_Number',
-      'bed', 'Bed', 'icuBedNo', 'ICUBedNo', 'icuBedNumber', 'ICUBedNumber',
+      'bed', 'Bed'
     ], '');
 
-    // Extract PatientId
+    // Extract PatientId from patientData (admission record)
     const patientId = extractField(patientData, [
       'patientId', 'PatientId', 'patient_id', 'Patient_ID',
       'id', 'Id', 'ID'
@@ -963,16 +1027,20 @@ export function ICUManagement() {
         'name', 'Name', 'fullName', 'FullName'
       ], 'Unknown Patient'),
       age: Number(extractField(patientData, [
-        'age', 'Age', 'patientAge', 'PatientAge', 'patient_age', 'Patient_Age'
+        'patientAge', 'PatientAge', 'patient_age', 'Patient_Age', // Primary field name from API
+        'age', 'Age'
       ], 0)) || 0,
       gender: extractField(patientData, [
-        'gender', 'Gender', 'sex', 'Sex', 'patientGender', 'PatientGender'
+        'patientGender', 'PatientGender', 'patient_gender', 'Patient_Gender', // Primary field name from API
+        'gender', 'Gender', 'sex', 'Sex'
       ], 'Unknown'),
       admissionDate: extractField(patientData, [
+        'icuAllocationFromDate', 'ICUAllocationFromDate', 'icu_allocation_from_date', // Primary field name from API
         'admissionDate', 'AdmissionDate', 'admission_date', 'Admission_Date',
         'admitDate', 'AdmitDate', 'admit_date', 'Admit_Date'
       ], new Date().toISOString().split('T')[0]),
       admissionTime: extractField(patientData, [
+        'icuAllocationFromDate', 'ICUAllocationFromDate', // Extract time from date field
         'admissionTime', 'AdmissionTime', 'admission_time', 'Admission_Time',
         'admitTime', 'AdmitTime', 'admit_time', 'Admit_Time',
         'time', 'Time'
@@ -1015,11 +1083,14 @@ export function ICUManagement() {
         'diagnosis_desc', 'Diagnosis_Desc'
       ], 'Not Specified'),
       treatment: extractField(patientData, [
+        'treatementDetails', 'TreatementDetails', 'treatmentDetails', 'TreatmentDetails', // Primary field name from API (note: typo in API)
         'treatment', 'Treatment', 'treatmentPlan', 'TreatmentPlan',
         'treatment_plan', 'Treatment_Plan', 'medications', 'Medications'
       ], 'Not Specified'),
       ventilatorSupport: ventilatorSupport,
     };
+    
+    return patient;
   };
 
   // Use API bed details if available, otherwise fall back to bed layout data
@@ -1438,39 +1509,65 @@ export function ICUManagement() {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-3 gap-3">
-                  {icuBeds.map((bed) => (
-                    <button
+                  {icuBeds.map((bed, index) => {
+                    // Ensure we have a valid icuBedId - try to extract it if missing
+                    let bedId = bed.icuBedId || (bed as any).id || null;
+                    
+                    // If still no ID, try to extract from raw bed data
+                    if (!bedId && (bed as any)._rawBedData) {
+                      const rawBed = (bed as any)._rawBedData;
+                      console.log('Trying to extract ID from raw bed data:', rawBed);
+                      bedId = rawBed.icuBedId || rawBed.ICUBedId || rawBed.id || rawBed.Id || rawBed.ICUBedID || null;
+                    }
+                    
+                    // Create click handler - using async/await properly
+                    const handleBedClick = async (e: React.MouseEvent) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      
+                      // Set selected bed ID first
+                      setSelectedICUBedId(bedId);
+                      
+                      if (!bedId) {
+                        alert(`No ICU Bed ID found for bed ${bed.bedNumber}. Please check the API response structure.`);
+                        setSelectedBedDetails(null);
+                        return;
+                      }
+                      
+                      try {
+                        await loadICUBedDetails(bedId);
+                      } catch (error) {
+                        console.error('Error loading ICU bed details:', error);
+                        alert(`Failed to load bed details: ${error instanceof Error ? error.message : 'Unknown error'}`);
+                      }
+                    };
+                    
+                    return (
+                    <div
                       key={bed.bedNumber}
-                      onClick={async () => {
-                        console.log('ICU Bed clicked:', {
-                          icubedId: bed.icuBedId,
-                          icubedNo: bed.bedNumber,
-                          bedNumber: bed.bedNumber,
-                          status: bed.status,
-                          icupatientstatus: bed.icuPatientStatus,
-                          ICUAdmissionStatus: bed.icuAdmissionStatus,
-                          patient: bed.patient?.patientName || bed.patient?.PatientName || bed.patient?.name || '',
-                        });
-                        
-                        // Set selected bed ID first
-                        setSelectedICUBedId(bed.icuBedId);
-                        
-                        // Call API to load ICU bed and PatientICUAdmission details
-                        if (bed.icuBedId) {
-                          console.log('Calling API to load ICU bed details for icuBedId:', bed.icuBedId);
-                          await loadICUBedDetails(bed.icuBedId);
-                        } else {
-                          console.warn('No ICU Bed ID found for bed:', bed.bedNumber);
-                          setSelectedBedDetails(null);
-                        }
-                      }}
+                      onClick={handleBedClick}
                       className={`p-4 border-2 rounded-lg text-center transition-all cursor-pointer ${
-                        selectedICUBedId === bed.icuBedId
+                        selectedICUBedId === bedId
                           ? 'border-blue-500 bg-blue-50 scale-105'
                           : (bed as any).icuPatientStatus === 'Critical'
                             ? 'border-red-300 bg-red-50 hover:border-red-400'
                           : 'border-green-300 bg-green-50 hover:border-green-400'
                       }`}
+                      style={{ 
+                        position: 'relative',
+                        zIndex: 10,
+                        pointerEvents: 'auto',
+                        userSelect: 'none',
+                        WebkitTapHighlightColor: 'transparent'
+                      }}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          handleBedClick();
+                        }
+                      }}
                     >
                       <p className="text-gray-900 mb-1">{bed.bedNumber}</p>
                       <div className="flex items-center justify-center gap-1">
@@ -1491,8 +1588,14 @@ export function ICUManagement() {
                           </Badge>
                         </div>
                       )}
-                    </button>
-                  ))}
+                      {!bedId && (
+                        <div className="mt-1">
+                          <span className="text-xs text-red-500">No ID</span>
+                        </div>
+                      )}
+                    </div>
+                    );
+                  })}
                 </div>
                 <div className="mt-6 flex items-center justify-center gap-6 text-sm">
                   <div className="flex items-center gap-2">
@@ -1516,6 +1619,19 @@ export function ICUManagement() {
                 {loadingBedDetails ? (
                   <div className="text-center py-12 text-gray-500">
                     Loading bed details...
+                  </div>
+                ) : selectedBedDetails && !selectedPatient ? (
+                  <div className="space-y-4">
+                    <div className="text-center py-8 text-yellow-600">
+                      <p className="mb-2">Bed details loaded but patient data not found.</p>
+                      <p className="text-sm text-gray-500">Check console for details.</p>
+                      <details className="mt-4 text-left">
+                        <summary className="cursor-pointer text-sm text-gray-600">View raw data</summary>
+                        <pre className="mt-2 p-4 bg-gray-100 rounded text-xs overflow-auto max-h-96">
+                          {JSON.stringify(selectedBedDetails, null, 2)}
+                        </pre>
+                      </details>
+                    </div>
                   </div>
                 ) : selectedPatient ? (
                   <div className="space-y-4">

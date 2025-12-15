@@ -32,7 +32,7 @@ const dailyAdmissions = [
   { department: 'Gynecology', count: 4 },
 ];
 
-const otSchedule = [
+const defaultOtSchedule = [
   { date: 'Nov 11', surgeries: 6, completed: 6 },
   { date: 'Nov 12', surgeries: 5, completed: 5 },
   { date: 'Nov 13', surgeries: 7, completed: 7 },
@@ -65,6 +65,32 @@ interface IPDSummary {
   bedOccupancy: number; // Percentage
 }
 
+interface OTStatistics {
+  totalSurgeries: number;
+  completed: number;
+  emergency: number;
+  avgDuration: string;
+}
+
+interface OTScheduleEntry {
+  date: string;
+  surgeries: number;
+  completed: number;
+}
+
+interface ICUStatistics {
+  totalPatients: number;
+  critical: number;
+  onVentilator: number;
+  avgStayDuration: number;
+}
+
+interface ICUOccupancyEntry {
+  date: string;
+  occupied: number;
+  total: number;
+}
+
 const defaultIpdStats: IPDStatistics = {
   totalAdmissions: 0,
   regularWard: 0,
@@ -75,22 +101,21 @@ const defaultIpdStats: IPDStatistics = {
   criticalPatients: 0,
 };
 
-const otStats = {
-  totalSurgeries: 32,
-  completed: 27,
-  scheduled: 5,
-  emergency: 4,
-  avgDuration: '2.8 hours',
+const defaultOtStats: OTStatistics = {
+  totalSurgeries: 0,
+  completed: 0,
+  emergency: 0,
+  avgDuration: 'N/A',
 };
 
-const icuStats = {
-  totalPatients: 12,
-  critical: 3,
-  serious: 5,
-  stable: 4,
-  onVentilator: 2,
-  avgStayDuration: 3.5,
+const defaultIcuStats: ICUStatistics = {
+  totalPatients: 0,
+  critical: 0,
+  onVentilator: 0,
+  avgStayDuration: 0,
 };
+
+const defaultIcuOccupancy: ICUOccupancyEntry[] = [];
 
 export function Reports() {
   // Get today's date in YYYY-MM-DD format
@@ -117,6 +142,14 @@ export function Reports() {
   });
   const [loadingIpdSummary, setLoadingIpdSummary] = useState(false);
   const [ipdSummaryError, setIpdSummaryError] = useState<string | null>(null);
+  const [otStats, setOtStats] = useState<OTStatistics>(defaultOtStats);
+  const [loadingOtStats, setLoadingOtStats] = useState(false);
+  const [otStatsError, setOtStatsError] = useState<string | null>(null);
+  const [otSchedule, setOtSchedule] = useState<OTScheduleEntry[]>(defaultOtSchedule);
+  const [icuStats, setIcuStats] = useState<ICUStatistics>(defaultIcuStats);
+  const [loadingIcuStats, setLoadingIcuStats] = useState(false);
+  const [icuStatsError, setIcuStatsError] = useState<string | null>(null);
+  const [icuOccupancy, setIcuOccupancy] = useState<ICUOccupancyEntry[]>(defaultIcuOccupancy);
 
   // Calculate week start and end dates for weekly reports
   const getWeekDates = (date: string) => {
@@ -352,6 +385,17 @@ export function Reports() {
           'critical', 'Critical'
         ], 0)) || 0;
 
+        // Bed occupancy might also be returned with statistics response
+        const bedOccupancy = Number(extractField(statsData, [
+          'bedOccupancy', 'BedOccupancy', 'bed_occupancy', 'Bed_Occupancy',
+          'occupancy', 'Occupancy', 'occupancyRate', 'OccupancyRate',
+          'occupancy_rate', 'Occupancy_Rate', 'bedOccupancyRate', 'BedOccupancyRate',
+          'bedOccupancyPercent', 'BedOccupancyPercent', 'occupancyPercent', 'OccupancyPercent',
+          'bedOccupancyPercentage', 'BedOccupancyPercentage', 'occupancyPercentage', 'OccupancyPercentage',
+          'bedOccupancyPct', 'BedOccupancyPct', 'occupancyPct', 'OccupancyPct',
+          'bedOccupancyRatePercent', 'BedOccupancyRatePercent', 'occupancyRatePercent', 'OccupancyRatePercent'
+        ], 0)) || 0;
+
         const mappedStats: IPDStatistics = {
           totalAdmissions,
           regularWard,
@@ -365,6 +409,13 @@ export function Reports() {
         console.log('Mapped IPD statistics:', JSON.stringify(mappedStats, null, 2));
         console.log('Setting IPD stats state with:', mappedStats);
         setIpdStats(mappedStats);
+
+        // Also populate IPD Summary from the same response so the cards render
+        setIpdSummary({
+          dischargedToday,
+          criticalPatients,
+          bedOccupancy,
+        });
       } catch (err) {
         console.error('Error fetching IPD statistics:', err);
         setIpdStatsError(err instanceof Error ? err.message : 'Failed to load IPD statistics');
@@ -609,6 +660,400 @@ export function Reports() {
     fetchIPDSummary();
   }, [reportType, selectedDate]);
 
+  // Fetch OT statistics
+  useEffect(() => {
+    const fetchOTStatistics = async () => {
+      try {
+        setLoadingOtStats(true);
+        setOtStatsError(null);
+
+        let apiUrl = '/reports/ot-statistics';
+        const params = new URLSearchParams();
+
+        if (reportType === 'daily') {
+          params.append('date', selectedDate);
+        } else {
+          const weekDates = getWeekDates(selectedDate);
+          params.append('startDate', weekDates.startDate);
+          params.append('endDate', weekDates.endDate);
+        }
+
+        if (params.toString()) {
+          apiUrl += `?${params.toString()}`;
+        }
+
+        console.log('Fetching OT statistics from:', apiUrl);
+        const response = await apiRequest<any>(apiUrl, {
+          method: 'GET',
+        });
+
+        console.log('OT statistics API response (RAW):', JSON.stringify(response, null, 2));
+
+        // Normalize response payload
+        let otData: any = {};
+        if (Array.isArray(response)) {
+          // Response is already a schedule list; wrap so we can pick it up
+          otData = { schedule: response };
+        } else if (response && typeof response === 'object') {
+          if (Array.isArray(response.data)) {
+            // data is an array; treat as schedule
+            otData = { schedule: response.data };
+          } else if (response.data && typeof response.data === 'object' && !Array.isArray(response.data)) {
+            otData = response.data;
+          } else if (response.statistics && typeof response.statistics === 'object' && !Array.isArray(response.statistics)) {
+            otData = response.statistics;
+          } else if (response.otStatistics && typeof response.otStatistics === 'object' && !Array.isArray(response.otStatistics)) {
+            otData = response.otStatistics;
+          } else {
+            otData = response;
+          }
+        }
+
+        console.log('Extracted otData:', JSON.stringify(otData, null, 2));
+        console.log('otData keys:', Object.keys(otData || {}));
+
+        // Helper to extract with variations (exact, case-insensitive, partial)
+        const extractField = (data: any, fieldVariations: string[], defaultValue: any = 0) => {
+          if (!data || typeof data !== 'object') {
+            return defaultValue;
+          }
+
+          // Exact match
+          for (const field of fieldVariations) {
+            const value = (data as any)[field];
+            if (value !== undefined && value !== null && value !== '') {
+              return value;
+            }
+          }
+
+          // Case-insensitive
+          const keys = Object.keys(data);
+          for (const field of fieldVariations) {
+            const lower = field.toLowerCase();
+            const matchKey = keys.find(k => k.toLowerCase() === lower);
+            if (matchKey) {
+              const value = (data as any)[matchKey];
+              if (value !== undefined && value !== null && value !== '') {
+                return value;
+              }
+            }
+          }
+
+          // Partial match
+          for (const field of fieldVariations) {
+            const lower = field.toLowerCase();
+            const matchKey = keys.find(k => k.toLowerCase().includes(lower) || lower.includes(k.toLowerCase()));
+            if (matchKey) {
+              const value = (data as any)[matchKey];
+              if (value !== undefined && value !== null && value !== '') {
+                return value;
+              }
+            }
+          }
+
+          return defaultValue;
+        };
+
+        const safeNumber = (value: any, fallback = 0): number => {
+          if (value === null || value === undefined || value === '') return fallback;
+          const num = typeof value === 'string' ? parseFloat(value) : Number(value);
+          return isNaN(num) ? fallback : num;
+        };
+
+        const safeString = (value: any, fallback = 'N/A'): string => {
+          if (value === null || value === undefined || value === '') return fallback;
+          const str = String(value).trim();
+          return str || fallback;
+        };
+
+        const totalSurgeries = safeNumber(extractField(otData, [
+          'totalSurgeries', 'TotalSurgeries', 'total_surgeries', 'Total_Surgeries',
+          'surgeries', 'Surgeries', 'total', 'Total'
+        ], 0));
+
+        const completed = safeNumber(extractField(otData, [
+          'completed', 'Completed', 'completedSurgeries', 'CompletedSurgeries',
+          'completed_surgeries', 'Completed_Surgeries', 'done', 'Done'
+        ], 0));
+
+        const emergency = safeNumber(extractField(otData, [
+          'emergency', 'Emergency', 'emergencySurgeries', 'EmergencySurgeries',
+          'emergency_surgeries', 'Emergency_Surgeries', 'urgent', 'Urgent'
+        ], 0));
+
+        const avgDurationRaw = extractField(otData, [
+          'avgDuration', 'AvgDuration', 'averageDuration', 'AverageDuration',
+          'avg_duration', 'Avg_Duration', 'average_duration', 'Average_Duration',
+          'avgSurgeryDuration', 'AvgSurgeryDuration', 'averageSurgeryDuration', 'AverageSurgeryDuration',
+          'avgTime', 'AvgTime', 'averageTime', 'AverageTime'
+        ], 'N/A');
+
+        let avgDuration: string;
+        const numericAvg = safeNumber(avgDurationRaw, NaN);
+        if (!isNaN(numericAvg) && numericAvg > 0) {
+          avgDuration = `${numericAvg} hours`;
+        } else {
+          avgDuration = safeString(avgDurationRaw, 'N/A');
+        }
+
+        let scheduleRaw = extractField(otData, [
+          'schedule', 'Schedule', 'dailySchedule', 'DailySchedule',
+          'surgerySchedule', 'SurgerySchedule', 'otSchedule', 'OTSchedule', 'ot_schedule',
+          'surgeries', 'Surgeries', 'surgeryList', 'SurgeryList'
+        ], []);
+
+        // If still empty and original response was an array, use that
+        if ((!scheduleRaw || (Array.isArray(scheduleRaw) && scheduleRaw.length === 0)) && Array.isArray(response)) {
+          scheduleRaw = response;
+        }
+
+        let mappedSchedule: OTScheduleEntry[] = [];
+        if (Array.isArray(scheduleRaw)) {
+          mappedSchedule = scheduleRaw.map((item: any) => {
+            const dateLabel = safeString(extractField(item, [
+              'date', 'Date', 'day', 'Day', 'label', 'Label', 'slot', 'Slot', 'time', 'Time'
+            ], ''), '');
+
+            const surgeriesCount = safeNumber(extractField(item, [
+              'surgeries', 'Surgeries', 'scheduled', 'Scheduled', 'total', 'Total', 'count', 'Count', 'planned', 'Planned'
+            ], 0), 0);
+
+            const completedCount = safeNumber(extractField(item, [
+              'completed', 'Completed', 'done', 'Done', 'finished', 'Finished',
+              'performed', 'Performed', 'completedSurgeries', 'CompletedSurgeries', 'completedCount', 'CompletedCount'
+            ], 0), 0);
+
+            return {
+              date: dateLabel || 'N/A',
+              surgeries: surgeriesCount,
+              completed: completedCount,
+            };
+          }).filter(entry => entry.date);
+        }
+
+        const mappedOt: OTStatistics = {
+          totalSurgeries,
+          completed,
+          emergency,
+          avgDuration,
+        };
+
+        setOtStats(mappedOt);
+        setOtSchedule(mappedSchedule.length ? mappedSchedule : defaultOtSchedule);
+      } catch (err) {
+        console.error('Error fetching OT statistics:', err);
+        setOtStatsError(err instanceof Error ? err.message : 'Failed to load OT statistics');
+        setOtStats(defaultOtStats);
+        setOtSchedule(defaultOtSchedule);
+      } finally {
+        setLoadingOtStats(false);
+      }
+    };
+
+    fetchOTStatistics();
+  }, [reportType, selectedDate]);
+
+  // Fetch ICU statistics
+  useEffect(() => {
+    const fetchICUStatistics = async () => {
+      try {
+        setLoadingIcuStats(true);
+        setIcuStatsError(null);
+
+        let apiUrl = '/reports/icu-statistics';
+        const params = new URLSearchParams();
+
+        if (reportType === 'daily') {
+          params.append('date', selectedDate);
+        } else {
+          const weekDates = getWeekDates(selectedDate);
+          params.append('startDate', weekDates.startDate);
+          params.append('endDate', weekDates.endDate);
+        }
+
+        if (params.toString()) {
+          apiUrl += `?${params.toString()}`;
+        }
+
+        console.log('Fetching ICU statistics from:', apiUrl);
+        const response = await apiRequest<any>(apiUrl, {
+          method: 'GET',
+        });
+
+        console.log('ICU statistics API response (RAW):', JSON.stringify(response, null, 2));
+
+        // Handle different response structures
+        let icuData: any = {};
+        
+        if (response && typeof response === 'object') {
+          if (response.data && typeof response.data === 'object' && !Array.isArray(response.data)) {
+            icuData = response.data;
+          } else if (response.statistics && typeof response.statistics === 'object' && !Array.isArray(response.statistics)) {
+            icuData = response.statistics;
+          } else if (response.icuStatistics && typeof response.icuStatistics === 'object' && !Array.isArray(response.icuStatistics)) {
+            icuData = response.icuStatistics;
+          } else if (!Array.isArray(response)) {
+            icuData = response;
+          }
+        }
+
+        console.log('Extracted icuData:', JSON.stringify(icuData, null, 2));
+        console.log('icuData keys:', Object.keys(icuData || {}));
+
+        // Helper to extract with variations (exact, case-insensitive, partial)
+        const extractField = (data: any, fieldVariations: string[], defaultValue: any = 0) => {
+          if (!data || typeof data !== 'object') {
+            return defaultValue;
+          }
+
+          // Exact match
+          for (const field of fieldVariations) {
+            const value = data[field];
+            if (value !== undefined && value !== null && value !== '') {
+              return value;
+            }
+          }
+
+          // Case-insensitive
+          const keys = Object.keys(data);
+          for (const field of fieldVariations) {
+            const lower = field.toLowerCase();
+            const matchKey = keys.find(k => k.toLowerCase() === lower);
+            if (matchKey) {
+              const value = data[matchKey];
+              if (value !== undefined && value !== null && value !== '') {
+                return value;
+              }
+            }
+          }
+
+          // Partial match
+          for (const field of fieldVariations) {
+            const lower = field.toLowerCase();
+            const matchKey = keys.find(k => k.toLowerCase().includes(lower) || lower.includes(k.toLowerCase()));
+            if (matchKey) {
+              const value = data[matchKey];
+              if (value !== undefined && value !== null && value !== '') {
+                return value;
+              }
+            }
+          }
+
+          return defaultValue;
+        };
+
+        const safeNumber = (value: any, fallback = 0): number => {
+          if (value === null || value === undefined || value === '') return fallback;
+          const num = typeof value === 'string' ? parseFloat(value) : Number(value);
+          return isNaN(num) ? fallback : num;
+        };
+
+        // Extract ICU statistics
+        const totalPatients = safeNumber(extractField(icuData, [
+          'totalPatients', 'TotalPatients', 'total_patients', 'Total_Patients',
+          'total', 'Total', 'totalIcuPatients', 'TotalIcuPatients',
+          'icuPatients', 'IcuPatients', 'patientCount', 'PatientCount'
+        ], 0));
+
+        const critical = safeNumber(extractField(icuData, [
+          'critical', 'Critical', 'criticalPatients', 'CriticalPatients',
+          'critical_patients', 'Critical_Patients', 'criticalCount', 'CriticalCount'
+        ], 0));
+
+        const onVentilator = safeNumber(extractField(icuData, [
+          'onVentilator', 'OnVentilator', 'on_ventilator', 'On_Ventilator',
+          'ventilator', 'Ventilator', 'ventilatorPatients', 'VentilatorPatients',
+          'ventilator_patients', 'Ventilator_Patients', 'ventilatorCount', 'VentilatorCount'
+        ], 0));
+
+        const avgStayDuration = safeNumber(extractField(icuData, [
+          'avgStayDuration', 'AvgStayDuration', 'avg_stay_duration', 'Avg_Stay_Duration',
+          'averageStayDuration', 'AverageStayDuration', 'avgStay', 'AvgStay',
+          'averageStay', 'AverageStay', 'avgDuration', 'AvgDuration'
+        ], 0));
+
+        // Extract occupancy trend data
+        const occupancyRaw = extractField(icuData, [
+          'occupancy', 'Occupancy', 'occupancyTrend', 'OccupancyTrend',
+          'trend', 'Trend', 'dailyOccupancy', 'DailyOccupancy',
+          'occupancyData', 'OccupancyData', 'icuOccupancy', 'IcuOccupancy'
+        ], []);
+
+        let mappedOccupancy: ICUOccupancyEntry[] = [];
+        if (Array.isArray(occupancyRaw)) {
+          mappedOccupancy = occupancyRaw.map((item: any) => {
+            const dateLabel = String(extractField(item, [
+              'date', 'Date', 'day', 'Day', 'label', 'Label', 'slot', 'Slot'
+            ], '')).trim() || '';
+
+            const occupied = safeNumber(extractField(item, [
+              'occupied', 'Occupied', 'occupiedBeds', 'OccupiedBeds',
+              'occupied_beds', 'Occupied_Beds', 'count', 'Count'
+            ], 0), 0);
+
+            const total = safeNumber(extractField(item, [
+              'total', 'Total', 'totalBeds', 'TotalBeds',
+              'total_beds', 'Total_Beds', 'capacity', 'Capacity'
+            ], 15), 15);
+
+            return {
+              date: dateLabel,
+              occupied,
+              total,
+            };
+          }).filter(entry => entry.date);
+        } else if (occupancyRaw && typeof occupancyRaw === 'object' && !Array.isArray(occupancyRaw)) {
+          // If it's an object, try to extract as a single entry or convert to array
+          const dateLabel = String(extractField(occupancyRaw, ['date', 'Date'], '')).trim() || new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+          const occupied = safeNumber(extractField(occupancyRaw, ['occupied', 'Occupied'], 0), 0);
+          const total = safeNumber(extractField(occupancyRaw, ['total', 'Total'], 15), 15);
+          if (dateLabel) {
+            mappedOccupancy = [{ date: dateLabel, occupied, total }];
+          }
+        }
+
+        // If response itself is an array, treat it as occupancy data
+        if (Array.isArray(response)) {
+          mappedOccupancy = response.map((item: any) => {
+            const dateLabel = String(extractField(item, ['date', 'Date', 'day', 'Day'], '')).trim() || '';
+            const occupied = safeNumber(extractField(item, ['occupied', 'Occupied', 'count', 'Count'], 0), 0);
+            const total = safeNumber(extractField(item, ['total', 'Total', 'capacity', 'Capacity'], 15), 15);
+            return { date: dateLabel, occupied, total };
+          }).filter(entry => entry.date);
+        } else if (response?.data && Array.isArray(response.data)) {
+          mappedOccupancy = response.data.map((item: any) => {
+            const dateLabel = String(extractField(item, ['date', 'Date', 'day', 'Day'], '')).trim() || '';
+            const occupied = safeNumber(extractField(item, ['occupied', 'Occupied', 'count', 'Count'], 0), 0);
+            const total = safeNumber(extractField(item, ['total', 'Total', 'capacity', 'Capacity'], 15), 15);
+            return { date: dateLabel, occupied, total };
+          }).filter(entry => entry.date);
+        }
+
+        const mappedIcu: ICUStatistics = {
+          totalPatients,
+          critical,
+          onVentilator,
+          avgStayDuration,
+        };
+
+        console.log('Mapped ICU statistics:', mappedIcu);
+        console.log('Mapped ICU occupancy:', mappedOccupancy);
+        
+        setIcuStats(mappedIcu);
+        setIcuOccupancy(mappedOccupancy.length > 0 ? mappedOccupancy : defaultIcuOccupancy);
+      } catch (err) {
+        console.error('Error fetching ICU statistics:', err);
+        setIcuStatsError(err instanceof Error ? err.message : 'Failed to load ICU statistics');
+        setIcuStats(defaultIcuStats);
+        setIcuOccupancy(defaultIcuOccupancy);
+      } finally {
+        setLoadingIcuStats(false);
+      }
+    };
+
+    fetchICUStatistics();
+  }, [reportType, selectedDate]);
+
   return (
     <div className="px-4 pt-4 pb-4 bg-blue-100 h-screen flex flex-col overflow-hidden">
       <div className="flex-shrink-0">
@@ -783,7 +1228,7 @@ export function Reports() {
               </CardContent>
             </Card>
 
-            <Card>
+          {/*  <Card>
               <CardContent className="p-6">
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-sm text-gray-500">Avg. Wait Time</p>
@@ -792,7 +1237,7 @@ export function Reports() {
                 <h3 className="text-2xl font-bold text-gray-900 mb-1">23 min</h3>
                 <p className="text-xs text-green-600">-5 min from last week</p>
               </CardContent>
-            </Card>
+            </Card>*/}
 
             <Card>
               <CardContent className="p-6">
@@ -935,105 +1380,164 @@ export function Reports() {
         </TabsContent>
 
         <TabsContent value="ot" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          {loadingOtStats ? (
             <Card>
               <CardContent className="p-6">
-                <p className="text-sm text-gray-500 mb-1">Total Surgeries</p>
-                <h3 className="text-2xl font-bold text-gray-900">{otStats.totalSurgeries}</h3>
-                <p className="text-xs text-gray-500">This week</p>
+                <div className="text-center py-12 text-gray-500">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+                  Loading OT statistics...
+                </div>
               </CardContent>
             </Card>
+          ) : otStatsError ? (
             <Card>
               <CardContent className="p-6">
-                <p className="text-sm text-gray-500 mb-1">Completed</p>
-                <h3 className="text-2xl font-bold text-gray-900">{otStats.completed}</h3>
-                <p className="text-xs text-green-600">Successfully</p>
+                <div className="text-center py-12 text-red-600">
+                  <p className="mb-2">{otStatsError}</p>
+                  <Button variant="outline" size="sm" onClick={() => window.location.reload()}>
+                    Retry
+                  </Button>
+                </div>
               </CardContent>
             </Card>
-            <Card>
-              <CardContent className="p-6">
-                <p className="text-sm text-gray-500 mb-1">Emergency</p>
-                <h3 className="text-2xl font-bold text-gray-900">{otStats.emergency}</h3>
-                <p className="text-xs text-red-600">Urgent cases</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-6">
-                <p className="text-sm text-gray-500 mb-1">Avg. Duration</p>
-                <h3 className="text-2xl font-bold text-gray-900">{otStats.avgDuration}</h3>
-              </CardContent>
-            </Card>
-          </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <Card>
+                  <CardContent className="p-6">
+                    <p className="text-sm text-gray-500 mb-1">Total Surgeries</p>
+                    <h3 className="text-2xl font-bold text-gray-900">{otStats.totalSurgeries}</h3>
+                    <p className="text-xs text-gray-500">{reportType === 'daily' ? 'Today' : 'This week'}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-6">
+                    <p className="text-sm text-gray-500 mb-1">Completed</p>
+                    <h3 className="text-2xl font-bold text-gray-900">{otStats.completed}</h3>
+                    <p className="text-xs text-green-600">Successfully</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-6">
+                    <p className="text-sm text-gray-500 mb-1">Emergency</p>
+                    <h3 className="text-2xl font-bold text-gray-900">{otStats.emergency}</h3>
+                    <p className="text-xs text-red-600">Urgent cases</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-6">
+                    <p className="text-sm text-gray-500 mb-1">Avg. Duration</p>
+                    <h3 className="text-2xl font-bold text-gray-900">{otStats.avgDuration}</h3>
+                  </CardContent>
+                </Card>
+              </div>
 
-          <Card className="mb-4">
-            <CardHeader>
-              <CardTitle>Daily Surgery Schedule</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={otSchedule}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey="surgeries" fill="#f97316" name="Scheduled" />
-                  <Bar dataKey="completed" fill="#10b981" name="Completed" />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
+              <Card className="mb-4">
+                <CardHeader>
+                  <CardTitle>Daily Surgery Schedule</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={otSchedule}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="date" />
+                      <YAxis />
+                      <Tooltip />
+                      <Legend />
+                      <Bar dataKey="surgeries" fill="#f97316" name="Scheduled" />
+                      <Bar dataKey="completed" fill="#10b981" name="Completed" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            </>
+          )}
         </TabsContent>
 
         <TabsContent value="icu" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          {loadingIcuStats ? (
             <Card>
               <CardContent className="p-6">
-                <p className="text-sm text-gray-500 mb-1">Total ICU Patients</p>
-                <h3 className="text-2xl font-bold text-gray-900">{icuStats.totalPatients}/15</h3>
-                <p className="text-xs text-gray-500">80% occupancy</p>
+                <div className="text-center py-12 text-gray-500">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+                  Loading ICU statistics...
+                </div>
               </CardContent>
             </Card>
+          ) : icuStatsError ? (
             <Card>
               <CardContent className="p-6">
-                <p className="text-sm text-gray-500 mb-1">Critical</p>
-                <h3 className="text-2xl font-bold text-red-900">{icuStats.critical}</h3>
-                <p className="text-xs text-red-600">Requires attention</p>
+                <div className="text-center py-12 text-red-600">
+                  <p className="mb-2">{icuStatsError}</p>
+                  <Button variant="outline" size="sm" onClick={() => window.location.reload()}>
+                    Retry
+                  </Button>
+                </div>
               </CardContent>
             </Card>
-            <Card>
-              <CardContent className="p-6">
-                <p className="text-sm text-gray-500 mb-1">On Ventilator</p>
-                <h3 className="text-2xl font-bold text-gray-900">{icuStats.onVentilator}</h3>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-6">
-                <p className="text-sm text-gray-500 mb-1">Avg. Stay</p>
-                <h3 className="text-2xl font-bold text-gray-900">{icuStats.avgStayDuration} days</h3>
-              </CardContent>
-            </Card>
-          </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <Card>
+                  <CardContent className="p-6">
+                    <p className="text-sm text-gray-500 mb-1">Total ICU Patients</p>
+                    <h3 className="text-2xl font-bold text-gray-900">{icuStats.totalPatients}/15</h3>
+                    <p className="text-xs text-gray-500">
+                      {icuStats.totalPatients > 0 ? `${Math.round((icuStats.totalPatients / 15) * 100)}% occupancy` : '0% occupancy'}
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-6">
+                    <p className="text-sm text-gray-500 mb-1">Critical</p>
+                    <h3 className="text-2xl font-bold text-red-900">{icuStats.critical}</h3>
+                    <p className="text-xs text-red-600">Requires attention</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-6">
+                    <p className="text-sm text-gray-500 mb-1">On Ventilator</p>
+                    <h3 className="text-2xl font-bold text-gray-900">{icuStats.onVentilator}</h3>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-6">
+                    <p className="text-sm text-gray-500 mb-1">Avg. Stay</p>
+                    <h3 className="text-2xl font-bold text-gray-900">
+                      {icuStats.avgStayDuration > 0 ? `${icuStats.avgStayDuration.toFixed(1)} days` : 'N/A'}
+                    </h3>
+                  </CardContent>
+                </Card>
+              </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>ICU Occupancy Trend</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={icuOccupancy}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Line type="monotone" dataKey="occupied" stroke="#ef4444" strokeWidth={2} name="Occupied Beds" />
-                  <Line type="monotone" dataKey="total" stroke="#94a3b8" strokeWidth={2} name="Total Beds" strokeDasharray="5 5" />
-                </LineChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle>ICU Occupancy Trend</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {icuOccupancy.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={300}>
+                      <LineChart data={icuOccupancy}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="date" />
+                        <YAxis />
+                        <Tooltip />
+                        <Legend />
+                        <Line type="monotone" dataKey="occupied" stroke="#ef4444" strokeWidth={2} name="Occupied Beds" />
+                        <Line type="monotone" dataKey="total" stroke="#94a3b8" strokeWidth={2} name="Total Beds" strokeDasharray="5 5" />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="text-center py-12 text-gray-500">
+                      No occupancy data available
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </>
+          )}
 
+          {/*
           <Card className="mb-4">
             <CardHeader>
               <CardTitle>Patient Status Breakdown</CardTitle>
@@ -1054,7 +1558,7 @@ export function Reports() {
                 </div>
               </div>
             </CardContent>
-          </Card>
+          </Card> */}  
         </TabsContent>
       </Tabs>
       </div>
