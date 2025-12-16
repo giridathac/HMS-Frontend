@@ -7,13 +7,14 @@ import { Textarea } from './ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Badge } from './ui/badge';
-import { Search, Clock, Stethoscope, CheckCircle2, Hospital, Eye, Edit, Users } from 'lucide-react';
+import { Search, Clock, Stethoscope, CheckCircle2, Hospital, Users } from 'lucide-react';
 import { usePatientAppointments } from '../hooks/usePatientAppointments';
 import { useStaff } from '../hooks/useStaff';
 import { useRoles } from '../hooks/useRoles';
 import { useDepartments } from '../hooks/useDepartments';
 import { patientsApi } from '../api/patients';
 import { PatientAppointment, Patient, Doctor } from '../types';
+import { formatDateIST, formatTimeIST } from '../utils/timeUtils';
 
 export function DoctorConsultation() {
   const { patientAppointments, loading, error, updatePatientAppointment, fetchPatientAppointments } = usePatientAppointments();
@@ -43,6 +44,114 @@ export function DoctorConsultation() {
     transferDetails: '',
     billId: '',
   });
+  const [editDateDisplay, setEditDateDisplay] = useState('');
+  const [editTimeDisplay, setEditTimeDisplay] = useState('');
+
+  // Helper functions for date formatting (dd-mm-yyyy) in IST
+  const formatDateToDisplay = (dateStr: string): string => {
+    if (!dateStr) return '';
+    try {
+      // Use IST utilities to get date in IST timezone
+      const istDate = formatDateIST(dateStr);
+      if (!istDate) return '';
+      
+      // Parse the YYYY-MM-DD format and convert to dd-mm-yyyy
+      const [year, month, day] = istDate.split('-');
+      return `${day}-${month}-${year}`;
+    } catch {
+      return '';
+    }
+  };
+
+  const parseDateFromDisplay = (displayStr: string): string => {
+    if (!displayStr) return '';
+    // Remove any non-digit characters except dashes
+    const cleaned = displayStr.replace(/[^\d-]/g, '');
+    // Match dd-mm-yyyy or dd-mm-yy format
+    const match = cleaned.match(/^(\d{1,2})-(\d{1,2})-(\d{2,4})$/);
+    if (!match) return '';
+    
+    let day = parseInt(match[1], 10);
+    let month = parseInt(match[2], 10);
+    let year = parseInt(match[3], 10);
+    
+    // Handle 2-digit year (for backward compatibility)
+    if (year < 100) {
+      year += 2000;
+    }
+    
+    if (day < 1 || day > 31 || month < 1 || month > 12) return '';
+    
+    try {
+      // Create date in IST timezone (Asia/Kolkata)
+      // Use UTC methods with IST offset
+      const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      // Validate the date
+      const date = new Date(`${dateStr}T00:00:00+05:30`); // IST offset
+      if (date.getDate() !== day || date.getMonth() !== month - 1) return '';
+      return dateStr; // Return YYYY-MM-DD format
+    } catch {
+      return '';
+    }
+  };
+
+  // Helper functions for time formatting (hh:mm AM/PM) in IST
+  const formatTimeToDisplay = (timeStr: string): string => {
+    if (!timeStr) return '';
+    try {
+      const [hours, minutes] = timeStr.split(':');
+      if (!hours || !minutes) return '';
+      const h = parseInt(hours, 10);
+      const m = parseInt(minutes, 10);
+      if (isNaN(h) || isNaN(m) || h < 0 || h > 23 || m < 0 || m > 59) return '';
+      
+      // Time is already in IST (HH:mm format from backend)
+      const period = h >= 12 ? 'PM' : 'AM';
+      const displayHour = h === 0 ? 12 : h > 12 ? h - 12 : h;
+      return `${String(displayHour).padStart(2, '0')}:${String(m).padStart(2, '0')} ${period}`;
+    } catch {
+      return '';
+    }
+  };
+
+  const parseTimeFromDisplay = (displayStr: string): string => {
+    if (!displayStr) return '';
+    // Remove spaces and convert to uppercase
+    const cleaned = displayStr.trim().toUpperCase();
+    
+    // Match hh:mm AM/PM or hh:mmAM/PM
+    const match = cleaned.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i) || cleaned.match(/^(\d{1,2}):(\d{2})(AM|PM)$/i);
+    if (!match) {
+      // Try to parse partial input (e.g., "9" or "9:30")
+      const partialMatch = cleaned.match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)?$/i);
+      if (partialMatch) {
+        let hour = parseInt(partialMatch[1], 10);
+        const minute = partialMatch[2] ? parseInt(partialMatch[2], 10) : 0;
+        const period = partialMatch[3]?.toUpperCase() || '';
+        
+        if (isNaN(hour) || hour < 1 || hour > 12) return '';
+        if (minute < 0 || minute > 59) return '';
+        
+        if (period === 'PM' && hour !== 12) hour += 12;
+        if (period === 'AM' && hour === 12) hour = 0;
+        
+        return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+      }
+      return '';
+    }
+    
+    let hour = parseInt(match[1], 10);
+    const minute = parseInt(match[2], 10);
+    const period = match[3].toUpperCase();
+    
+    if (isNaN(hour) || hour < 1 || hour > 12) return '';
+    if (isNaN(minute) || minute < 0 || minute > 59) return '';
+    
+    if (period === 'PM' && hour !== 12) hour += 12;
+    if (period === 'AM' && hour === 12) hour = 0;
+    
+    return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+  };
 
   // Filter to show only doctors and surgeons from staff
   const appointmentDoctors = useMemo(() => {
@@ -86,37 +195,69 @@ export function DoctorConsultation() {
     fetchPatients();
   }, []);
 
-  const filteredAppointments = patientAppointments.filter(appointment => {
-    if (!searchTerm) return true;
+  // Separate active and inactive appointments, and filter based on search term
+  const { activeAppointments, inactiveAppointments, filteredActiveAppointments } = useMemo(() => {
+    if (!patientAppointments || patientAppointments.length === 0) {
+      return { activeAppointments: [], inactiveAppointments: [], filteredActiveAppointments: [] };
+    }
     
-    const patient = patients.find(p => 
-      (p as any).patientId === appointment.patientId || 
-      (p as any).PatientId === appointment.patientId
-    );
-    const patientName = patient 
-      ? `${(patient as any).patientName || (patient as any).PatientName || ''} ${(patient as any).lastName || (patient as any).LastName || ''}`.trim() 
-      : appointment.patientId === '00000000-0000-0000-0000-000000000001' 
-        ? 'Dummy Patient Name' 
-        : appointment.patientId;
-    const doctor = appointmentDoctors.find(d => d.id.toString() === appointment.doctorId);
-    const doctorName = doctor ? doctor.name : appointment.doctorId;
-    const patientPhone = patient 
-      ? (patient as any).PhoneNo || (patient as any).phoneNo || (patient as any).phone || ''
-      : '';
-    const patientId = patient 
-      ? (patient as any).PatientNo || (patient as any).patientNo || appointment.patientId.substring(0, 8)
-      : appointment.patientId.substring(0, 8);
+    // Separate active and inactive appointments
+    const active: PatientAppointment[] = [];
+    const inactive: PatientAppointment[] = [];
     
-    const searchLower = searchTerm.toLowerCase();
-    return (
-      appointment.tokenNo.toLowerCase().includes(searchLower) ||
-      patientName.toLowerCase().includes(searchLower) ||
-      doctorName.toLowerCase().includes(searchLower) ||
-      patientPhone.includes(searchTerm) ||
-      patientId.toLowerCase().includes(searchLower) ||
-      appointment.patientId.toLowerCase().includes(searchLower)
-    );
-  });
+    patientAppointments.forEach(appointment => {
+      const statusValue = (appointment as any).Status || (appointment as any).status;
+      const isActive = typeof statusValue === 'string' 
+        ? statusValue === 'Active' 
+        : (statusValue === true || statusValue === 'true');
+      
+      if (isActive) {
+        active.push(appointment);
+      } else {
+        inactive.push(appointment);
+      }
+    });
+    
+    // Filter active appointments by search term (exclude inactive from search)
+    let filtered: PatientAppointment[] = [];
+    if (!searchTerm) {
+      filtered = active;
+    } else {
+      filtered = active.filter(appointment => {
+        const patient = patients.find(p => 
+          (p as any).patientId === appointment.patientId || 
+          (p as any).PatientId === appointment.patientId
+        );
+        const patientName = patient 
+          ? `${(patient as any).patientName || (patient as any).PatientName || ''} ${(patient as any).lastName || (patient as any).LastName || ''}`.trim() 
+          : appointment.patientId === '00000000-0000-0000-0000-000000000001' 
+            ? 'Dummy Patient Name' 
+            : appointment.patientId;
+        const doctor = appointmentDoctors.find(d => d.id.toString() === appointment.doctorId);
+        const doctorName = doctor ? doctor.name : appointment.doctorId;
+        const patientPhone = patient 
+          ? (patient as any).PhoneNo || (patient as any).phoneNo || (patient as any).phone || ''
+          : '';
+        const patientId = patient 
+          ? (patient as any).PatientNo || (patient as any).patientNo || appointment.patientId.substring(0, 8)
+          : appointment.patientId.substring(0, 8);
+        
+        const searchLower = searchTerm.toLowerCase();
+        return (
+          appointment.tokenNo.toLowerCase().includes(searchLower) ||
+          patientName.toLowerCase().includes(searchLower) ||
+          doctorName.toLowerCase().includes(searchLower) ||
+          patientPhone.includes(searchTerm) ||
+          patientId.toLowerCase().includes(searchLower) ||
+          appointment.patientId.toLowerCase().includes(searchLower)
+        );
+      });
+    }
+    
+    return { activeAppointments: active, inactiveAppointments: inactive, filteredActiveAppointments: filtered };
+  }, [patientAppointments, searchTerm, patients, appointmentDoctors]);
+
+  const filteredAppointments = filteredActiveAppointments;
 
   const getAppointmentsByStatus = (status: PatientAppointment['appointmentStatus']) => {
     return filteredAppointments.filter(a => a.appointmentStatus === status);
@@ -252,14 +393,10 @@ export function DoctorConsultation() {
 
             <TabsContent value="all">
               <AppointmentList 
-                appointments={filteredAppointments} 
+                appointments={filteredAppointments}
                 doctors={appointmentDoctors} 
                 patients={patients}
-                onView={(appointment) => {
-                  setSelectedAppointment(appointment);
-                  setIsViewDialogOpen(true);
-                }}
-                onEdit={(appointment) => {
+                onManage={(appointment) => {
                   setSelectedAppointment(appointment);
                   setEditFormData({
                     patientId: appointment.patientId,
@@ -279,6 +416,9 @@ export function DoctorConsultation() {
                     transferDetails: appointment.transferDetails || '',
                     billId: appointment.billId || '',
                   });
+                  // Set display values for date and time
+                  setEditDateDisplay(formatDateToDisplay(appointment.appointmentDate));
+                  setEditTimeDisplay(formatTimeToDisplay(appointment.appointmentTime));
                   setIsEditDialogOpen(true);
                 }}
               />
@@ -288,11 +428,7 @@ export function DoctorConsultation() {
                 appointments={getAppointmentsByStatus('Waiting')} 
                 doctors={appointmentDoctors} 
                 patients={patients}
-                onView={(appointment) => {
-                  setSelectedAppointment(appointment);
-                  setIsViewDialogOpen(true);
-                }}
-                onEdit={(appointment) => {
+                onManage={(appointment) => {
                   setSelectedAppointment(appointment);
                   setEditFormData({
                     patientId: appointment.patientId,
@@ -312,6 +448,9 @@ export function DoctorConsultation() {
                     transferDetails: appointment.transferDetails || '',
                     billId: appointment.billId || '',
                   });
+                  // Set display values for date and time
+                  setEditDateDisplay(formatDateToDisplay(appointment.appointmentDate));
+                  setEditTimeDisplay(formatTimeToDisplay(appointment.appointmentTime));
                   setIsEditDialogOpen(true);
                 }}
               />
@@ -321,11 +460,7 @@ export function DoctorConsultation() {
                 appointments={getAppointmentsByStatus('Consulting')} 
                 doctors={appointmentDoctors} 
                 patients={patients}
-                onView={(appointment) => {
-                  setSelectedAppointment(appointment);
-                  setIsViewDialogOpen(true);
-                }}
-                onEdit={(appointment) => {
+                onManage={(appointment) => {
                   setSelectedAppointment(appointment);
                   setEditFormData({
                     patientId: appointment.patientId,
@@ -345,6 +480,9 @@ export function DoctorConsultation() {
                     transferDetails: appointment.transferDetails || '',
                     billId: appointment.billId || '',
                   });
+                  // Set display values for date and time
+                  setEditDateDisplay(formatDateToDisplay(appointment.appointmentDate));
+                  setEditTimeDisplay(formatTimeToDisplay(appointment.appointmentTime));
                   setIsEditDialogOpen(true);
                 }}
               />
@@ -354,11 +492,7 @@ export function DoctorConsultation() {
                 appointments={getAppointmentsByStatus('Completed')} 
                 doctors={appointmentDoctors} 
                 patients={patients}
-                onView={(appointment) => {
-                  setSelectedAppointment(appointment);
-                  setIsViewDialogOpen(true);
-                }}
-                onEdit={(appointment) => {
+                onManage={(appointment) => {
                   setSelectedAppointment(appointment);
                   setEditFormData({
                     patientId: appointment.patientId,
@@ -378,6 +512,9 @@ export function DoctorConsultation() {
                     transferDetails: appointment.transferDetails || '',
                     billId: appointment.billId || '',
                   });
+                  // Set display values for date and time
+                  setEditDateDisplay(formatDateToDisplay(appointment.appointmentDate));
+                  setEditTimeDisplay(formatTimeToDisplay(appointment.appointmentTime));
                   setIsEditDialogOpen(true);
                 }}
               />
@@ -420,9 +557,9 @@ export function DoctorConsultation() {
                             if (patient) {
                               const patientId = (patient as any).patientId || (patient as any).PatientId || '';
                               const patientNo = (patient as any).patientNo || (patient as any).PatientNo || '';
-                              return `${patientNo ? `${patientNo} - ` : ''}${patientName} (ID: ${patientId.substring(0, 8)})`;
-                            }
-                            return `${patientName} (ID: ${selectedAppointment.patientId ? selectedAppointment.patientId.substring(0, 8) : 'N/A'})`;
+                            return `${patientNo ? `${patientNo} - ` : ''}${patientName}`;
+                          }
+                          return `${patientName}`;
                           })()}
                           disabled
                           className="dialog-input-disabled"
@@ -624,9 +761,9 @@ export function DoctorConsultation() {
                             const patientName = (patient as any).patientName || (patient as any).PatientName || '';
                             const lastName = (patient as any).lastName || (patient as any).LastName || '';
                             const fullName = `${patientName} ${lastName}`.trim();
-                            return `${patientNo ? `${patientNo} - ` : ''}${fullName || 'Unknown'} (ID: ${patientId.substring(0, 8)})`;
+                            return `${patientNo ? `${patientNo} - ` : ''}${fullName || 'Unknown'}`;
                           }
-                          return `Unknown (ID: ${editFormData.patientId ? editFormData.patientId.substring(0, 8) : 'N/A'})`;
+                          return `Unknown`;
                         })()}
                         disabled
                         className="bg-gray-50 text-gray-700"
@@ -655,9 +792,26 @@ export function DoctorConsultation() {
                       <Label htmlFor="edit-appointmentDate" className="text-gray-600" style={{ fontSize: '1.125rem' }}>Appointment Date *</Label>
                       <Input
                         id="edit-appointmentDate"
-                        type="date"
-                        value={editFormData.appointmentDate}
-                        onChange={(e) => setEditFormData({ ...editFormData, appointmentDate: e.target.value })}
+                        type="text"
+                        placeholder="dd-mm-yyyy"
+                        value={editDateDisplay}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setEditDateDisplay(value);
+                          const parsed = parseDateFromDisplay(value);
+                          if (parsed) {
+                            setEditFormData({ ...editFormData, appointmentDate: parsed });
+                          }
+                        }}
+                        onBlur={(e) => {
+                          const parsed = parseDateFromDisplay(e.target.value);
+                          if (parsed) {
+                            setEditDateDisplay(formatDateToDisplay(parsed));
+                            setEditFormData({ ...editFormData, appointmentDate: parsed });
+                          } else if (e.target.value) {
+                            setEditDateDisplay('');
+                          }
+                        }}
                         className="text-gray-700 bg-gray-100"
                         style={{ fontSize: '1.125rem' }}
                       />
@@ -666,9 +820,26 @@ export function DoctorConsultation() {
                       <Label htmlFor="edit-appointmentTime" className="text-gray-600" style={{ fontSize: '1.125rem' }}>Appointment Time *</Label>
                       <Input
                         id="edit-appointmentTime"
-                        type="time"
-                        value={editFormData.appointmentTime}
-                        onChange={(e) => setEditFormData({ ...editFormData, appointmentTime: e.target.value })}
+                        type="text"
+                        placeholder="hh:mm AM/PM"
+                        value={editTimeDisplay}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setEditTimeDisplay(value);
+                          const parsed = parseTimeFromDisplay(value);
+                          if (parsed) {
+                            setEditFormData({ ...editFormData, appointmentTime: parsed });
+                          }
+                        }}
+                        onBlur={(e) => {
+                          const parsed = parseTimeFromDisplay(e.target.value);
+                          if (parsed) {
+                            setEditTimeDisplay(formatTimeToDisplay(parsed));
+                            setEditFormData({ ...editFormData, appointmentTime: parsed });
+                          } else if (e.target.value) {
+                            setEditTimeDisplay('');
+                          }
+                        }}
                         className="text-gray-700 bg-gray-100"
                         style={{ fontSize: '1.125rem' }}
                       />
@@ -915,14 +1086,12 @@ function AppointmentList({
   appointments, 
   doctors, 
   patients,
-  onView,
-  onEdit
+  onManage
 }: { 
   appointments: PatientAppointment[]; 
   doctors: Doctor[]; 
   patients: Patient[];
-  onView: (appointment: PatientAppointment) => void;
-  onEdit: (appointment: PatientAppointment) => void;
+  onManage: (appointment: PatientAppointment) => void;
 }) {
   const getStatusBadge = (status: PatientAppointment['appointmentStatus']) => {
     switch (status) {
@@ -949,7 +1118,7 @@ function AppointmentList({
                 <th className="text-left py-4 px-6 text-gray-700 bg-white whitespace-nowrap">Phone</th>
                 <th className="text-left py-4 px-6 text-gray-700 bg-white whitespace-nowrap">Doctor</th>
                 <th className="text-left py-4 px-6 text-gray-700 bg-white whitespace-nowrap">Status</th>
-                <th className="text-left py-4 px-6 text-gray-700 bg-white whitespace-nowrap">To Be Admitted</th>
+                <th className="text-left py-4 px-6 text-gray-700 bg-white whitespace-nowrap">Admission</th>
                 <th className="text-left py-4 px-6 text-gray-700 bg-white whitespace-nowrap">Actions</th>
               </tr>
             </thead>
@@ -961,68 +1130,58 @@ function AppointmentList({
                   </td>
                 </tr>
               ) : (
-                appointments.map((appointment) => {
-                  const patient = patients.find(p => 
-                    (p as any).patientId === appointment.patientId || 
-                    (p as any).PatientId === appointment.patientId
-                  );
-                  const doctor = doctors.find(d => d.id.toString() === appointment.doctorId);
-                  const patientName = patient 
-                    ? `${(patient as any).patientName || (patient as any).PatientName || ''} ${(patient as any).lastName || (patient as any).LastName || ''}`.trim() 
-                    : appointment.patientId === '00000000-0000-0000-0000-000000000001' 
-                      ? 'Dummy Patient Name' 
-                      : appointment.patientId;
-                  const doctorName = doctor ? doctor.name : appointment.doctorId;
-                  const patientPhone = patient 
-                    ? (patient as any).PhoneNo || (patient as any).phoneNo || (patient as any).phone || '-'
-                    : '-';
-                  const patientId = patient 
-                    ? (patient as any).PatientNo || (patient as any).patientNo || appointment.patientId.substring(0, 8)
-                    : appointment.patientId.substring(0, 8);
-                  
-                  return (
-                    <tr key={appointment.id} className="border-b border-gray-100 hover:bg-gray-50">
-                      <td className="py-4 px-6 text-gray-900 font-mono font-medium whitespace-nowrap">{patientId}</td>
-                      <td className="py-4 px-6 text-gray-600 whitespace-nowrap">{patientName}</td>
-                      <td className="py-4 px-6 text-gray-600 whitespace-nowrap">{patientPhone}</td>
-                      <td className="py-4 px-6 text-gray-600 whitespace-nowrap">{doctorName}</td>
-                      <td className="py-4 px-6">{getStatusBadge(appointment.appointmentStatus)}</td>
-                      <td className="py-4 px-6">
-                        {appointment.toBeAdmitted ? (
-                          <Badge variant="outline" className="bg-red-100 text-red-700 border-red-300 text-xs">
-                            <Hospital className="size-3 mr-1" />Yes
-                          </Badge>
-                        ) : (
-                          <span className="text-gray-600">No</span>
-                        )}
-                      </td>
-                      <td className="py-4 px-6 whitespace-nowrap">
-                        <div className="flex items-center gap-1">
+                <>
+                  {appointments.map((appointment) => {
+                    const patient = patients.find(p => 
+                      (p as any).patientId === appointment.patientId || 
+                      (p as any).PatientId === appointment.patientId
+                    );
+                    const doctor = doctors.find(d => d.id.toString() === appointment.doctorId);
+                    const patientName = patient 
+                      ? `${(patient as any).patientName || (patient as any).PatientName || ''} ${(patient as any).lastName || (patient as any).LastName || ''}`.trim() 
+                      : appointment.patientId === '00000000-0000-0000-0000-000000000001' 
+                        ? 'Dummy Patient Name' 
+                        : appointment.patientId;
+                    const doctorName = doctor ? doctor.name : appointment.doctorId;
+                    const patientPhone = patient 
+                      ? (patient as any).PhoneNo || (patient as any).phoneNo || (patient as any).phone || '-'
+                      : '-';
+                    const patientId = patient 
+                      ? (patient as any).PatientNo || (patient as any).patientNo || appointment.patientId.substring(0, 8)
+                      : appointment.patientId.substring(0, 8);
+                    
+                    return (
+                      <tr key={appointment.id} className="border-b border-gray-100 hover:bg-gray-50">
+                        <td className="py-4 px-6 text-gray-900 font-mono font-medium whitespace-nowrap">{patientId}</td>
+                        <td className="py-4 px-6 text-gray-600 whitespace-nowrap">{patientName}</td>
+                        <td className="py-4 px-6 text-gray-600 whitespace-nowrap">{patientPhone}</td>
+                        <td className="py-4 px-6 text-gray-600 whitespace-nowrap">{doctorName}</td>
+                        <td className="py-4 px-6">{getStatusBadge(appointment.appointmentStatus)}</td>
+                        <td className="py-4 px-6">
+                          {appointment.toBeAdmitted ? (
+                            <Badge variant="outline" className="bg-red-100 text-red-700 border-red-300 text-xs">
+                              <Hospital className="size-3 mr-1" />Yes
+                            </Badge>
+                          ) : (
+                            <span className="text-gray-600">No</span>
+                          )}
+                        </td>
+                        <td className="py-4 px-6 whitespace-nowrap">
                           <Button
-                            variant="ghost"
+                            variant="outline"
                             size="sm"
-                            onClick={() => onView(appointment)}
-                            className="h-7 w-7 p-0"
+                            onClick={() => onManage(appointment)}
+                            className="h-8 px-3 text-sm bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200 hover:text-gray-800"
+                            title="Manage Appointment"
                           >
-                            <Eye className="size-3" />
+                            Manage
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => onEdit(appointment)}
-                            className="h-7 w-7 p-0"
-                          >
-                            <Edit className="size-3" />
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </>
               )}
-              <tr>
-                <td className="py-1 px-4" colSpan={7}></td>
-              </tr>
             </tbody>
           </table>
         </div>

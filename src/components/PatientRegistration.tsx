@@ -1,5 +1,5 @@
 // Patient Registration Component - Separated UI from logic
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -14,8 +14,10 @@ import {
 } from './ui/dialog';
 import { usePatients } from '../hooks';
 import { patientsApi } from '../api';
-import { UserPlus, Plus, Eye, Pencil, Search, Trash2 } from 'lucide-react';
+import { UserPlus, Plus, Search, Pencil } from 'lucide-react';
+import { Switch } from './ui/switch';
 import { Patient } from '../types';
+import { formatDateIST, formatDateToDDMMYYYY } from '../utils/timeUtils';
 
 export function PatientRegistration() {
   const { patients, createPatient, loading, error, fetchPatients, deletePatient } = usePatients();
@@ -45,7 +47,10 @@ export function PatientRegistration() {
     address: '',
     chiefComplaint: '',
     description: '',
+    registeredDate: '',
   });
+  const [registeredDateDisplay, setRegisteredDateDisplay] = useState('');
+  const [editRegisteredDateDisplay, setEditRegisteredDateDisplay] = useState('');
 
   const handleAdhaarChange = (value: string) => {
     // Only allow numbers
@@ -86,7 +91,9 @@ export function PatientRegistration() {
         address: formData.address || undefined,
         chiefComplaint: formData.chiefComplaint || undefined,
         description: formData.description || undefined,
-      });
+        registeredDate: formData.registeredDate || undefined,
+        status: 'Active', // Default status is Active
+      } as any);
       setIsSubmitted(true);
       // Refresh patient list
       await fetchPatients();
@@ -105,7 +112,9 @@ export function PatientRegistration() {
           address: '',
           chiefComplaint: '',
           description: '',
+          registeredDate: '',
         });
+        setRegisteredDateDisplay('');
         setAdhaarError('');
         setIsSubmitted(false);
         setIsAddDialogOpen(false);
@@ -121,21 +130,93 @@ export function PatientRegistration() {
     });
   }, [fetchPatients]);
 
-  // Filter patients based on search term
-  const filteredPatients = patients.filter(patient => {
-    const searchLower = searchTerm.toLowerCase();
-    const patientName = `${patient.patientName || ''} ${patient.lastName || ''}`.toLowerCase();
-    const patientNo = (patient.patientNo || '').toLowerCase();
-    const phoneNo = (patient.phoneNo || patient.phone || '').toLowerCase();
-    const patientId = (patient.patientId || patient.PatientId || '').toLowerCase();
-    const patientType = (patient.patientType || patient.PatientType || '').toLowerCase();
+  // Separate active and inactive patients, and filter based on search term
+  const { activePatients, inactivePatients, filteredActivePatients } = useMemo(() => {
+    if (!patients || patients.length === 0) {
+      return { activePatients: [], inactivePatients: [], filteredActivePatients: [] };
+    }
     
-    return patientName.includes(searchLower) ||
-           patientNo.includes(searchLower) ||
-           phoneNo.includes(searchLower) ||
-           patientId.includes(searchLower) ||
-           patientType.includes(searchLower);
-  });
+    // Separate active and inactive patients
+    const active: Patient[] = [];
+    const inactive: Patient[] = [];
+    
+    patients.forEach(patient => {
+      const statusValue = (patient as any).Status || (patient as any).status;
+      const isActive = typeof statusValue === 'string' 
+        ? statusValue === 'Active' 
+        : (statusValue === true || statusValue === 'true' || statusValue === undefined || statusValue === null);
+      
+      if (isActive) {
+        active.push(patient);
+      } else {
+        inactive.push(patient);
+      }
+    });
+    
+    // Filter active patients by search term (exclude inactive from search)
+    let filtered: Patient[] = [];
+    if (!searchTerm) {
+      filtered = active;
+    } else {
+      const searchLower = searchTerm.toLowerCase();
+      filtered = active.filter(patient => {
+        const patientName = `${patient.patientName || ''} ${patient.lastName || ''}`.toLowerCase();
+        const patientNo = (patient.patientNo || '').toLowerCase();
+        const phoneNo = (patient.phoneNo || patient.phone || '').toLowerCase();
+        const patientId = (patient.patientId || patient.PatientId || '').toLowerCase();
+        const patientType = (patient.patientType || patient.PatientType || '').toLowerCase();
+        
+        return patientName.includes(searchLower) ||
+               patientNo.includes(searchLower) ||
+               phoneNo.includes(searchLower) ||
+               patientId.includes(searchLower) ||
+               patientType.includes(searchLower);
+      });
+    }
+    
+    return { activePatients: active, inactivePatients: inactive, filteredActivePatients: filtered };
+  }, [patients, searchTerm]);
+
+  // For backward compatibility, use filteredActivePatients
+  const filteredPatients = filteredActivePatients;
+
+  // Helper function to format date to dd-mm-yyyy
+  const formatDateToDisplay = (dateStr: string | Date | undefined): string => {
+    if (!dateStr) return '-';
+    return formatDateToDDMMYYYY(dateStr) || '-';
+  };
+
+  const parseDateFromDisplay = (displayStr: string): string => {
+    if (!displayStr) return '';
+    // Remove any non-digit characters except dashes
+    const cleaned = displayStr.replace(/[^\d-]/g, '');
+    // Match dd-mm-yyyy or dd-mm-yy format
+    const match = cleaned.match(/^(\d{1,2})-(\d{1,2})-(\d{2,4})$/);
+    if (!match) return '';
+    
+    let day = parseInt(match[1], 10);
+    let month = parseInt(match[2], 10);
+    let year = parseInt(match[3], 10);
+    
+    // Handle 2-digit year (for backward compatibility)
+    if (year < 100) {
+      year += 2000;
+    }
+    
+    if (day < 1 || day > 31 || month < 1 || month > 12) return '';
+    
+    try {
+      // Create date in IST timezone (Asia/Kolkata)
+      // Use UTC methods with IST offset
+      const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      // Validate the date
+      const date = new Date(`${dateStr}T00:00:00+05:30`); // IST offset
+      if (date.getDate() !== day || date.getMonth() !== month - 1) return '';
+      return dateStr; // Return YYYY-MM-DD format
+    } catch {
+      return '';
+    }
+  };
 
   const handleViewPatient = async (patientId: string) => {
     try {
@@ -233,10 +314,21 @@ export function PatientRegistration() {
         address: mappedPatient.address || '',
         chiefComplaint: mappedPatient.chiefComplaint || '',
         description: mappedPatient.description || '',
-        status: mappedPatient.status || 'Active',
+        status: (() => {
+          const statusValue = mappedPatient.status || 'Active';
+          return typeof statusValue === 'string' 
+            ? statusValue === 'Active' 
+            : (statusValue === true || statusValue === 'true');
+        })(),
         registeredBy: mappedPatient.registeredBy || '',
-        registeredDate: mappedPatient.registeredDate ? new Date(mappedPatient.registeredDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+        registeredDate: mappedPatient.registeredDate || '',
       });
+      // Set display value for registered date
+      if (mappedPatient.registeredDate) {
+        setEditRegisteredDateDisplay(formatDateToDisplay(mappedPatient.registeredDate));
+      } else {
+        setEditRegisteredDateDisplay('');
+      }
     } catch (err) {
       console.error('Error fetching patient for edit:', err);
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
@@ -253,6 +345,7 @@ export function PatientRegistration() {
     setIsEditDialogOpen(false);
     setEditingPatient(null);
     setEditFormData(null);
+    setEditRegisteredDateDisplay('');
     setEditAdhaarError('');
   };
 
@@ -316,7 +409,7 @@ export function PatientRegistration() {
         address: editFormData.address || undefined,
         chiefComplaint: editFormData.chiefComplaint || undefined,
         description: editFormData.description || undefined,
-        status: editFormData.status || undefined,
+        status: editFormData.status !== undefined ? (editFormData.status ? 'Active' : 'Inactive') : undefined,
         registeredBy: editFormData.registeredBy || undefined,
         registeredDate: editFormData.registeredDate || undefined,
       };
@@ -552,20 +645,6 @@ export function PatientRegistration() {
                         </div>
                         <div className="dialog-form-field-grid">
                           <div className="dialog-form-field">
-                            <Label htmlFor="status" className="dialog-label-standard">Status</Label>
-                            <select
-                              id="status"
-                              aria-label="Status"
-                              className="dialog-select-standard"
-                              value={formData.status}
-                              onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                            >
-                              <option value="Active">Active</option>
-                              <option value="Inactive">Inactive</option>
-                              <option value="Discharged">Discharged</option>
-                            </select>
-                          </div>
-                          <div className="dialog-form-field">
                             <Label htmlFor="registeredBy" className="dialog-label-standard">Registered By</Label>
                             <Input
                               id="registeredBy"
@@ -579,9 +658,26 @@ export function PatientRegistration() {
                             <Label htmlFor="registeredDate" className="dialog-label-standard">Registered Date</Label>
                             <Input
                               id="registeredDate"
-                              type="date"
-                              value={formData.registeredDate}
-                              onChange={(e) => setFormData({ ...formData, registeredDate: e.target.value })}
+                              type="text"
+                              placeholder="dd-mm-yyyy"
+                              value={registeredDateDisplay}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                setRegisteredDateDisplay(value);
+                                const parsed = parseDateFromDisplay(value);
+                                if (parsed) {
+                                  setFormData({ ...formData, registeredDate: parsed });
+                                }
+                              }}
+                              onBlur={(e) => {
+                                const parsed = parseDateFromDisplay(e.target.value);
+                                if (parsed) {
+                                  setRegisteredDateDisplay(formatDateToDisplay(parsed));
+                                  setFormData({ ...formData, registeredDate: parsed });
+                                } else if (e.target.value) {
+                                  setRegisteredDateDisplay('');
+                                }
+                              }}
                               className="dialog-input-standard"
                             />
                           </div>
@@ -661,79 +757,43 @@ export function PatientRegistration() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredPatients.length === 0 ? (
+                    {filteredPatients.length === 0 && (!searchTerm ? inactivePatients.length === 0 : true) ? (
                       <tr>
                         <td colSpan={7} className="text-center py-8 text-gray-500 text-sm">
                           {searchTerm ? 'No patients found matching your search.' : 'No patients found. Click "Add New Patient" to register a new patient.'}
                         </td>
                       </tr>
                     ) : (
-                      filteredPatients.map((patient, index) => {
-                        const uniqueKey = patient.patientId || patient.PatientId || patient.id || `patient-${index}`;
-                        return (
-                          <tr key={uniqueKey} className="border-b border-gray-100 hover:bg-gray-50">
-                            <td className="py-4 px-6 text-gray-900 font-mono font-medium whitespace-nowrap">{patient.patientNo || '-'}</td>
-                            <td className="py-4 px-6 text-gray-600 whitespace-nowrap min-w-[120px]">
-                              {patient.patientName} {patient.lastName || ''}
-                            </td>
-                            <td className="py-4 px-6 whitespace-nowrap">
-                              <span className="px-1.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
-                                {patient.patientType || 'N/A'}
-                              </span>
-                            </td>
-                            <td className="py-4 px-6 text-gray-600 whitespace-nowrap">{patient.age}</td>
-                            <td className="py-4 px-6 whitespace-nowrap">
-                              <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${
-                                patient.status === 'Active' ? 'bg-green-100 text-green-700' :
-                                patient.status === 'Inactive' ? 'bg-gray-100 text-gray-700' :
-                                'bg-red-100 text-red-700'
-                              }`}>
-                                {patient.status || 'Active'}
-                              </span>
-                            </td>
+                      <>
+                        {filteredPatients.map((patient, index) => {
+                          const uniqueKey = patient.patientId || patient.PatientId || patient.id || `patient-${index}`;
+                          return (
+                            <tr key={uniqueKey} className="border-b border-gray-100 hover:bg-gray-50">
+                              <td className="py-4 px-6 text-gray-900 font-mono font-medium whitespace-nowrap">{patient.patientNo || '-'}</td>
+                              <td className="py-4 px-6 text-gray-600 whitespace-nowrap min-w-[120px]">
+                                {patient.patientName} {patient.lastName || ''}
+                              </td>
+                              <td className="py-4 px-6 whitespace-nowrap">
+                                <span className="px-1.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+                                  {patient.patientType || 'N/A'}
+                                </span>
+                              </td>
+                              <td className="py-4 px-6 text-gray-600 whitespace-nowrap">{patient.age}</td>
+                              <td className="py-4 px-6 whitespace-nowrap">
+                                <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${
+                                  patient.status === 'Active' ? 'bg-green-100 text-green-700' :
+                                  patient.status === 'Inactive' ? 'bg-gray-100 text-gray-700' :
+                                  'bg-red-100 text-red-700'
+                                }`}>
+                                  {patient.status || 'Active'}
+                                </span>
+                              </td>
                             <td className="py-4 px-6 text-gray-600 whitespace-nowrap">
-                              {patient.registeredDate ? new Date(patient.registeredDate).toLocaleDateString() : '-'}
+                              {formatDateToDisplay(patient.registeredDate)}
                             </td>
-                            <td className="py-4 px-6 whitespace-nowrap">
-                              <div className="flex items-center gap-1">
-                                <Button 
-                                  variant="ghost" 
-                                  size="sm" 
-                                  className="h-7 w-7 p-0"
-                                  onClick={() => {
-                                    const patientId = patient.patientId || patient.PatientId;
-                                    if (!patientId) {
-                                      console.error('PatientId not found for patient:', patient);
-                                      alert('Patient ID not available');
-                                      return;
-                                    }
-                                    console.log('Viewing patient with PatientId:', patientId);
-                                    handleViewPatient(patientId);
-                                  }}
-                                  title="View Patient Details"
-                                >
-                                  <Eye className="size-3" />
-                                </Button>
-                                <Button 
-                                  variant="ghost" 
-                                  size="sm" 
-                                  className="h-7 w-7 p-0"
-                                  onClick={() => {
-                                    const patientId = patient.patientId || patient.PatientId;
-                                    if (!patientId) {
-                                      console.error('PatientId not found for patient:', patient);
-                                      alert('Patient ID not available');
-                                      return;
-                                    }
-                                    console.log('Editing patient with PatientId:', patientId);
-                                    handleEditPatient(patientId);
-                                  }}
-                                  title="Edit Patient Details"
-                                >
-                                  <Pencil className="size-3" />
-                                </Button>
+                              <td className="py-4 px-6 whitespace-nowrap">
                                 <Button
-                                  variant="ghost"
+                                  variant="outline"
                                   size="sm"
                                   onClick={() => {
                                     const patientId = patient.patientId || patient.PatientId;
@@ -742,18 +802,64 @@ export function PatientRegistration() {
                                       alert('Patient ID not available');
                                       return;
                                     }
-                                    handleDeletePatient(patientId);
+                                    console.log('Managing patient with PatientId:', patientId);
+                                    handleEditPatient(patientId);
                                   }}
-                                  className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                                  title="Delete Patient"
+                                  className="h-8 px-3 text-sm bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200 hover:text-gray-800"
+                                  title="Manage Patient"
                                 >
-                                  <Trash2 className="size-4" />
+                                  Manage
                                 </Button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })
+                              </td>
+                            </tr>
+                          );
+                        })}
+                        {!searchTerm && inactivePatients.length > 0 && inactivePatients.map((patient, index) => {
+                          const uniqueKey = patient.patientId || patient.PatientId || patient.id || `inactive-patient-${index}`;
+                          return (
+                            <tr key={uniqueKey} className="border-b border-gray-100 opacity-50 bg-gray-50">
+                              <td className="py-4 px-6 text-gray-400 font-mono font-medium whitespace-nowrap">{patient.patientNo || '-'}</td>
+                              <td className="py-4 px-6 text-gray-400 whitespace-nowrap min-w-[120px]">
+                                {patient.patientName} {patient.lastName || ''}
+                              </td>
+                              <td className="py-4 px-6 whitespace-nowrap">
+                                <span className="px-1.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-400">
+                                  {patient.patientType || 'N/A'}
+                                </span>
+                              </td>
+                              <td className="py-4 px-6 text-gray-400 whitespace-nowrap">{patient.age}</td>
+                              <td className="py-4 px-6 whitespace-nowrap">
+                                <span className="px-1.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-400">
+                                  {patient.status || 'Inactive'}
+                                </span>
+                              </td>
+                              <td className="py-4 px-6 text-gray-400 whitespace-nowrap">
+                                {formatDateToDisplay(patient.registeredDate)}
+                              </td>
+                              <td className="py-4 px-6 whitespace-nowrap">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    const patientId = patient.patientId || patient.PatientId;
+                                    if (!patientId) {
+                                      console.error('PatientId not found for patient:', patient);
+                                      alert('Patient ID not available');
+                                      return;
+                                    }
+                                    console.log('Managing patient with PatientId:', patientId);
+                                    handleEditPatient(patientId);
+                                  }}
+                                  className="h-8 px-3 text-sm bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200 hover:text-gray-800"
+                                  title="Manage Patient"
+                                >
+                                  Manage
+                                </Button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </>
                     )}
                   </tbody>
               </table>
@@ -766,160 +872,144 @@ export function PatientRegistration() {
 
       {/* Patient Details Dialog */}
       <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
-        <DialogContent className="p-0 gap-0 large-dialog max-w-5xl max-h-[90vh]">
-          <DialogHeader className="px-6 pt-4 pb-3 flex-shrink-0">
-            <DialogTitle className="flex items-center gap-2">
-              <UserPlus className="size-5" />
-              Patient Details
-            </DialogTitle>
-          </DialogHeader>
-          
-          <div className="flex-1 overflow-y-auto px-6 pb-1 patient-list-scrollable min-h-0">
-            {loadingPatientDetails ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="text-center">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-600 mx-auto mb-4"></div>
-                  <p className="text-gray-600">Loading patient details...</p>
-                </div>
-              </div>
-            ) : selectedPatient ? (
-              <div className="space-y-6 py-4">
-                {/* Basic Information Section */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2">Basic Information</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-sm font-medium text-gray-700">Patient ID</Label>
-                      <p className="text-base font-mono font-semibold mt-1 text-gray-900">{selectedPatient.patientId || '-'}</p>
-                    </div>
-                    
-                    <div>
-                      <Label className="text-sm font-medium text-gray-700">Patient No</Label>
-                      <p className="text-base font-mono font-semibold mt-1 text-gray-900">{selectedPatient.patientNo || '-'}</p>
-                    </div>
-                    
-                    <div>
-                      <Label className="text-sm font-medium text-gray-700">Patient Name</Label>
-                      <p className="text-base font-semibold mt-1 text-gray-900">{selectedPatient.patientName || '-'}</p>
-                    </div>
-                    
-                    <div>
-                      <Label className="text-sm font-medium text-gray-700">Last Name</Label>
-                      <p className="text-base mt-1 text-gray-900">{selectedPatient.lastName || '-'}</p>
-                    </div>
-                    
-                    <div>
-                      <Label className="text-sm font-medium text-gray-700">Patient Type</Label>
-                      <p className="text-base mt-1">
-                        <span className="px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-700">
-                          {selectedPatient.patientType || 'N/A'}
-                        </span>
-                      </p>
-                    </div>
-                    
-                    <div>
-                      <Label className="text-sm font-medium text-gray-700">Status</Label>
-                      <p className="text-base mt-1">
-                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                          selectedPatient.status === 'Active' ? 'bg-green-100 text-green-700' :
-                          selectedPatient.status === 'Inactive' ? 'bg-gray-100 text-gray-700' :
-                          'bg-red-100 text-red-700'
-                        }`}>
-                          {selectedPatient.status || 'Active'}
-                        </span>
-                      </p>
-                    </div>
+        <DialogContent className="p-0 gap-0 large-dialog dialog-content-standard max-w-5xl">
+          <div className="dialog-scrollable-wrapper dialog-content-scrollable max-h-[90vh]">
+            <DialogHeader className="dialog-header-standard">
+              <DialogTitle className="dialog-title-standard flex items-center gap-2">
+                <UserPlus className="size-5" />
+                Patient Details
+              </DialogTitle>
+            </DialogHeader>
+            
+            <div className="dialog-body-content-wrapper">
+              {loadingPatientDetails ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-600 mx-auto mb-4"></div>
+                    <p className="text-gray-600">Loading patient details...</p>
                   </div>
                 </div>
-
-                {/* Personal Details Section */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2">Personal Details</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-sm font-medium text-gray-700">Age</Label>
-                      <p className="text-base mt-1 text-gray-900">{selectedPatient.age || '-'}</p>
-                    </div>
-                    
-                    <div>
-                      <Label className="text-sm font-medium text-gray-700">Gender</Label>
-                      <p className="text-base mt-1 text-gray-900">{selectedPatient.gender || '-'}</p>
-                    </div>
-                    
-                    <div>
-                      <Label className="text-sm font-medium text-gray-700">Phone No</Label>
-                      <p className="text-base font-mono mt-1 text-gray-900">{selectedPatient.phoneNo || '-'}</p>
-                    </div>
-                    
-                    <div>
-                      <Label className="text-sm font-medium text-gray-700">Registered Date</Label>
-                      <p className="text-base mt-1 text-gray-900">
-                        {selectedPatient.registeredDate 
-                          ? new Date(selectedPatient.registeredDate).toLocaleDateString('en-US', { 
-                              year: 'numeric', 
-                              month: 'long', 
-                              day: 'numeric' 
-                            }) 
-                          : '-'}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Identification Section */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2">Identification</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-sm font-medium text-gray-700">Aadhaar ID</Label>
-                      <p className="text-base font-mono mt-1 text-gray-900">{selectedPatient.adhaarID || '-'}</p>
-                    </div>
-                    
-                    <div>
-                      <Label className="text-sm font-medium text-gray-700">PAN Card</Label>
-                      <p className="text-base font-mono mt-1 text-gray-900">{selectedPatient.panCard || '-'}</p>
+              ) : selectedPatient ? (
+                <div className="dialog-form-container space-y-6">
+                  {/* Basic Information Section */}
+                  <div className="dialog-form-field space-y-3">
+                    <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2">Basic Information</h3>
+                    <div className="dialog-form-field-grid">
+                      <div className="dialog-form-field">
+                        <Label className="dialog-label-standard">Patient ID</Label>
+                        <p className="text-base font-mono font-semibold mt-1 text-gray-900">{selectedPatient.patientId || '-'}</p>
+                      </div>
+                      <div className="dialog-form-field">
+                        <Label className="dialog-label-standard">Patient No</Label>
+                        <p className="text-base font-mono font-semibold mt-1 text-gray-900">{selectedPatient.patientNo || '-'}</p>
+                      </div>
+                      <div className="dialog-form-field">
+                        <Label className="dialog-label-standard">Patient Name</Label>
+                        <p className="text-base font-semibold mt-1 text-gray-900">{selectedPatient.patientName || '-'}</p>
+                      </div>
+                      <div className="dialog-form-field">
+                        <Label className="dialog-label-standard">Last Name</Label>
+                        <p className="text-base mt-1 text-gray-900">{selectedPatient.lastName || '-'}</p>
+                      </div>
+                      <div className="dialog-form-field">
+                        <Label className="dialog-label-standard">Patient Type</Label>
+                        <p className="text-base mt-1">
+                          <span className="px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-700">
+                            {selectedPatient.patientType || 'N/A'}
+                          </span>
+                        </p>
+                      </div>
+                      <div className="dialog-form-field">
+                        <Label className="dialog-label-standard">Status</Label>
+                        <p className="text-base mt-1">
+                          <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                            selectedPatient.status === 'Active' ? 'bg-green-100 text-green-700' :
+                            selectedPatient.status === 'Inactive' ? 'bg-gray-100 text-gray-700' :
+                            'bg-red-100 text-red-700'
+                          }`}>
+                            {selectedPatient.status || 'Active'}
+                          </span>
+                        </p>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Address Section */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2">Address</h3>
-                  <div>
-                    <Label className="text-sm font-medium text-gray-700">Full Address</Label>
-                    <p className="text-base mt-1 text-gray-900 whitespace-pre-wrap">{selectedPatient.address || '-'}</p>
+                  {/* Personal Details Section */}
+                  <div className="dialog-form-field space-y-3">
+                    <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2">Personal Details</h3>
+                    <div className="dialog-form-field-grid">
+                      <div className="dialog-form-field">
+                        <Label className="dialog-label-standard">Age</Label>
+                        <p className="text-base mt-1 text-gray-900">{selectedPatient.age || '-'}</p>
+                      </div>
+                      <div className="dialog-form-field">
+                        <Label className="dialog-label-standard">Gender</Label>
+                        <p className="text-base mt-1 text-gray-900">{selectedPatient.gender || '-'}</p>
+                      </div>
+                      <div className="dialog-form-field">
+                        <Label className="dialog-label-standard">Phone No</Label>
+                        <p className="text-base font-mono mt-1 text-gray-900">{selectedPatient.phoneNo || '-'}</p>
+                      </div>
+                      <div className="dialog-form-field">
+                        <Label className="dialog-label-standard">Registered Date</Label>
+                        <p className="text-base mt-1 text-gray-900">
+                          {formatDateToDisplay(selectedPatient.registeredDate)}
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                </div>
 
-                {/* Medical Information Section */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2">Medical Information</h3>
-                  <div className="space-y-4">
-                    <div>
-                      <Label className="text-sm font-medium text-gray-700">Chief Complaint</Label>
+                  {/* Identification Section */}
+                  <div className="dialog-form-field space-y-3">
+                    <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2">Identification</h3>
+                    <div className="dialog-form-field-grid">
+                      <div className="dialog-form-field">
+                        <Label className="dialog-label-standard">Aadhaar ID</Label>
+                        <p className="text-base font-mono mt-1 text-gray-900">{selectedPatient.adhaarID || '-'}</p>
+                      </div>
+                      <div className="dialog-form-field">
+                        <Label className="dialog-label-standard">PAN Card</Label>
+                        <p className="text-base font-mono mt-1 text-gray-900">{selectedPatient.panCard || '-'}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Address Section */}
+                  <div className="dialog-form-field space-y-3">
+                    <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2">Address</h3>
+                    <div className="dialog-form-field">
+                      <Label className="dialog-label-standard">Full Address</Label>
+                      <p className="text-base mt-1 text-gray-900 whitespace-pre-wrap">{selectedPatient.address || '-'}</p>
+                    </div>
+                  </div>
+
+                  {/* Medical Information Section */}
+                  <div className="dialog-form-field space-y-3">
+                    <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2">Medical Information</h3>
+                    <div className="dialog-form-field">
+                      <Label className="dialog-label-standard">Chief Complaint</Label>
                       <p className="text-base mt-1 text-gray-900">{selectedPatient.chiefComplaint || '-'}</p>
                     </div>
-                    
-                    <div>
-                      <Label className="text-sm font-medium text-gray-700">Description</Label>
+                    <div className="dialog-form-field">
+                      <Label className="dialog-label-standard">Description</Label>
                       <p className="text-base mt-1 text-gray-900 whitespace-pre-wrap bg-gray-50 p-3 rounded-md border border-gray-200">
                         {selectedPatient.description || '-'}
                       </p>
                     </div>
                   </div>
                 </div>
-              </div>
-            ) : (
-              <div className="text-center py-12 text-gray-500">
-                <p className="text-lg">No patient details available</p>
-              </div>
-            )}
-          </div>
-          
-          <div className="px-6 py-3 flex-shrink-0 border-t border-gray-200 flex justify-end">
-            <Button variant="outline" onClick={() => setIsDetailDialogOpen(false)}>
-              Close
-            </Button>
+              ) : (
+                <div className="text-center py-12 text-gray-500">
+                  <p className="text-lg">No patient details available</p>
+                </div>
+              )}
+            </div>
+            
+            <div className="dialog-footer-standard">
+              <Button variant="outline" onClick={() => setIsDetailDialogOpen(false)} className="dialog-footer-button">
+                Close
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
@@ -1125,6 +1215,59 @@ export function PatientRegistration() {
                       onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
                       placeholder="Enter additional description or notes"
                     />
+                  </div>
+
+                  {/* Row 8: Registered Date and Status */}
+                  <div className="dialog-form-field-grid">
+                    <div className="dialog-form-field">
+                      <Label htmlFor="editRegisteredDate" className="dialog-label-standard">Registered Date</Label>
+                      <Input
+                        id="editRegisteredDate"
+                        type="text"
+                        placeholder="dd-mm-yyyy"
+                        value={editRegisteredDateDisplay}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setEditRegisteredDateDisplay(value);
+                          const parsed = parseDateFromDisplay(value);
+                          if (parsed) {
+                            setEditFormData({ ...editFormData, registeredDate: parsed });
+                          }
+                        }}
+                        onBlur={(e) => {
+                          const parsed = parseDateFromDisplay(e.target.value);
+                          if (parsed) {
+                            setEditRegisteredDateDisplay(formatDateToDisplay(parsed));
+                            setEditFormData({ ...editFormData, registeredDate: parsed });
+                          } else if (e.target.value) {
+                            setEditRegisteredDateDisplay('');
+                          }
+                        }}
+                        className="dialog-input-standard"
+                      />
+                    </div>
+                    <div className="dialog-form-field">
+                      <div className="flex items-center gap-3">
+                        <Label htmlFor="edit-status" className="dialog-label-standard">Status</Label>
+                        <div className="flex-shrink-0 relative" style={{ zIndex: 1 }}>
+                          <Switch
+                            id="edit-status"
+                            checked={editFormData.status !== undefined ? editFormData.status : true}
+                            onCheckedChange={(checked) => setEditFormData({ ...editFormData, status: checked })}
+                            className="data-[state=checked]:bg-blue-600 data-[state=unchecked]:bg-gray-300 [&_[data-slot=switch-thumb]]:!bg-white [&_[data-slot=switch-thumb]]:!border [&_[data-slot=switch-thumb]]:!border-gray-400 [&_[data-slot=switch-thumb]]:!shadow-sm"
+                            style={{
+                              width: '2.5rem',
+                              height: '1.5rem',
+                              minWidth: '2.5rem',
+                              minHeight: '1.5rem',
+                              display: 'inline-flex',
+                              position: 'relative',
+                              backgroundColor: editFormData.status !== undefined && editFormData.status ? '#2563eb' : '#d1d5db',
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
                   <div className="dialog-footer-standard">

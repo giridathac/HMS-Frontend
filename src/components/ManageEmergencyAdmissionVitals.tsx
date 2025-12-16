@@ -9,6 +9,7 @@ import { emergencyAdmissionVitalsApi, UpdateEmergencyAdmissionVitalsDto } from '
 import { EmergencyAdmissionVitals } from '../types';
 import { useStaff } from '../hooks/useStaff';
 import { useRoles } from '../hooks/useRoles';
+import { formatDateTimeIST } from '../utils/timeUtils';
 
 export function ManageEmergencyAdmissionVitals() {
   const [vitals, setVitals] = useState<EmergencyAdmissionVitals | null>(null);
@@ -347,7 +348,7 @@ export function ManageEmergencyAdmissionVitals() {
                   <div>
                     <Label>Recorded Date & Time</Label>
                     <Input
-                      value={new Date(vitals.recordedDateTime).toLocaleString()}
+                      value={formatDateTimeIST(vitals.recordedDateTime)}
                       disabled
                       className="bg-gray-50 text-gray-700"
                     />
@@ -414,7 +415,7 @@ export function ManageEmergencyAdmissionVitals() {
                   <div>
                     <Label>Created At</Label>
                     <Input
-                      value={new Date(vitals.vitalsCreatedAt).toLocaleString()}
+                      value={formatDateTimeIST(vitals.vitalsCreatedAt)}
                       disabled
                       className="bg-gray-50 text-gray-700"
                     />

@@ -1,5 +1,5 @@
 // Front Desk Component - Displays FrontDesk appointment data in PR table format
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Card, CardContent } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -8,13 +8,15 @@ import { Badge } from './ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Textarea } from './ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { Search, Eye, Edit, Trash2, Clock, Stethoscope, CheckCircle2, Hospital, Plus, Users } from 'lucide-react';
+import { Switch } from './ui/switch';
+import { Search, Eye, Edit, Clock, Stethoscope, CheckCircle2, Hospital, Plus, Users, X } from 'lucide-react';
 import { usePatientAppointments } from '../hooks/usePatientAppointments';
 import { useStaff } from '../hooks/useStaff';
 import { useRoles } from '../hooks/useRoles';
 import { useDepartments } from '../hooks/useDepartments';
 import { patientsApi } from '../api/patients';
 import { Patient, PatientAppointment, Doctor } from '../types';
+import { formatDateIST, getTodayIST } from '../utils/timeUtils';
 
 export function FrontDesk() {
   const { patientAppointments, loading: appointmentsLoading, error: appointmentsError, fetchPatientAppointments, createPatientAppointment, updatePatientAppointment, deletePatientAppointment } = usePatientAppointments();
@@ -35,6 +37,7 @@ export function FrontDesk() {
     appointmentStatus: 'Waiting' as PatientAppointment['appointmentStatus'],
     consultationCharge: 0,
     followUpDetails: '',
+    status: false,
   });
   const [addFormData, setAddFormData] = useState({
     patientId: '',
@@ -43,9 +46,135 @@ export function FrontDesk() {
     appointmentTime: '',
     appointmentStatus: 'Waiting' as PatientAppointment['appointmentStatus'],
     consultationCharge: 0,
+    status: true, // Always active when creating
   });
   const [patientSearchTerm, setPatientSearchTerm] = useState('');
   const [doctorSearchTerm, setDoctorSearchTerm] = useState('');
+  const [patientError, setPatientError] = useState('');
+  const [doctorError, setDoctorError] = useState('');
+  const [editPatientSearchTerm, setEditPatientSearchTerm] = useState('');
+  const [editDoctorSearchTerm, setEditDoctorSearchTerm] = useState('');
+  const [editPatientError, setEditPatientError] = useState('');
+  const [editDoctorError, setEditDoctorError] = useState('');
+  
+  // Keyboard navigation indices for dropdowns
+  const [patientHighlightIndex, setPatientHighlightIndex] = useState(-1);
+  const [doctorHighlightIndex, setDoctorHighlightIndex] = useState(-1);
+  const [editPatientHighlightIndex, setEditPatientHighlightIndex] = useState(-1);
+  const [editDoctorHighlightIndex, setEditDoctorHighlightIndex] = useState(-1);
+  
+  // Formatted display values for date and time
+  const [addDateDisplay, setAddDateDisplay] = useState('');
+  const [addTimeDisplay, setAddTimeDisplay] = useState('');
+  const [editDateDisplay, setEditDateDisplay] = useState('');
+  const [editTimeDisplay, setEditTimeDisplay] = useState('');
+  const addTimeInputRef = useRef<HTMLInputElement>(null);
+
+  // Helper functions for date formatting (dd-mm-yyyy) in IST
+  const formatDateToDisplay = (dateStr: string): string => {
+    if (!dateStr) return '';
+    try {
+      // Use IST utilities to get date in IST timezone
+      const istDate = formatDateIST(dateStr);
+      if (!istDate) return '';
+      
+      // Parse the YYYY-MM-DD format and convert to dd-mm-yyyy
+      const [year, month, day] = istDate.split('-');
+      return `${day}-${month}-${year}`;
+    } catch {
+      return '';
+    }
+  };
+
+  const parseDateFromDisplay = (displayStr: string): string => {
+    if (!displayStr) return '';
+    // Remove any non-digit characters except dashes
+    const cleaned = displayStr.replace(/[^\d-]/g, '');
+    // Match dd-mm-yyyy or dd-mm-yy format
+    const match = cleaned.match(/^(\d{1,2})-(\d{1,2})-(\d{2,4})$/);
+    if (!match) return '';
+    
+    let day = parseInt(match[1], 10);
+    let month = parseInt(match[2], 10);
+    let year = parseInt(match[3], 10);
+    
+    // Handle 2-digit year (for backward compatibility)
+    if (year < 100) {
+      year += 2000;
+    }
+    
+    if (day < 1 || day > 31 || month < 1 || month > 12) return '';
+    
+    try {
+      // Create date in IST timezone (Asia/Kolkata)
+      // Use UTC methods with IST offset
+      const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      // Validate the date
+      const date = new Date(`${dateStr}T00:00:00+05:30`); // IST offset
+      if (date.getDate() !== day || date.getMonth() !== month - 1) return '';
+      return dateStr; // Return YYYY-MM-DD format
+    } catch {
+      return '';
+    }
+  };
+
+  // Helper functions for time formatting (hh:mm AM/PM) in IST
+  const formatTimeToDisplay = (timeStr: string): string => {
+    if (!timeStr) return '';
+    try {
+      const [hours, minutes] = timeStr.split(':');
+      if (!hours || !minutes) return '';
+      const h = parseInt(hours, 10);
+      const m = parseInt(minutes, 10);
+      if (isNaN(h) || isNaN(m) || h < 0 || h > 23 || m < 0 || m > 59) return '';
+      
+      // Time is already in IST (HH:mm format from backend)
+      const period = h >= 12 ? 'PM' : 'AM';
+      const displayHour = h === 0 ? 12 : h > 12 ? h - 12 : h;
+      return `${String(displayHour).padStart(2, '0')}:${String(m).padStart(2, '0')} ${period}`;
+    } catch {
+      return '';
+    }
+  };
+
+  const parseTimeFromDisplay = (displayStr: string): string => {
+    if (!displayStr) return '';
+    // Remove spaces and convert to uppercase
+    const cleaned = displayStr.trim().toUpperCase();
+    
+    // Match hh:mm AM/PM or hh:mmAM/PM
+    const match = cleaned.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i) || cleaned.match(/^(\d{1,2}):(\d{2})(AM|PM)$/i);
+    if (!match) {
+      // Try to parse partial input (e.g., "9" or "9:30")
+      const partialMatch = cleaned.match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)?$/i);
+      if (partialMatch) {
+        let hour = parseInt(partialMatch[1], 10);
+        const minute = partialMatch[2] ? parseInt(partialMatch[2], 10) : 0;
+        const period = partialMatch[3]?.toUpperCase() || '';
+        
+        if (isNaN(hour) || hour < 1 || hour > 12) return '';
+        if (minute < 0 || minute > 59) return '';
+        
+        if (period === 'PM' && hour !== 12) hour += 12;
+        if (period === 'AM' && hour === 12) hour = 0;
+        
+        return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+      }
+      return '';
+    }
+    
+    let hour = parseInt(match[1], 10);
+    const minute = parseInt(match[2], 10);
+    const period = match[3].toUpperCase();
+    
+    if (isNaN(hour) || hour < 1 || hour > 12) return '';
+    if (isNaN(minute) || minute < 0 || minute > 59) return '';
+    
+    if (period === 'PM' && hour !== 12) hour += 12;
+    if (period === 'AM' && hour === 12) hour = 0;
+    
+    return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+  };
 
   // Filter to show only doctors and surgeons from staff
   const appointmentDoctors = useMemo(() => {
@@ -76,6 +205,76 @@ export function FrontDesk() {
       });
   }, [staff, roles, departments]);
 
+  // Sync display values with form data
+  useEffect(() => {
+    if (addFormData.appointmentDate) {
+      setAddDateDisplay(formatDateToDisplay(addFormData.appointmentDate));
+    } else {
+      setAddDateDisplay('');
+    }
+  }, [addFormData.appointmentDate]);
+
+  useEffect(() => {
+    if (addFormData.appointmentTime) {
+      setAddTimeDisplay(formatTimeToDisplay(addFormData.appointmentTime));
+    } else {
+      setAddTimeDisplay('');
+    }
+  }, [addFormData.appointmentTime]);
+
+  useEffect(() => {
+    if (editFormData.appointmentDate) {
+      setEditDateDisplay(formatDateToDisplay(editFormData.appointmentDate));
+    } else {
+      setEditDateDisplay('');
+    }
+  }, [editFormData.appointmentDate]);
+
+  useEffect(() => {
+    if (editFormData.appointmentTime) {
+      setEditTimeDisplay(formatTimeToDisplay(editFormData.appointmentTime));
+    } else {
+      setEditTimeDisplay('');
+    }
+  }, [editFormData.appointmentTime]);
+  
+  // Scroll highlighted items into view
+  useEffect(() => {
+    if (patientHighlightIndex >= 0) {
+      const element = document.querySelector(`#add-patient-dropdown tbody tr:nth-child(${patientHighlightIndex + 1})`);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }
+  }, [patientHighlightIndex]);
+  
+  useEffect(() => {
+    if (doctorHighlightIndex >= 0) {
+      const element = document.querySelector(`#add-doctor-dropdown tbody tr:nth-child(${doctorHighlightIndex + 1})`);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }
+  }, [doctorHighlightIndex]);
+  
+  useEffect(() => {
+    if (editPatientHighlightIndex >= 0) {
+      const element = document.querySelector(`#edit-patient-dropdown tbody tr:nth-child(${editPatientHighlightIndex + 1})`);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }
+  }, [editPatientHighlightIndex]);
+  
+  useEffect(() => {
+    if (editDoctorHighlightIndex >= 0) {
+      const element = document.querySelector(`#edit-doctor-dropdown tbody tr:nth-child(${editDoctorHighlightIndex + 1})`);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }
+  }, [editDoctorHighlightIndex]);
+
   // Fetch patients
   useEffect(() => {
     const fetchPatients = async () => {
@@ -92,42 +291,70 @@ export function FrontDesk() {
     });
   }, [fetchPatientAppointments]);
 
-  // Filter appointments based on search term (same logic as FrontDesk)
-  const filteredAppointments = useMemo(() => {
-    if (!patientAppointments || patientAppointments.length === 0) return [];
+  // Separate active and inactive appointments, and filter based on search term
+  const { activeAppointments, inactiveAppointments, filteredActiveAppointments } = useMemo(() => {
+    if (!patientAppointments || patientAppointments.length === 0) {
+      return { activeAppointments: [], inactiveAppointments: [], filteredActiveAppointments: [] };
+    }
     
-    return patientAppointments.filter(appointment => {
-      if (!searchTerm) return true;
+    // Separate active and inactive appointments
+    const active: PatientAppointment[] = [];
+    const inactive: PatientAppointment[] = [];
+    
+    patientAppointments.forEach(appointment => {
+      const statusValue = (appointment as any).Status || (appointment as any).status;
+      const isActive = typeof statusValue === 'string' 
+        ? statusValue === 'Active' 
+        : (statusValue === true || statusValue === 'true');
       
-      const patient = patients.find(p => 
-        (p as any).patientId === appointment.patientId || 
-        (p as any).PatientId === appointment.patientId
-      );
-      const patientName = patient 
-        ? `${(patient as any).patientName || (patient as any).PatientName || ''} ${(patient as any).lastName || (patient as any).LastName || ''}`.trim() 
-        : appointment.patientId === '00000000-0000-0000-0000-000000000001' 
-          ? 'Dummy Patient Name' 
-          : appointment.patientId;
-      const doctor = appointmentDoctors.find(d => d.id.toString() === appointment.doctorId);
-      const doctorName = doctor ? doctor.name : appointment.doctorId;
-      const patientPhone = patient 
-        ? (patient as any).PhoneNo || (patient as any).phoneNo || (patient as any).phone || ''
-        : '';
-      const patientId = patient 
-        ? (patient as any).PatientNo || (patient as any).patientNo || appointment.patientId.substring(0, 8)
-        : appointment.patientId.substring(0, 8);
-      
-      const searchLower = searchTerm.toLowerCase();
-      return (
-        appointment.tokenNo?.toLowerCase().includes(searchLower) ||
-        patientName.toLowerCase().includes(searchLower) ||
-        doctorName.toLowerCase().includes(searchLower) ||
-        patientPhone.includes(searchTerm) ||
-        patientId.toLowerCase().includes(searchLower) ||
-        appointment.patientId.toLowerCase().includes(searchLower)
-      );
+      if (isActive) {
+        active.push(appointment);
+      } else {
+        inactive.push(appointment);
+      }
     });
+    
+    // Filter active appointments by search term (exclude inactive from search)
+    let filtered: PatientAppointment[] = [];
+    if (!searchTerm) {
+      filtered = active;
+    } else {
+      filtered = active.filter(appointment => {
+        const patient = patients.find(p => 
+          (p as any).patientId === appointment.patientId || 
+          (p as any).PatientId === appointment.patientId
+        );
+        const patientName = patient 
+          ? `${(patient as any).patientName || (patient as any).PatientName || ''} ${(patient as any).lastName || (patient as any).LastName || ''}`.trim() 
+          : appointment.patientId === '00000000-0000-0000-0000-000000000001' 
+            ? 'Dummy Patient Name' 
+            : appointment.patientId;
+        const doctor = appointmentDoctors.find(d => d.id.toString() === appointment.doctorId);
+        const doctorName = doctor ? doctor.name : appointment.doctorId;
+        const patientPhone = patient 
+          ? (patient as any).PhoneNo || (patient as any).phoneNo || (patient as any).phone || ''
+          : '';
+        const patientId = patient 
+          ? (patient as any).PatientNo || (patient as any).patientNo || appointment.patientId.substring(0, 8)
+          : appointment.patientId.substring(0, 8);
+        
+        const searchLower = searchTerm.toLowerCase();
+        return (
+          appointment.tokenNo?.toLowerCase().includes(searchLower) ||
+          patientName.toLowerCase().includes(searchLower) ||
+          doctorName.toLowerCase().includes(searchLower) ||
+          patientPhone.includes(searchTerm) ||
+          patientId.toLowerCase().includes(searchLower) ||
+          appointment.patientId.toLowerCase().includes(searchLower)
+        );
+      });
+    }
+    
+    return { activeAppointments: active, inactiveAppointments: inactive, filteredActiveAppointments: filtered };
   }, [patientAppointments, searchTerm, patients, appointmentDoctors]);
+
+  // For backward compatibility, use filteredActiveAppointments
+  const filteredAppointments = filteredActiveAppointments;
 
   const getAppointmentsByStatus = (status: PatientAppointment['appointmentStatus']) => {
     return filteredAppointments.filter(a => a.appointmentStatus === status);
@@ -153,6 +380,13 @@ export function FrontDesk() {
 
   const handleEditAppointment = (appointment: PatientAppointment) => {
     setSelectedAppointment(appointment);
+    // Get status from appointment - it could be a string "Active"/"Inactive" or boolean
+    const statusValue = (appointment as any).Status || (appointment as any).status;
+    // Convert string status to boolean: "Active" -> true, "Inactive" or anything else -> false
+    const statusBoolean = typeof statusValue === 'string' 
+      ? statusValue === 'Active' 
+      : (statusValue === true || statusValue === 'true');
+    
     setEditFormData({
       patientId: appointment.patientId,
       doctorId: appointment.doctorId,
@@ -161,7 +395,33 @@ export function FrontDesk() {
       appointmentStatus: appointment.appointmentStatus,
       consultationCharge: appointment.consultationCharge,
       followUpDetails: appointment.followUpDetails || '',
+      status: statusBoolean,
     });
+    
+    // Set search terms for patient and doctor
+    const patient = patients.find(p => {
+      const pid = (p as any).patientId || (p as any).PatientId || '';
+      return pid === appointment.patientId;
+    });
+    if (patient) {
+      const patientNo = (patient as any).patientNo || (patient as any).PatientNo || '';
+      const patientName = (patient as any).patientName || (patient as any).PatientName || '';
+      const lastName = (patient as any).lastName || (patient as any).LastName || '';
+      const fullName = `${patientName} ${lastName}`.trim();
+      setEditPatientSearchTerm(`${patientNo ? `${patientNo} - ` : ''}${fullName || 'Unknown'}`);
+    } else {
+      setEditPatientSearchTerm('');
+    }
+    
+    const doctor = appointmentDoctors.find(d => d.id.toString() === appointment.doctorId);
+    if (doctor) {
+      setEditDoctorSearchTerm(`${doctor.name} - ${doctor.specialty}`);
+    } else {
+      setEditDoctorSearchTerm('');
+    }
+    
+    setEditPatientError('');
+    setEditDoctorError('');
     setIsEditDialogOpen(true);
   };
 
@@ -178,8 +438,74 @@ export function FrontDesk() {
     }
   };
 
+  // Helper function to render appointment row
+  const renderAppointmentRow = (appointment: PatientAppointment, isInactive: boolean = false) => {
+    const patient = patients.find(p => 
+      (p as any).patientId === appointment.patientId || 
+      (p as any).PatientId === appointment.patientId
+    );
+    const doctor = appointmentDoctors.find(d => d.id.toString() === appointment.doctorId);
+    const patientName = patient 
+      ? `${(patient as any).patientName || (patient as any).PatientName || ''} ${(patient as any).lastName || (patient as any).LastName || ''}`.trim() 
+      : appointment.patientId === '00000000-0000-0000-0000-000000000001' 
+        ? 'Dummy Patient Name' 
+        : appointment.patientId;
+    const doctorName = doctor ? doctor.name : appointment.doctorId;
+    const patientPhone = patient 
+      ? (patient as any).PhoneNo || (patient as any).phoneNo || (patient as any).phone || '-'
+      : '-';
+    const patientId = patient 
+      ? (patient as any).PatientNo || (patient as any).patientNo || appointment.patientId.substring(0, 8)
+      : appointment.patientId.substring(0, 8);
+    
+    return (
+      <tr 
+        key={appointment.id} 
+        className={`dashboard-table-body-row ${isInactive ? 'opacity-50 bg-gray-50' : ''}`}
+      >
+        <td className={`dashboard-table-body-cell ${isInactive ? 'text-gray-400' : 'dashboard-table-body-cell-primary'}`}>
+          {appointment.tokenNo}
+        </td>
+        <td className={`dashboard-table-body-cell dashboard-table-cell-min-width ${isInactive ? 'text-gray-400' : 'dashboard-table-body-cell-secondary'}`}>
+          {patientName}
+        </td>
+        <td className={`dashboard-table-body-cell ${isInactive ? 'text-gray-400' : 'dashboard-table-body-cell-secondary'}`}>
+          {patientPhone}
+        </td>
+        <td className={`dashboard-table-body-cell ${isInactive ? 'text-gray-400' : 'dashboard-table-body-cell-secondary'}`}>
+          {doctorName}
+        </td>
+        <td className={`dashboard-table-body-cell ${isInactive ? 'text-gray-400' : 'dashboard-table-body-cell-secondary'}`}>
+          {appointment.appointmentTime}
+        </td>
+        <td className={`dashboard-table-body-cell ${isInactive ? 'text-gray-400' : ''}`}>
+          {getStatusBadge(appointment.appointmentStatus)}
+        </td>
+        <td className={`dashboard-table-body-cell ${isInactive ? 'text-gray-400' : ''}`}>
+          <div className="dashboard-actions-container">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleEditAppointment(appointment)}
+              className="h-8 px-3 text-sm bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200 hover:text-gray-800"
+              title="Manage Appointment"
+            >
+              Manage
+            </Button>
+          </div>
+        </td>
+      </tr>
+    );
+  };
+
   // Helper function to render appointments table
   const renderAppointmentsTable = (appointments: PatientAppointment[]) => {
+    // Show inactive appointments at the end only when not searching
+    const showInactive = !searchTerm && inactiveAppointments.length > 0;
+    const allAppointments = showInactive 
+      ? [...appointments, ...inactiveAppointments]
+      : appointments;
+    
     return (
       <Card className="dashboard-table-card">
         <CardContent className="dashboard-table-card-content">
@@ -193,88 +519,25 @@ export function FrontDesk() {
                   <th className="dashboard-table-header-cell">Doctor</th>
                   <th className="dashboard-table-header-cell">Time</th>
                   <th className="dashboard-table-header-cell">Status</th>
-                  <th className="dashboard-table-header-cell">Admit</th>
                   <th className="dashboard-table-header-cell">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {appointments.length === 0 ? (
+                {allAppointments.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="dashboard-table-empty-cell">
+                    <td colSpan={7} className="dashboard-table-empty-cell">
                       {searchTerm ? 'No appointments found matching your search.' : 'No appointments found.'}
                     </td>
                   </tr>
                 ) : (
-                  appointments.map((appointment) => {
-                    const patient = patients.find(p => 
-                      (p as any).patientId === appointment.patientId || 
-                      (p as any).PatientId === appointment.patientId
-                    );
-                    const doctor = appointmentDoctors.find(d => d.id.toString() === appointment.doctorId);
-                    const patientName = patient 
-                      ? `${(patient as any).patientName || (patient as any).PatientName || ''} ${(patient as any).lastName || (patient as any).LastName || ''}`.trim() 
-                      : appointment.patientId === '00000000-0000-0000-0000-000000000001' 
-                        ? 'Dummy Patient Name' 
-                        : appointment.patientId;
-                    const doctorName = doctor ? doctor.name : appointment.doctorId;
-                    const patientPhone = patient 
-                      ? (patient as any).PhoneNo || (patient as any).phoneNo || (patient as any).phone || '-'
-                      : '-';
-                    const patientId = patient 
-                      ? (patient as any).PatientNo || (patient as any).patientNo || appointment.patientId.substring(0, 8)
-                      : appointment.patientId.substring(0, 8);
-                    
-                    return (
-                      <tr key={appointment.id} className="dashboard-table-body-row">
-                        <td className="dashboard-table-body-cell dashboard-table-body-cell-primary">{appointment.tokenNo}</td>
-                        <td className="dashboard-table-body-cell dashboard-table-body-cell-secondary dashboard-table-cell-min-width">{patientName}</td>
-                        <td className="dashboard-table-body-cell dashboard-table-body-cell-secondary">{patientPhone}</td>
-                        <td className="dashboard-table-body-cell dashboard-table-body-cell-secondary">{doctorName}</td>
-                        <td className="dashboard-table-body-cell dashboard-table-body-cell-secondary">{appointment.appointmentTime}</td>
-                        <td className="dashboard-table-body-cell">{getStatusBadge(appointment.appointmentStatus)}</td>
-                        <td className="dashboard-table-body-cell">
-                          {appointment.toBeAdmitted ? (
-                            <Badge variant="outline" className="bg-red-100 text-red-700 border-red-300 text-xs">
-                              <Hospital className="size-2.5 mr-0.5" />Yes
-                            </Badge>
-                          ) : (
-                            <span className="text-gray-700" style={{ fontSize: '1.125rem' }}>No</span>
-                          )}
-                        </td>
-                        <td className="dashboard-table-body-cell">
-                          <div className="dashboard-actions-container">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleViewAppointment(appointment)}
-                              className="dashboard-action-button"
-                              title="View Appointment"
-                            >
-                              <Eye className="dashboard-action-button-icon" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleEditAppointment(appointment)}
-                              className="dashboard-action-button"
-                              title="Edit Appointment"
-                            >
-                              <Edit className="dashboard-action-button-icon" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDeleteAppointment(appointment)}
-                              className="dashboard-action-button dashboard-action-button-delete"
-                              title="Delete Appointment"
-                            >
-                              <Trash2 className="dashboard-action-button-icon" />
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })
+                  <>
+                    {appointments.map((appointment) => renderAppointmentRow(appointment, false))}
+                    {showInactive && (
+                      <>
+                        {inactiveAppointments.map((appointment) => renderAppointmentRow(appointment, true))}
+                      </>
+                    )}
+                  </>
                 )}
               </tbody>
             </table>
@@ -317,7 +580,8 @@ export function FrontDesk() {
               <h1 className="dashboard-header">Front Desk - Patient Appointments</h1>
               <p className="dashboard-subheader">Manage patient appointments</p>
             </div>
-            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+            <div className="flex items-center gap-4">
+              <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
               <Button className="flex items-center gap-2">
                 <Plus className="size-4" />
@@ -337,41 +601,99 @@ export function FrontDesk() {
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
                       <Input
                         id="add-patient-search"
+                        name="add-patient-search"
+                        autoComplete="off"
                         placeholder="Search by Patient ID, Name, or Mobile Number..."
                         value={patientSearchTerm}
-                        onChange={(e) => setPatientSearchTerm(e.target.value)}
-                        className="pl-10 dialog-input-standard"
+                        onChange={(e) => {
+                          const newValue = e.target.value;
+                          setPatientSearchTerm(newValue);
+                          setPatientHighlightIndex(-1);
+                          // Clear patient selection if user edits the search term
+                          if (addFormData.patientId) {
+                            setAddFormData({ ...addFormData, patientId: '' });
+                          }
+                          // Clear error when user starts typing
+                          if (patientError) {
+                            setPatientError('');
+                          }
+                        }}
+                        onKeyDown={(e) => {
+                          const filteredPatients = patients.filter(patient => {
+                            if (!patientSearchTerm) return false;
+                            const searchLower = patientSearchTerm.toLowerCase();
+                            const patientId = (patient as any).patientId || (patient as any).PatientId || '';
+                            const patientNo = (patient as any).patientNo || (patient as any).PatientNo || '';
+                            const patientName = (patient as any).patientName || (patient as any).PatientName || '';
+                            const lastName = (patient as any).lastName || (patient as any).LastName || '';
+                            const fullName = `${patientName} ${lastName}`.trim();
+                            const phoneNo = (patient as any).phoneNo || (patient as any).PhoneNo || (patient as any).phone || '';
+                            return (
+                              patientId.toLowerCase().includes(searchLower) ||
+                              patientNo.toLowerCase().includes(searchLower) ||
+                              fullName.toLowerCase().includes(searchLower) ||
+                              phoneNo.includes(patientSearchTerm)
+                            );
+                          });
+                          
+                          if (e.key === 'ArrowDown') {
+                            e.preventDefault();
+                            setPatientHighlightIndex(prev => 
+                              prev < filteredPatients.length - 1 ? prev + 1 : prev
+                            );
+                          } else if (e.key === 'ArrowUp') {
+                            e.preventDefault();
+                            setPatientHighlightIndex(prev => prev > 0 ? prev - 1 : -1);
+                          } else if (e.key === 'Enter' && patientHighlightIndex >= 0 && filteredPatients[patientHighlightIndex]) {
+                            e.preventDefault();
+                            const patient = filteredPatients[patientHighlightIndex];
+                            const patientId = (patient as any).patientId || (patient as any).PatientId || '';
+                            const patientNo = (patient as any).patientNo || (patient as any).PatientNo || '';
+                            const patientName = (patient as any).patientName || (patient as any).PatientName || '';
+                            const lastName = (patient as any).lastName || (patient as any).LastName || '';
+                            const fullName = `${patientName} ${lastName}`.trim();
+                            setAddFormData({ ...addFormData, patientId });
+                            setPatientSearchTerm(`${patientNo ? `${patientNo} - ` : ''}${fullName || 'Unknown'}`);
+                            setPatientError('');
+                            setPatientHighlightIndex(-1);
+                          }
+                        }}
+                        className={`pl-10 dialog-input-standard ${patientError ? 'border-red-500' : ''}`}
                       />
                     </div>
-                    {patientSearchTerm && (
-                      <div className="border border-gray-200 rounded-md max-h-60 overflow-y-auto">
-                        <table className="w-full">
-                          <thead className="sticky top-0 bg-gray-50 border-b border-gray-200">
-                            <tr>
-                              <th className="text-left py-2 px-3 text-xs text-gray-700 font-bold">Patient ID</th>
-                              <th className="text-left py-2 px-3 text-xs text-gray-700 font-bold">Name</th>
-                              <th className="text-left py-2 px-3 text-xs text-gray-700 font-bold">Mobile</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {patients
-                              .filter(patient => {
-                                if (!patientSearchTerm) return false;
-                                const searchLower = patientSearchTerm.toLowerCase();
-                                const patientId = (patient as any).patientId || (patient as any).PatientId || '';
-                                const patientNo = (patient as any).patientNo || (patient as any).PatientNo || '';
-                                const patientName = (patient as any).patientName || (patient as any).PatientName || '';
-                                const lastName = (patient as any).lastName || (patient as any).LastName || '';
-                                const fullName = `${patientName} ${lastName}`.trim();
-                                const phoneNo = (patient as any).phoneNo || (patient as any).PhoneNo || (patient as any).phone || '';
-                                return (
-                                  patientId.toLowerCase().includes(searchLower) ||
-                                  patientNo.toLowerCase().includes(searchLower) ||
-                                  fullName.toLowerCase().includes(searchLower) ||
-                                  phoneNo.includes(patientSearchTerm)
-                                );
-                              })
-                              .map(patient => {
+                    {patientError && (
+                      <p className="text-sm text-red-600 mt-1">{patientError}</p>
+                    )}
+                    {patientSearchTerm && (() => {
+                      const filteredPatients = patients.filter(patient => {
+                        if (!patientSearchTerm) return false;
+                        const searchLower = patientSearchTerm.toLowerCase();
+                        const patientId = (patient as any).patientId || (patient as any).PatientId || '';
+                        const patientNo = (patient as any).patientNo || (patient as any).PatientNo || '';
+                        const patientName = (patient as any).patientName || (patient as any).PatientName || '';
+                        const lastName = (patient as any).lastName || (patient as any).LastName || '';
+                        const fullName = `${patientName} ${lastName}`.trim();
+                        const phoneNo = (patient as any).phoneNo || (patient as any).PhoneNo || (patient as any).phone || '';
+                        return (
+                          patientId.toLowerCase().includes(searchLower) ||
+                          patientNo.toLowerCase().includes(searchLower) ||
+                          fullName.toLowerCase().includes(searchLower) ||
+                          phoneNo.includes(patientSearchTerm)
+                        );
+                      });
+                      
+                      return filteredPatients.length > 0 ? (
+                        <div className="border border-gray-200 rounded-md max-h-60 overflow-y-auto" id="add-patient-dropdown">
+                          <table className="w-full">
+                            <thead className="sticky top-0 bg-gray-50 border-b border-gray-200">
+                              <tr>
+                                <th className="text-left py-2 px-3 text-xs text-gray-700 font-bold">Patient ID</th>
+                                <th className="text-left py-2 px-3 text-xs text-gray-700 font-bold">Name</th>
+                                <th className="text-left py-2 px-3 text-xs text-gray-700 font-bold">Mobile</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {filteredPatients.map((patient, index) => {
                                 const patientId = (patient as any).patientId || (patient as any).PatientId || '';
                                 const patientNo = (patient as any).patientNo || (patient as any).PatientNo || '';
                                 const patientName = (patient as any).patientName || (patient as any).PatientName || '';
@@ -379,14 +701,21 @@ export function FrontDesk() {
                                 const fullName = `${patientName} ${lastName}`.trim();
                                 const phoneNo = (patient as any).phoneNo || (patient as any).PhoneNo || (patient as any).phone || '';
                                 const isSelected = addFormData.patientId === patientId;
+                                const isHighlighted = patientHighlightIndex === index;
                                 return (
                                   <tr
                                     key={patientId}
                                     onClick={() => {
                                       setAddFormData({ ...addFormData, patientId });
                                       setPatientSearchTerm(`${patientNo ? `${patientNo} - ` : ''}${fullName || 'Unknown'}`);
+                                      setPatientError('');
+                                      setPatientHighlightIndex(-1);
                                     }}
-                                    className={`border-b border-gray-100 cursor-pointer hover:bg-gray-50 ${isSelected ? 'bg-gray-100' : ''}`}
+                                    onMouseDown={(e) => {
+                                      // Prevent input from losing focus when clicking on dropdown
+                                      e.preventDefault();
+                                    }}
+                                    className={`dialog-dropdown-row ${isSelected ? 'dialog-dropdown-row-selected' : ''} ${isHighlighted ? 'dialog-dropdown-row-highlighted' : ''}`}
                                   >
                                     <td className="py-2 px-3 text-sm text-gray-900 font-mono">{patientNo || patientId.substring(0, 8)}</td>
                                     <td className="py-2 px-3 text-sm text-gray-600">{fullName || 'Unknown'}</td>
@@ -394,49 +723,11 @@ export function FrontDesk() {
                                   </tr>
                                 );
                               })}
-                          </tbody>
-                        </table>
-                        {patients.filter(patient => {
-                          if (!patientSearchTerm) return false;
-                          const searchLower = patientSearchTerm.toLowerCase();
-                          const patientId = (patient as any).patientId || (patient as any).PatientId || '';
-                          const patientNo = (patient as any).patientNo || (patient as any).PatientNo || '';
-                          const patientName = (patient as any).patientName || (patient as any).PatientName || '';
-                          const lastName = (patient as any).lastName || (patient as any).LastName || '';
-                          const fullName = `${patientName} ${lastName}`.trim();
-                          const phoneNo = (patient as any).phoneNo || (patient as any).PhoneNo || (patient as any).phone || '';
-                          return (
-                            patientId.toLowerCase().includes(searchLower) ||
-                            patientNo.toLowerCase().includes(searchLower) ||
-                            fullName.toLowerCase().includes(searchLower) ||
-                            phoneNo.includes(patientSearchTerm)
-                          );
-                        }).length === 0 && (
-                          <div className="text-center py-8 text-sm text-gray-700">
-                            No patients found. Try a different search term.
-                          </div>
-                        )}
-                      </div>
-                    )}
-                    {addFormData.patientId && (
-                      <div className="mt-2 p-2 bg-gray-50 border border-gray-200 rounded text-sm text-gray-700">
-                        Selected: {(() => {
-                          const selectedPatient = patients.find(p => {
-                            const pid = (p as any).patientId || (p as any).PatientId || '';
-                            return pid === addFormData.patientId;
-                          });
-                          if (selectedPatient) {
-                            const patientId = (selectedPatient as any).patientId || (selectedPatient as any).PatientId || '';
-                            const patientNo = (selectedPatient as any).patientNo || (selectedPatient as any).PatientNo || '';
-                            const patientName = (selectedPatient as any).patientName || (selectedPatient as any).PatientName || '';
-                            const lastName = (selectedPatient as any).lastName || (selectedPatient as any).LastName || '';
-                            const fullName = `${patientName} ${lastName}`.trim();
-                            return `${patientNo ? `${patientNo} - ` : ''}${fullName || 'Unknown'} (ID: ${patientId.substring(0, 8)})`;
-                          }
-                          return `Unknown (ID: ${addFormData.patientId.substring(0, 8)})`;
-                        })()}
-                      </div>
-                    )}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : null;
+                    })()}
                   </div>
                   <div className="dialog-form-field">
                     <Label htmlFor="add-doctor-search" className="dialog-label-standard">Doctor *</Label>
@@ -444,43 +735,95 @@ export function FrontDesk() {
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
                       <Input
                         id="add-doctor-search"
+                        name="add-doctor-search"
+                        autoComplete="off"
                         placeholder="Search by Doctor Name or Specialty..."
                         value={doctorSearchTerm}
-                        onChange={(e) => setDoctorSearchTerm(e.target.value)}
-                        className="pl-10 dialog-input-standard"
+                        onChange={(e) => {
+                          const newValue = e.target.value;
+                          setDoctorSearchTerm(newValue);
+                          setDoctorHighlightIndex(-1);
+                          // Clear doctor selection if user edits the search term
+                          if (addFormData.doctorId) {
+                            setAddFormData({ ...addFormData, doctorId: '' });
+                          }
+                          // Clear error when user starts typing
+                          if (doctorError) {
+                            setDoctorError('');
+                          }
+                        }}
+                        onKeyDown={(e) => {
+                          const filteredDoctors = appointmentDoctors.filter(doctor => {
+                            if (!doctorSearchTerm) return false;
+                            const searchLower = doctorSearchTerm.toLowerCase();
+                            return (
+                              doctor.name.toLowerCase().includes(searchLower) ||
+                              doctor.specialty.toLowerCase().includes(searchLower)
+                            );
+                          });
+                          
+                          if (e.key === 'ArrowDown') {
+                            e.preventDefault();
+                            setDoctorHighlightIndex(prev => 
+                              prev < filteredDoctors.length - 1 ? prev + 1 : prev
+                            );
+                          } else if (e.key === 'ArrowUp') {
+                            e.preventDefault();
+                            setDoctorHighlightIndex(prev => prev > 0 ? prev - 1 : -1);
+                          } else if (e.key === 'Enter' && doctorHighlightIndex >= 0 && filteredDoctors[doctorHighlightIndex]) {
+                            e.preventDefault();
+                            const doctor = filteredDoctors[doctorHighlightIndex];
+                            setAddFormData({ ...addFormData, doctorId: doctor.id.toString() });
+                            setDoctorSearchTerm(`${doctor.name} - ${doctor.specialty}`);
+                            setDoctorError('');
+                            setDoctorHighlightIndex(-1);
+                          }
+                        }}
+                        className={`pl-10 dialog-input-standard ${doctorError ? 'border-red-500' : ''}`}
                       />
                     </div>
-                    {doctorSearchTerm && (
-                      <div className="border border-gray-200 rounded-md max-h-60 overflow-y-auto">
-                        <table className="w-full">
-                          <thead className="sticky top-0 bg-gray-50 border-b border-gray-200">
-                            <tr>
-                              <th className="text-left py-2 px-3 text-xs text-gray-700 font-bold">Name</th>
-                              <th className="text-left py-2 px-3 text-xs text-gray-700 font-bold">Specialty</th>
-                              <th className="text-left py-2 px-3 text-xs text-gray-700 font-bold">Type</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {appointmentDoctors
-                              .filter(doctor => {
-                                if (!doctorSearchTerm) return false;
-                                const searchLower = doctorSearchTerm.toLowerCase();
-                                return (
-                                  doctor.name.toLowerCase().includes(searchLower) ||
-                                  doctor.specialty.toLowerCase().includes(searchLower)
-                                );
-                              })
-                              .map(doctor => {
-                                const isSelected = addFormData.doctorId === doctor.id.toString();
-                                return (
-                                  <tr
-                                    key={doctor.id}
-                                    onClick={() => {
-                                      setAddFormData({ ...addFormData, doctorId: doctor.id.toString() });
-                                      setDoctorSearchTerm(`${doctor.name} - ${doctor.specialty}`);
-                                    }}
-                                    className={`border-b border-gray-100 cursor-pointer hover:bg-gray-50 ${isSelected ? 'bg-gray-100' : ''}`}
-                                  >
+                    {doctorError && (
+                      <p className="text-sm text-red-600 mt-1">{doctorError}</p>
+                    )}
+                    {doctorSearchTerm && (() => {
+                      const filteredDoctors = appointmentDoctors.filter(doctor => {
+                        if (!doctorSearchTerm) return false;
+                        const searchLower = doctorSearchTerm.toLowerCase();
+                        return (
+                          doctor.name.toLowerCase().includes(searchLower) ||
+                          doctor.specialty.toLowerCase().includes(searchLower)
+                        );
+                      });
+                      
+                        return filteredDoctors.length > 0 ? (
+                          <div className="dialog-dropdown-container" id="add-doctor-dropdown">
+                            <table className="w-full">
+                              <thead className="sticky top-0 bg-gray-50 border-b border-gray-200">
+                                <tr>
+                                  <th className="text-left py-2 px-3 text-xs text-gray-700 font-bold">Name</th>
+                                  <th className="text-left py-2 px-3 text-xs text-gray-700 font-bold">Specialty</th>
+                                  <th className="text-left py-2 px-3 text-xs text-gray-700 font-bold">Type</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {filteredDoctors.map((doctor, index) => {
+                                  const isSelected = addFormData.doctorId === doctor.id.toString();
+                                  const isHighlighted = doctorHighlightIndex === index;
+                                  return (
+                                    <tr
+                                      key={doctor.id}
+                                      onClick={() => {
+                                        setAddFormData({ ...addFormData, doctorId: doctor.id.toString() });
+                                        setDoctorSearchTerm(`${doctor.name} - ${doctor.specialty}`);
+                                        setDoctorError('');
+                                        setDoctorHighlightIndex(-1);
+                                      }}
+                                      onMouseDown={(e) => {
+                                        // Prevent input from losing focus when clicking on dropdown
+                                        e.preventDefault();
+                                      }}
+                                      className={`dialog-dropdown-row ${isSelected ? 'dialog-dropdown-row-selected' : ''} ${isHighlighted ? 'dialog-dropdown-row-highlighted' : ''}`}
+                                    >
                                     <td className="py-2 px-3 text-sm text-gray-900">{doctor.name}</td>
                                     <td className="py-2 px-3 text-sm text-gray-600">{doctor.specialty}</td>
                                     <td className="py-2 px-3 text-sm">
@@ -495,52 +838,164 @@ export function FrontDesk() {
                                   </tr>
                                 );
                               })}
-                          </tbody>
-                        </table>
-                        {appointmentDoctors.filter(doctor => {
-                          if (!doctorSearchTerm) return false;
-                          const searchLower = doctorSearchTerm.toLowerCase();
-                          return (
-                            doctor.name.toLowerCase().includes(searchLower) ||
-                            doctor.specialty.toLowerCase().includes(searchLower)
-                          );
-                        }).length === 0 && (
-                          <div className="text-center py-8 text-sm text-gray-700">
-                            No doctors found. Try a different search term.
-                          </div>
-                        )}
-                      </div>
-                    )}
-                    {addFormData.doctorId && (
-                      <div className="mt-2 p-2 bg-gray-50 border border-gray-200 rounded text-sm text-gray-700">
-                        Selected: {(() => {
-                          const selectedDoctor = appointmentDoctors.find(d => d.id.toString() === addFormData.doctorId);
-                          if (selectedDoctor) {
-                            return `${selectedDoctor.name} - ${selectedDoctor.specialty}`;
-                          }
-                          return 'Unknown';
-                        })()}
-                      </div>
-                    )}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : null;
+                    })()}
                   </div>
                   <div className="dialog-form-field-grid">
                     <div className="dialog-field-single-column">
                       <Label htmlFor="add-appointmentDate" className="dialog-label-standard">Appointment Date *</Label>
                       <Input
                         id="add-appointmentDate"
-                        type="date"
-                        value={addFormData.appointmentDate}
-                        onChange={(e) => setAddFormData({ ...addFormData, appointmentDate: e.target.value })}
+                        type="text"
+                        placeholder="dd-mm-yyyy"
+                        value={addDateDisplay}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setAddDateDisplay(value);
+                          const parsed = parseDateFromDisplay(value);
+                          if (parsed) {
+                            setAddFormData({ ...addFormData, appointmentDate: parsed });
+                          }
+                        }}
+                        onBlur={(e) => {
+                          const parsed = parseDateFromDisplay(e.target.value);
+                          if (parsed) {
+                            setAddDateDisplay(formatDateToDisplay(parsed));
+                            setAddFormData({ ...addFormData, appointmentDate: parsed });
+                          } else if (e.target.value) {
+                            setAddDateDisplay('');
+                          }
+                        }}
                         className="dialog-input-standard"
                       />
                     </div>
                     <div className="dialog-field-single-column">
                       <Label htmlFor="add-appointmentTime" className="dialog-label-standard">Appointment Time *</Label>
                       <Input
+                        ref={addTimeInputRef}
                         id="add-appointmentTime"
-                        type="time"
-                        value={addFormData.appointmentTime}
-                        onChange={(e) => setAddFormData({ ...addFormData, appointmentTime: e.target.value })}
+                        type="text"
+                        placeholder="hh:mm AM/PM"
+                        value={addTimeDisplay}
+                        onKeyDown={(e) => {
+                          const input = e.currentTarget;
+                          const currentValue = input.value;
+                          const cursorPos = input.selectionStart || 0;
+                          
+                          // Handle single digit hours (0, 2-9) - auto-advance to minutes
+                          if (e.key >= '0' && e.key <= '9' && cursorPos === 0 && currentValue === '') {
+                            const digit = e.key;
+                            // If digit is 0, 2-9, auto-format to 0X: and move to minutes
+                            if (digit !== '1') {
+                              e.preventDefault();
+                              const newValue = `0${digit}:`;
+                              setAddTimeDisplay(newValue);
+                              setTimeout(() => {
+                                if (addTimeInputRef.current) {
+                                  addTimeInputRef.current.setSelectionRange(3, 3);
+                                }
+                              }, 0);
+                              return;
+                            }
+                            // If digit is 1, let it through (could be 10, 11, 12)
+                          }
+                          
+                          // Handle colon after single digit hour
+                          if (e.key === ':' && cursorPos === 1 && /^[0-9]$/.test(currentValue)) {
+                            e.preventDefault();
+                            const newValue = `0${currentValue}:`;
+                            setAddTimeDisplay(newValue);
+                            setTimeout(() => {
+                              if (addTimeInputRef.current) {
+                                addTimeInputRef.current.setSelectionRange(3, 3);
+                              }
+                            }, 0);
+                            return;
+                          }
+                          
+                          // Handle colon after two-digit hour (10-12)
+                          if (e.key === ':' && cursorPos === 2 && /^1[0-2]$/.test(currentValue)) {
+                            // Let colon through, will be handled in onChange
+                          }
+                        }}
+                        onChange={(e) => {
+                          let value = e.target.value.toUpperCase();
+                          const input = e.target;
+                          const cursorPos = input.selectionStart || 0;
+                          
+                          // Auto-format as user types
+                          value = value.replace(/[^\d:APM\s]/g, '');
+                          
+                          // Handle auto-advance after minutes are complete (hh:mm)
+                          const timeWithMinutesMatch = value.match(/^(\d{1,2}):(\d{2})$/);
+                          if (timeWithMinutesMatch && cursorPos === value.length && value.length === 5) {
+                            const hour = parseInt(timeWithMinutesMatch[1], 10);
+                            const minute = parseInt(timeWithMinutesMatch[2], 10);
+                            if (hour >= 1 && hour <= 12 && minute >= 0 && minute <= 59) {
+                              // Auto-add AM if not specified
+                              value = `${timeWithMinutesMatch[1].padStart(2, '0')}:${timeWithMinutesMatch[2]} AM`;
+                              setAddTimeDisplay(value);
+                              // Move cursor to before AM (to allow changing to PM)
+                              setTimeout(() => {
+                                if (addTimeInputRef.current) {
+                                  const newPos = value.length - 3; // Position before " AM"
+                                  addTimeInputRef.current.setSelectionRange(newPos, newPos);
+                                }
+                              }, 0);
+                              const parsed = parseTimeFromDisplay(value);
+                              if (parsed) {
+                                setAddFormData({ ...addFormData, appointmentTime: parsed });
+                              }
+                              return;
+                            }
+                          }
+                          
+                          setAddTimeDisplay(value);
+                          const parsed = parseTimeFromDisplay(value);
+                          if (parsed) {
+                            setAddFormData({ ...addFormData, appointmentTime: parsed });
+                          }
+                        }}
+                        onBlur={(e) => {
+                          const trimmed = e.target.value.trim();
+                          if (!trimmed) {
+                            setAddTimeDisplay('');
+                            return;
+                          }
+                          
+                          // Try to parse and format
+                          let parsed = parseTimeFromDisplay(trimmed);
+                          
+                          // If parsing fails, try to auto-format single digit hours
+                          if (!parsed) {
+                            const hourMatch = trimmed.match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)?$/i);
+                            if (hourMatch) {
+                              let hour = parseInt(hourMatch[1], 10);
+                              const minute = hourMatch[2] ? parseInt(hourMatch[2], 10) : 0;
+                              const period = hourMatch[3]?.toUpperCase() || 'AM';
+                              
+                              if (hour >= 1 && hour <= 12 && minute >= 0 && minute <= 59) {
+                                const formatted = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')} ${period}`;
+                                setAddTimeDisplay(formatted);
+                                parsed = parseTimeFromDisplay(formatted);
+                                if (parsed) {
+                                  setAddFormData({ ...addFormData, appointmentTime: parsed });
+                                }
+                                return;
+                              }
+                            }
+                            setAddTimeDisplay('');
+                            return;
+                          }
+                          
+                          // Format the parsed time
+                          const formatted = formatTimeToDisplay(parsed);
+                          setAddTimeDisplay(formatted);
+                          setAddFormData({ ...addFormData, appointmentTime: parsed });
+                        }}
                         className="dialog-input-standard"
                       />
                     </div>
@@ -586,18 +1041,60 @@ export function FrontDesk() {
                       appointmentTime: '',
                       appointmentStatus: 'Waiting',
                       consultationCharge: 0,
+                      status: true,
                     });
+                    setAddDateDisplay('');
+                    setAddTimeDisplay('');
                     setPatientSearchTerm('');
                     setDoctorSearchTerm('');
-                  }} className="dialog-footer-button">Cancel</Button>
-                  <Button 
+                    setPatientError('');
+                    setDoctorError('');
+                    setPatientHighlightIndex(-1);
+                    setDoctorHighlightIndex(-1);
+                    }} className="dialog-footer-button">Cancel</Button>
+                  <Button
                     onClick={async () => {
-                      if (!addFormData.patientId || !addFormData.doctorId || !addFormData.appointmentDate || !addFormData.appointmentTime) {
+                      // Validate patient is selected from the list
+                      if (!addFormData.patientId) {
+                        setPatientError('Please select a patient from the list.');
+                        return;
+                      }
+                      
+                      // Verify patient exists in the patients list
+                      const selectedPatient = patients.find(p => {
+                        const pid = (p as any).patientId || (p as any).PatientId || '';
+                        return pid === addFormData.patientId;
+                      });
+                      
+                      if (!selectedPatient) {
+                        setPatientError('Please select a valid patient from the list.');
+                        return;
+                      }
+                      
+                      // Validate doctor is selected from the list
+                      if (!addFormData.doctorId) {
+                        setDoctorError('Please select a doctor from the list.');
+                        return;
+                      }
+                      
+                      // Verify doctor exists in the doctors list
+                      const selectedDoctor = appointmentDoctors.find(d => d.id.toString() === addFormData.doctorId);
+                      
+                      if (!selectedDoctor) {
+                        setDoctorError('Please select a valid doctor from the list.');
+                        return;
+                      }
+                      
+                      if (!addFormData.appointmentDate || !addFormData.appointmentTime) {
                         alert('Please fill in all required fields.');
                         return;
                       }
+                      
+                      // Clear any previous errors
+                      setPatientError('');
+                      setDoctorError('');
                       try {
-                        const selectedDoctor = appointmentDoctors.find(d => d.id.toString() === addFormData.doctorId);
+                        // selectedDoctor is already validated above
                         const doctorName = selectedDoctor ? selectedDoctor.name : 'Unknown Doctor';
                         await createPatientAppointment({
                           patientId: addFormData.patientId,
@@ -606,7 +1103,8 @@ export function FrontDesk() {
                           appointmentTime: addFormData.appointmentTime,
                           appointmentStatus: addFormData.appointmentStatus,
                           consultationCharge: addFormData.consultationCharge,
-                        }, doctorName);
+                          status: addFormData.status,
+                        } as any, doctorName);
                         await fetchPatientAppointments();
                         setIsAddDialogOpen(false);
                         setAddFormData({
@@ -616,9 +1114,16 @@ export function FrontDesk() {
                           appointmentTime: '',
                           appointmentStatus: 'Waiting',
                           consultationCharge: 0,
+                          status: true,
                         });
-                        setPatientSearchTerm('');
-                        setDoctorSearchTerm('');
+                        setAddDateDisplay('');
+                        setAddTimeDisplay('');
+                    setPatientSearchTerm('');
+                    setDoctorSearchTerm('');
+                    setPatientError('');
+                    setDoctorError('');
+                    setPatientHighlightIndex(-1);
+                    setDoctorHighlightIndex(-1);
                         alert('Appointment created successfully!');
                       } catch (err) {
                         console.error('Failed to create appointment:', err);
@@ -633,6 +1138,7 @@ export function FrontDesk() {
               </div>
             </DialogContent>
           </Dialog>
+            </div>
           </div>
         </div>
         <div className="px-6 pt-4 pb-4 flex-1">
@@ -863,44 +1369,255 @@ export function FrontDesk() {
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="edit-patientId" className="text-gray-600" style={{ fontSize: '1.125rem' }}>Patient *</Label>
-                      <Input
-                        id="edit-patientId"
-                        value={(() => {
-                          const patient = patients.find(p => 
-                            (p as any).patientId === editFormData.patientId || 
-                            (p as any).PatientId === editFormData.patientId
+                      <Label htmlFor="edit-patient-search" className="text-gray-600" style={{ fontSize: '1.125rem' }}>Patient *</Label>
+                      <div className="relative mb-2">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
+                        <Input
+                          id="edit-patient-search"
+                          name="edit-patient-search"
+                          autoComplete="off"
+                          placeholder="Search by Patient ID, Name, or Mobile Number..."
+                          value={editPatientSearchTerm}
+                          onChange={(e) => {
+                            const newValue = e.target.value;
+                            setEditPatientSearchTerm(newValue);
+                            setEditPatientHighlightIndex(-1);
+                            // Clear patient selection if user edits the search term
+                            if (editFormData.patientId) {
+                              setEditFormData({ ...editFormData, patientId: '' });
+                            }
+                            // Clear error when user starts typing
+                            if (editPatientError) {
+                              setEditPatientError('');
+                            }
+                          }}
+                          onKeyDown={(e) => {
+                            const filteredPatients = patients.filter(patient => {
+                              if (!editPatientSearchTerm) return false;
+                              const searchLower = editPatientSearchTerm.toLowerCase();
+                              const patientId = (patient as any).patientId || (patient as any).PatientId || '';
+                              const patientNo = (patient as any).patientNo || (patient as any).PatientNo || '';
+                              const patientName = (patient as any).patientName || (patient as any).PatientName || '';
+                              const lastName = (patient as any).lastName || (patient as any).LastName || '';
+                              const fullName = `${patientName} ${lastName}`.trim();
+                              const phoneNo = (patient as any).phoneNo || (patient as any).PhoneNo || (patient as any).phone || '';
+                              return (
+                                patientId.toLowerCase().includes(searchLower) ||
+                                patientNo.toLowerCase().includes(searchLower) ||
+                                fullName.toLowerCase().includes(searchLower) ||
+                                phoneNo.includes(editPatientSearchTerm)
+                              );
+                            });
+                            
+                            if (e.key === 'ArrowDown') {
+                              e.preventDefault();
+                              setEditPatientHighlightIndex(prev => 
+                                prev < filteredPatients.length - 1 ? prev + 1 : prev
+                              );
+                            } else if (e.key === 'ArrowUp') {
+                              e.preventDefault();
+                              setEditPatientHighlightIndex(prev => prev > 0 ? prev - 1 : -1);
+                            } else if (e.key === 'Enter' && editPatientHighlightIndex >= 0 && filteredPatients[editPatientHighlightIndex]) {
+                              e.preventDefault();
+                              const patient = filteredPatients[editPatientHighlightIndex];
+                              const patientId = (patient as any).patientId || (patient as any).PatientId || '';
+                              const patientNo = (patient as any).patientNo || (patient as any).PatientNo || '';
+                              const patientName = (patient as any).patientName || (patient as any).PatientName || '';
+                              const lastName = (patient as any).lastName || (patient as any).LastName || '';
+                              const fullName = `${patientName} ${lastName}`.trim();
+                              setEditFormData({ ...editFormData, patientId });
+                              setEditPatientSearchTerm(`${patientNo ? `${patientNo} - ` : ''}${fullName || 'Unknown'}`);
+                              setEditPatientError('');
+                              setEditPatientHighlightIndex(-1);
+                            }
+                          }}
+                          className={`pl-10 bg-gray-100 text-gray-700 ${editPatientError ? 'border-red-500' : ''}`}
+                          style={{ fontSize: '1.125rem' }}
+                        />
+                      </div>
+                      {editPatientError && (
+                        <p className="text-sm text-red-600 mt-1">{editPatientError}</p>
+                      )}
+                      {editPatientSearchTerm && (() => {
+                        const filteredPatients = patients.filter(patient => {
+                          if (!editPatientSearchTerm) return false;
+                          const searchLower = editPatientSearchTerm.toLowerCase();
+                          const patientId = (patient as any).patientId || (patient as any).PatientId || '';
+                          const patientNo = (patient as any).patientNo || (patient as any).PatientNo || '';
+                          const patientName = (patient as any).patientName || (patient as any).PatientName || '';
+                          const lastName = (patient as any).lastName || (patient as any).LastName || '';
+                          const fullName = `${patientName} ${lastName}`.trim();
+                          const phoneNo = (patient as any).phoneNo || (patient as any).PhoneNo || (patient as any).phone || '';
+                          return (
+                            patientId.toLowerCase().includes(searchLower) ||
+                            patientNo.toLowerCase().includes(searchLower) ||
+                            fullName.toLowerCase().includes(searchLower) ||
+                            phoneNo.includes(editPatientSearchTerm)
                           );
-                          if (patient) {
-                            const patientId = (patient as any).patientId || (patient as any).PatientId || '';
-                            const patientNo = (patient as any).patientNo || (patient as any).PatientNo || '';
-                            const patientName = (patient as any).patientName || (patient as any).PatientName || '';
-                            const lastName = (patient as any).lastName || (patient as any).LastName || '';
-                            const fullName = `${patientName} ${lastName}`.trim();
-                            return `${patientNo ? `${patientNo} - ` : ''}${fullName || 'Unknown'} (ID: ${patientId.substring(0, 8)})`;
-                          }
-                          return `Unknown (ID: ${editFormData.patientId ? editFormData.patientId.substring(0, 8) : 'N/A'})`;
-                        })()}
-                        disabled
-                        className="bg-gray-50 text-gray-700"
-                        style={{ fontSize: '1.125rem' }}
-                      />
+                        });
+                        
+                        return filteredPatients.length > 0 ? (
+                          <div className="dialog-dropdown-container" id="edit-patient-dropdown">
+                            <table className="w-full">
+                              <thead className="sticky top-0 bg-gray-50 border-b border-gray-200">
+                                <tr>
+                                  <th className="text-left py-2 px-3 text-xs text-gray-700 font-bold">Patient ID</th>
+                                  <th className="text-left py-2 px-3 text-xs text-gray-700 font-bold">Name</th>
+                                  <th className="text-left py-2 px-3 text-xs text-gray-700 font-bold">Mobile</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {filteredPatients.map((patient, index) => {
+                                  const patientId = (patient as any).patientId || (patient as any).PatientId || '';
+                                  const patientNo = (patient as any).patientNo || (patient as any).PatientNo || '';
+                                  const patientName = (patient as any).patientName || (patient as any).PatientName || '';
+                                  const lastName = (patient as any).lastName || (patient as any).LastName || '';
+                                  const fullName = `${patientName} ${lastName}`.trim();
+                                  const phoneNo = (patient as any).phoneNo || (patient as any).PhoneNo || (patient as any).phone || '';
+                                  const isSelected = editFormData.patientId === patientId;
+                                  const isHighlighted = editPatientHighlightIndex === index;
+                                  return (
+                                    <tr
+                                      key={patientId}
+                                      onClick={() => {
+                                        setEditFormData({ ...editFormData, patientId });
+                                        setEditPatientSearchTerm(`${patientNo ? `${patientNo} - ` : ''}${fullName || 'Unknown'}`);
+                                        setEditPatientError('');
+                                        setEditPatientHighlightIndex(-1);
+                                      }}
+                                      onMouseDown={(e) => {
+                                        // Prevent input from losing focus when clicking on dropdown
+                                        e.preventDefault();
+                                      }}
+                                      className={`dialog-dropdown-row ${isSelected ? 'dialog-dropdown-row-selected' : ''} ${isHighlighted ? 'dialog-dropdown-row-highlighted' : ''}`}
+                                    >
+                                      <td className="py-2 px-3 text-sm text-gray-900 font-mono">{patientNo || patientId.substring(0, 8)}</td>
+                                      <td className="py-2 px-3 text-sm text-gray-600">{fullName || 'Unknown'}</td>
+                                      <td className="py-2 px-3 text-sm text-gray-600">{phoneNo || '-'}</td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        ) : null;
+                      })()}
                     </div>
                     <div>
-                      <Label htmlFor="edit-doctorId" className="text-gray-600" style={{ fontSize: '1.125rem' }}>Doctor *</Label>
-                      <Input
-                        id="edit-doctorId"
-                        value={(() => {
-                          const doctor = appointmentDoctors.find(d => d.id.toString() === editFormData.doctorId);
-                          if (doctor) {
-                            return `${doctor.name} - ${doctor.specialty}`;
-                          }
-                          return editFormData.doctorId || 'Unknown';
-                        })()}
-                        disabled
-                        className="bg-gray-50 text-gray-700"
-                        style={{ fontSize: '1.125rem' }}
-                      />
+                      <Label htmlFor="edit-doctor-search" className="text-gray-600" style={{ fontSize: '1.125rem' }}>Doctor *</Label>
+                      <div className="relative mb-2">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
+                        <Input
+                          id="edit-doctor-search"
+                          name="edit-doctor-search"
+                          autoComplete="off"
+                          placeholder="Search by Doctor Name or Specialty..."
+                          value={editDoctorSearchTerm}
+                          onChange={(e) => {
+                            const newValue = e.target.value;
+                            setEditDoctorSearchTerm(newValue);
+                            setEditDoctorHighlightIndex(-1);
+                            // Clear doctor selection if user edits the search term
+                            if (editFormData.doctorId) {
+                              setEditFormData({ ...editFormData, doctorId: '' });
+                            }
+                            // Clear error when user starts typing
+                            if (editDoctorError) {
+                              setEditDoctorError('');
+                            }
+                          }}
+                          onKeyDown={(e) => {
+                            const filteredDoctors = appointmentDoctors.filter(doctor => {
+                              if (!editDoctorSearchTerm) return false;
+                              const searchLower = editDoctorSearchTerm.toLowerCase();
+                              return (
+                                doctor.name.toLowerCase().includes(searchLower) ||
+                                doctor.specialty.toLowerCase().includes(searchLower)
+                              );
+                            });
+                            
+                            if (e.key === 'ArrowDown') {
+                              e.preventDefault();
+                              setEditDoctorHighlightIndex(prev => 
+                                prev < filteredDoctors.length - 1 ? prev + 1 : prev
+                              );
+                            } else if (e.key === 'ArrowUp') {
+                              e.preventDefault();
+                              setEditDoctorHighlightIndex(prev => prev > 0 ? prev - 1 : -1);
+                            } else if (e.key === 'Enter' && editDoctorHighlightIndex >= 0 && filteredDoctors[editDoctorHighlightIndex]) {
+                              e.preventDefault();
+                              const doctor = filteredDoctors[editDoctorHighlightIndex];
+                              setEditFormData({ ...editFormData, doctorId: doctor.id.toString() });
+                              setEditDoctorSearchTerm(`${doctor.name} - ${doctor.specialty}`);
+                              setEditDoctorError('');
+                              setEditDoctorHighlightIndex(-1);
+                            }
+                          }}
+                          className={`pl-10 bg-gray-100 text-gray-700 ${editDoctorError ? 'border-red-500' : ''}`}
+                          style={{ fontSize: '1.125rem' }}
+                        />
+                      </div>
+                      {editDoctorError && (
+                        <p className="text-sm text-red-600 mt-1">{editDoctorError}</p>
+                      )}
+                      {editDoctorSearchTerm && (() => {
+                        const filteredDoctors = appointmentDoctors.filter(doctor => {
+                          if (!editDoctorSearchTerm) return false;
+                          const searchLower = editDoctorSearchTerm.toLowerCase();
+                          return (
+                            doctor.name.toLowerCase().includes(searchLower) ||
+                            doctor.specialty.toLowerCase().includes(searchLower)
+                          );
+                        });
+                        
+                        return filteredDoctors.length > 0 ? (
+                          <div className="dialog-dropdown-container" id="edit-doctor-dropdown">
+                            <table className="w-full">
+                              <thead className="sticky top-0 bg-gray-50 border-b border-gray-200">
+                                <tr>
+                                  <th className="text-left py-2 px-3 text-xs text-gray-700 font-bold">Name</th>
+                                  <th className="text-left py-2 px-3 text-xs text-gray-700 font-bold">Specialty</th>
+                                  <th className="text-left py-2 px-3 text-xs text-gray-700 font-bold">Type</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {filteredDoctors.map((doctor, index) => {
+                                  const isSelected = editFormData.doctorId === doctor.id.toString();
+                                  const isHighlighted = editDoctorHighlightIndex === index;
+                                  return (
+                                    <tr
+                                      key={doctor.id}
+                                      onClick={() => {
+                                        setEditFormData({ ...editFormData, doctorId: doctor.id.toString() });
+                                        setEditDoctorSearchTerm(`${doctor.name} - ${doctor.specialty}`);
+                                        setEditDoctorError('');
+                                        setEditDoctorHighlightIndex(-1);
+                                      }}
+                                      onMouseDown={(e) => {
+                                        // Prevent input from losing focus when clicking on dropdown
+                                        e.preventDefault();
+                                      }}
+                                      className={`dialog-dropdown-row ${isSelected ? 'dialog-dropdown-row-selected' : ''} ${isHighlighted ? 'dialog-dropdown-row-highlighted' : ''}`}
+                                    >
+                                      <td className="py-2 px-3 text-sm text-gray-900">{doctor.name}</td>
+                                      <td className="py-2 px-3 text-sm text-gray-600">{doctor.specialty}</td>
+                                      <td className="py-2 px-3 text-sm">
+                                        <span className={`px-2 py-0.5 rounded text-xs ${
+                                          doctor.type === 'inhouse' 
+                                            ? 'bg-gray-100 text-gray-700' 
+                                            : 'bg-purple-100 text-purple-700'
+                                        }`}>
+                                          {doctor.type === 'inhouse' ? 'Inhouse' : 'Consulting'}
+                                        </span>
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        ) : null;
+                      })()}
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
@@ -908,9 +1625,26 @@ export function FrontDesk() {
                       <Label htmlFor="edit-appointmentDate" className="text-gray-600" style={{ fontSize: '1.125rem' }}>Appointment Date *</Label>
                       <Input
                         id="edit-appointmentDate"
-                        type="date"
-                        value={editFormData.appointmentDate}
-                        onChange={(e) => setEditFormData({ ...editFormData, appointmentDate: e.target.value })}
+                        type="text"
+                        placeholder="dd-mm-yyyy"
+                        value={editDateDisplay}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setEditDateDisplay(value);
+                          const parsed = parseDateFromDisplay(value);
+                          if (parsed) {
+                            setEditFormData({ ...editFormData, appointmentDate: parsed });
+                          }
+                        }}
+                        onBlur={(e) => {
+                          const parsed = parseDateFromDisplay(e.target.value);
+                          if (parsed) {
+                            setEditDateDisplay(formatDateToDisplay(parsed));
+                            setEditFormData({ ...editFormData, appointmentDate: parsed });
+                          } else if (e.target.value) {
+                            setEditDateDisplay('');
+                          }
+                        }}
                         className="text-gray-700 bg-gray-100"
                         style={{ fontSize: '1.125rem' }}
                       />
@@ -919,9 +1653,63 @@ export function FrontDesk() {
                       <Label htmlFor="edit-appointmentTime" className="text-gray-600" style={{ fontSize: '1.125rem' }}>Appointment Time *</Label>
                       <Input
                         id="edit-appointmentTime"
-                        type="time"
-                        value={editFormData.appointmentTime}
-                        onChange={(e) => setEditFormData({ ...editFormData, appointmentTime: e.target.value })}
+                        type="text"
+                        placeholder="hh:mm AM/PM"
+                        value={editTimeDisplay}
+                        onChange={(e) => {
+                          let value = e.target.value.toUpperCase();
+                          // Auto-format as user types
+                          value = value.replace(/[^\d:APM\s]/g, '');
+                          
+                          // Auto-format single digit hour when colon is typed
+                          const colonMatch = value.match(/^(\d):$/);
+                          if (colonMatch) {
+                            value = `0${colonMatch[1]}:`;
+                          }
+                          
+                          setEditTimeDisplay(value);
+                          const parsed = parseTimeFromDisplay(value);
+                          if (parsed) {
+                            setEditFormData({ ...editFormData, appointmentTime: parsed });
+                          }
+                        }}
+                        onBlur={(e) => {
+                          const trimmed = e.target.value.trim();
+                          if (!trimmed) {
+                            setEditTimeDisplay('');
+                            return;
+                          }
+                          
+                          // Try to parse and format
+                          let parsed = parseTimeFromDisplay(trimmed);
+                          
+                          // If parsing fails, try to auto-format single digit hours
+                          if (!parsed) {
+                            const hourMatch = trimmed.match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)?$/i);
+                            if (hourMatch) {
+                              let hour = parseInt(hourMatch[1], 10);
+                              const minute = hourMatch[2] ? parseInt(hourMatch[2], 10) : 0;
+                              const period = hourMatch[3]?.toUpperCase() || 'AM';
+                              
+                              if (hour >= 1 && hour <= 12 && minute >= 0 && minute <= 59) {
+                                const formatted = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')} ${period}`;
+                                setEditTimeDisplay(formatted);
+                                parsed = parseTimeFromDisplay(formatted);
+                                if (parsed) {
+                                  setEditFormData({ ...editFormData, appointmentTime: parsed });
+                                }
+                                return;
+                              }
+                            }
+                            setEditTimeDisplay('');
+                            return;
+                          }
+                          
+                          // Format the parsed time
+                          const formatted = formatTimeToDisplay(parsed);
+                          setEditTimeDisplay(formatted);
+                          setEditFormData({ ...editFormData, appointmentTime: parsed });
+                        }}
                         className="text-gray-700 bg-gray-100"
                         style={{ fontSize: '1.125rem' }}
                       />
@@ -958,6 +1746,28 @@ export function FrontDesk() {
                       />
                     </div>
                   </div>
+                  <div className="py-2">
+                    <div className="flex items-center gap-3">
+                      <Label htmlFor="edit-status" className="text-gray-600" style={{ fontSize: '1.125rem' }}>Status</Label>
+                      <div className="flex-shrink-0 relative" style={{ zIndex: 1 }}>
+                        <Switch
+                          id="edit-status"
+                          checked={editFormData.status}
+                          onCheckedChange={(checked) => setEditFormData({ ...editFormData, status: checked })}
+                          className="data-[state=checked]:bg-blue-600 data-[state=unchecked]:bg-gray-300 [&_[data-slot=switch-thumb]]:!bg-white [&_[data-slot=switch-thumb]]:!border [&_[data-slot=switch-thumb]]:!border-gray-400 [&_[data-slot=switch-thumb]]:!shadow-sm"
+                          style={{
+                            width: '2.5rem',
+                            height: '1.5rem',
+                            minWidth: '2.5rem',
+                            minHeight: '1.5rem',
+                            display: 'inline-flex',
+                            position: 'relative',
+                            backgroundColor: editFormData.status ? '#2563eb' : '#d1d5db',
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
                   <div>
                     <Label htmlFor="edit-followUpDetails" className="text-gray-600" style={{ fontSize: '1.125rem' }}>Follow Up Details</Label>
                     <Textarea
@@ -977,10 +1787,45 @@ export function FrontDesk() {
                   <Button 
                     onClick={async () => {
                       if (!selectedAppointment) return;
-                      if (!editFormData.patientId || !editFormData.doctorId || !editFormData.appointmentDate || !editFormData.appointmentTime) {
+                      // Validate patient is selected from the list
+                      if (!editFormData.patientId) {
+                        setEditPatientError('Please select a patient from the list.');
+                        return;
+                      }
+                      
+                      // Verify patient exists in the patients list
+                      const selectedPatient = patients.find(p => {
+                        const pid = (p as any).patientId || (p as any).PatientId || '';
+                        return pid === editFormData.patientId;
+                      });
+                      
+                      if (!selectedPatient) {
+                        setEditPatientError('Please select a valid patient from the list.');
+                        return;
+                      }
+                      
+                      // Validate doctor is selected from the list
+                      if (!editFormData.doctorId) {
+                        setEditDoctorError('Please select a doctor from the list.');
+                        return;
+                      }
+                      
+                      // Verify doctor exists in the doctors list
+                      const selectedDoctor = appointmentDoctors.find(d => d.id.toString() === editFormData.doctorId);
+                      
+                      if (!selectedDoctor) {
+                        setEditDoctorError('Please select a valid doctor from the list.');
+                        return;
+                      }
+                      
+                      if (!editFormData.appointmentDate || !editFormData.appointmentTime) {
                         alert('Please fill in all required fields.');
                         return;
                       }
+                      
+                      // Clear any previous errors
+                      setEditPatientError('');
+                      setEditDoctorError('');
                       try {
                         await updatePatientAppointment({
                           id: selectedAppointment.id,
@@ -991,10 +1836,17 @@ export function FrontDesk() {
                           appointmentStatus: editFormData.appointmentStatus,
                           consultationCharge: editFormData.consultationCharge,
                           followUpDetails: editFormData.followUpDetails || undefined,
-                        });
+                          status: editFormData.status,
+                        } as any);
                         await fetchPatientAppointments();
                         setIsEditDialogOpen(false);
                         setSelectedAppointment(null);
+                        setEditPatientSearchTerm('');
+                        setEditDoctorSearchTerm('');
+                        setEditPatientError('');
+                        setEditDoctorError('');
+                        setEditPatientHighlightIndex(-1);
+                        setEditDoctorHighlightIndex(-1);
                       } catch (err) {
                         console.error('Failed to update appointment:', err);
                         alert('Failed to update appointment. Please try again.');

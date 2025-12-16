@@ -82,6 +82,25 @@ export function formatDateIST(date: string | Date): string {
 }
 
 /**
+ * Format a date to dd-mm-yyyy format (IST)
+ * @param date - Date string or Date object
+ * @returns Formatted date string in dd-mm-yyyy format
+ */
+export function formatDateToDDMMYYYY(date: string | Date | undefined): string {
+  if (!date) return '';
+  try {
+    const istDate = formatDateIST(date);
+    if (!istDate) return '';
+    
+    // Parse the YYYY-MM-DD format and convert to dd-mm-yyyy
+    const [year, month, day] = istDate.split('-');
+    return `${day}-${month}-${year}`;
+  } catch {
+    return '';
+  }
+}
+
+/**
  * Format a date to IST date string for display (DD-MM-YYYY or locale format)
  * @param date - Date string or Date object
  * @param format - Format style ('short' | 'long' | 'numeric')
@@ -107,22 +126,41 @@ export function formatDateDisplayIST(date: string | Date, format: 'short' | 'lon
 }
 
 /**
- * Format a datetime to IST datetime string for display
+ * Format a datetime to IST datetime string for display (dd-mm-yyyy, hh:mm AM/PM)
  * @param dateTime - Date string or Date object
  * @returns Formatted datetime string in IST
  */
-export function formatDateTimeIST(dateTime: string | Date): string {
+export function formatDateTimeIST(dateTime: string | Date | undefined): string {
   if (!dateTime) return '';
-  const istDateTime = convertToIST(dateTime);
-  return istDateTime.toLocaleString('en-IN', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true,
-    timeZone: 'Asia/Kolkata'
-  });
+  try {
+    const istDateTime = convertToIST(dateTime);
+    const dateStr = formatDateToDDMMYYYY(istDateTime);
+    const timeStr = formatTimeOnlyIST(istDateTime);
+    return `${dateStr}, ${timeStr}`;
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * Format time only to IST time string (hh:mm AM/PM)
+ * @param dateTime - Date string or Date object
+ * @returns Formatted time string in IST (hh:mm AM/PM)
+ */
+export function formatTimeOnlyIST(dateTime: string | Date | undefined): string {
+  if (!dateTime) return '';
+  try {
+    const istDateTime = convertToIST(dateTime);
+    const hours = istDateTime.getUTCHours();
+    const minutes = istDateTime.getUTCMinutes();
+    
+    const period = hours >= 12 ? 'PM' : 'AM';
+    const displayHour = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
+    
+    return `${String(displayHour).padStart(2, '0')}:${String(minutes).padStart(2, '0')} ${period}`;
+  } catch {
+    return '';
+  }
 }
 
 /**
