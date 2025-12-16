@@ -16,6 +16,7 @@ import { useRoles } from '../hooks/useRoles';
 import { patientsApi } from '../api/patients';
 import { EmergencyAdmission, EmergencyAdmissionVitals, Patient } from '../types';
 import { CreateEmergencyAdmissionDto, UpdateEmergencyAdmissionDto, emergencyAdmissionVitalsApi, CreateEmergencyAdmissionVitalsDto, UpdateEmergencyAdmissionVitalsDto } from '../api/emergencyAdmissions';
+import { formatDateTimeIST } from '../utils/timeUtils';
 
 export function EmergencyAdmissionManagement() {
   console.log('EmergencyAdmissionManagement component rendering');
@@ -1677,7 +1678,7 @@ export function EmergencyAdmissionManagement() {
                     <div>
                       <Label>Created At</Label>
                       <Input
-                        value={new Date(selectedAdmission.admissionCreatedAt).toLocaleString()}
+                        value={formatDateTimeIST(selectedAdmission.admissionCreatedAt)}
                         disabled
                         className="bg-gray-50 text-gray-700"
                       />
@@ -2100,7 +2101,7 @@ export function EmergencyAdmissionManagement() {
                   <div>
                     <Label>Recorded Date & Time</Label>
                     <Input
-                      value={new Date(selectedVitals.recordedDateTime).toLocaleString()}
+                      value={formatDateTimeIST(selectedVitals.recordedDateTime)}
                       disabled
                       className="bg-gray-50 text-gray-700"
                     />
@@ -2167,7 +2168,7 @@ export function EmergencyAdmissionManagement() {
                   <div>
                     <Label>Created At</Label>
                     <Input
-                      value={new Date(selectedVitals.vitalsCreatedAt).toLocaleString()}
+                      value={formatDateTimeIST(selectedVitals.vitalsCreatedAt)}
                       disabled
                       className="bg-gray-50 text-gray-700"
                     />

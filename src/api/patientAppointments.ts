@@ -541,7 +541,7 @@ export interface CreatePatientAppointmentRequestDto {
   TransferTo?: string; // "IPD Room Admission" | "ICU" | "OT"
   TransferDetails?: string;
   BillId?: number;
-  Status?: string; // "Active" | "InActive", defaults to "Active"
+  Status?: string; // "Active" | "Inactive", defaults to "Active"
   CreatedBy?: number;
 }
 
@@ -592,7 +592,7 @@ interface GetAllPatientAppointmentsResponse {
 
 // Query parameters for getAll
 export interface GetAllPatientAppointmentsParams {
-  status?: string; // "Active" | "InActive"
+  status?: string; // "Active" | "Inactive"
   appointmentStatus?: string; // "Waiting" | "Consulting" | "Completed"
   patientId?: string; // UUID
   doctorId?: number;
@@ -617,6 +617,7 @@ export interface CreatePatientAppointmentDto {
   transferTo?: 'IPD Room Admission' | 'ICU' | 'OT';
   transferDetails?: string;
   billId?: string;
+  status?: boolean; // true = "Active", false = "InActive"
 }
 
 export interface UpdatePatientAppointmentDto extends Partial<CreatePatientAppointmentDto> {
@@ -625,7 +626,7 @@ export interface UpdatePatientAppointmentDto extends Partial<CreatePatientAppoin
 
 // Map backend response (PascalCase) to frontend PatientAppointment (camelCase)
 function mapPatientAppointmentFromBackend(backendData: CreatePatientAppointmentResponseDto): PatientAppointment {
-  return {
+  const appointment: PatientAppointment = {
     id: backendData.PatientAppointmentId,
     patientAppointmentId: `PA-${backendData.PatientAppointmentId}`, // Format as string ID
     patientId: backendData.PatientId,
@@ -648,6 +649,9 @@ function mapPatientAppointmentFromBackend(backendData: CreatePatientAppointmentR
     transferDetails: backendData.TransferDetails || undefined,
     billId: backendData.BillId ? backendData.BillId.toString() : undefined,
   };
+  // Add status as a property (not in PatientAppointment interface, but needed for UI)
+  (appointment as any).status = backendData.Status || 'Active';
+  return appointment;
 }
 
 export const patientAppointmentsApi = {
@@ -689,7 +693,7 @@ export const patientAppointmentsApi = {
           } catch (err) {
             console.error('Error mapping patient appointment:', err, appointment);
             // Return a minimal appointment object to prevent crashes
-            return {
+            const errorAppointment: PatientAppointment = {
               id: appointment.PatientAppointmentId || 0,
               patientAppointmentId: `PA-${appointment.PatientAppointmentId || 0}`,
               patientId: appointment.PatientId || '',
@@ -705,6 +709,9 @@ export const patientAppointmentsApi = {
               referToAnotherDoctor: appointment.ReferToAnotherDoctor === 'Yes',
               transferToIPDOTICU: appointment.TransferToIPDOTICU === 'Yes',
             } as PatientAppointment;
+            // Add status as a property (not in PatientAppointment interface, but needed for UI)
+            (errorAppointment as any).status = appointment.Status || 'Active';
+            return errorAppointment;
           }
         });
         
@@ -808,7 +815,7 @@ export const patientAppointmentsApi = {
         TransferTo: data.transferToIPDOTICU ? data.transferTo : undefined,
         TransferDetails: data.transferDetails,
         BillId: data.billId ? Number(data.billId) : undefined,
-        Status: 'Active', // Default to Active
+        Status: data.status !== undefined ? (data.status ? 'Active' : 'Inactive') : 'Active', // Convert boolean to string
       };
       
       console.log('Backend request (PascalCase):', backendRequest);
@@ -850,6 +857,8 @@ export const patientAppointmentsApi = {
         transferDetails: backendData.TransferDetails || undefined,
         billId: backendData.BillId ? backendData.BillId.toString() : undefined,
       };
+      // Add status as a property (not in PatientAppointment interface, but needed for UI)
+      (appointment as any).status = backendData.Status || 'Active';
       
       console.log('Mapped patient appointment:', appointment);
       return appointment;
@@ -913,6 +922,10 @@ export const patientAppointmentsApi = {
       }
       if (data.billId !== undefined) {
         backendRequest.BillId = data.billId ? Number(data.billId) : null;
+      }
+      if (data.status !== undefined) {
+        // Convert boolean to string: true -> "Active", false -> "Inactive"
+        backendRequest.Status = data.status ? 'Active' : 'Inactive';
       }
       
       console.log('Backend update request:', backendRequest);

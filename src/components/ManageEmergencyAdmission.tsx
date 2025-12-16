@@ -16,6 +16,7 @@ import { useRoles } from '../hooks/useRoles';
 import { patientsApi } from '../api/patients';
 import { EmergencyAdmission, EmergencyAdmissionVitals, Patient } from '../types';
 import { UpdateEmergencyAdmissionDto, emergencyAdmissionVitalsApi, CreateEmergencyAdmissionVitalsDto } from '../api/emergencyAdmissions';
+import { formatDateTimeIST } from '../utils/timeUtils';
 
 export function ManageEmergencyAdmission() {
   const [admission, setAdmission] = useState<EmergencyAdmission | null>(null);
@@ -535,7 +536,7 @@ export function ManageEmergencyAdmission() {
                             <div>
                               <Label className="text-xs text-gray-500">Recorded Date/Time</Label>
                               <div className="text-sm font-medium text-gray-900">
-                                {new Date(latestVital.recordedDateTime).toLocaleString()}
+                                {formatDateTimeIST(latestVital.recordedDateTime)}
                               </div>
                             </div>
                             {latestVital.nurseName && (
@@ -609,7 +610,7 @@ export function ManageEmergencyAdmission() {
                                   {vital.vitalsStatus}
                                 </Badge>
                                 <span className="text-sm text-gray-600">
-                                  {new Date(vital.recordedDateTime).toLocaleString()}
+                                  {formatDateTimeIST(vital.recordedDateTime)}
                                 </span>
                                 {vital.nurseName && (
                                   <span className="text-sm text-gray-500">by {vital.nurseName}</span>
