@@ -13,6 +13,8 @@ export interface Admission {
   roomType: 'Regular Ward' | 'Special Shared Room' | 'Special Room';
   bedNumber: string;
   admittedBy: string;
+  admittingDoctorName?: string; // AdmittingDoctorName from API
+  patientNo?: string; // PatientNo from API
   diagnosis: string;
   status: 'Active' | 'Discharged' | 'Moved to ICU' | 'Surgery Scheduled';
   admissionStatus?: string; // Raw admission status from API
@@ -21,6 +23,8 @@ export interface Admission {
   createdAt?: string;
   createdDate?: string;
   caseSheetDetails?: string; // CaseSheetDetails field from API
+  caseSheet?: string; // CaseSheet field from API (separate from caseSheetDetails)
+  isLinkedToICU?: boolean | string; // IsLinkedToICU field from API
 }
 
 export interface CreateAdmissionDto {
@@ -278,7 +282,7 @@ export const admissionsApi = {
     try {
       console.log('Fetching admissions from API endpoint: /room-admissions/data');
       const response = await apiRequest<any>('/room-admissions/data');
-      console.log('Admissions API response (RAW):', JSON.stringify(response, null, 2));
+      console.log('', JSON.stringify(response, null, 2));
       
       // Handle different response structures: { data: [...] } or direct array
       const admissionsData = response?.data || response || [];
@@ -293,17 +297,89 @@ export const admissionsApi = {
           const roomAdmissionId = Number(admission.roomAdmissionId || admission.RoomAdmissionId || admission.room_admission_id || admission.Room_Admission_Id || admission.roomAdmissionID || admission.RoomAdmissionID || null);
           const admissionId = Number(admission.admissionId || admission.AdmissionId || admission.id || admission.Id || admission.AdmissionID || (1000000 + index));
           console.log('Room Admission ID:', roomAdmissionId, 'Admission ID:', admissionId);
-          // Helper function to extract value with multiple field name variations
+          // Helper function to extract value with multiple field name variations (including nested objects)
           const extractField = (data: any, fieldVariations: string[], defaultValue: any = '') => {
             // Ensure fieldVariations is an array
             if (!Array.isArray(fieldVariations)) {
               console.error('extractField: fieldVariations must be an array', fieldVariations);
               return defaultValue;
             }
+            if (!data || typeof data !== 'object') {
+              return defaultValue;
+            }
+            
+            // Helper to recursively check nested objects
+            const checkNested = (obj: any, field: string, depth: number = 0): any => {
+              if (depth > 3 || !obj || typeof obj !== 'object' || Array.isArray(obj)) {
+                return undefined;
+              }
+              
+              // Check direct property (case-sensitive)
+              if (obj.hasOwnProperty(field)) {
+                const value = obj[field];
+                if (value !== undefined && value !== null && value !== '') {
+                  return value;
+                }
+              }
+              
+              // Check case-insensitive
+              const lowerField = field.toLowerCase();
+              for (const key in obj) {
+                if (obj.hasOwnProperty(key) && key.toLowerCase() === lowerField) {
+                  const value = obj[key];
+                  if (value !== undefined && value !== null && value !== '') {
+                    return value;
+                  }
+                }
+              }
+              
+              // Check partial match
+              for (const key in obj) {
+                if (obj.hasOwnProperty(key) && (key.toLowerCase().includes(lowerField) || lowerField.includes(key.toLowerCase()))) {
+                  const value = obj[key];
+                  if (value !== undefined && value !== null && value !== '') {
+                    return value;
+                  }
+                }
+              }
+              
+              // Recursively check nested objects
+              for (const key in obj) {
+                if (obj.hasOwnProperty(key) && typeof obj[key] === 'object' && obj[key] !== null && !Array.isArray(obj[key])) {
+                  const nestedValue = checkNested(obj[key], field, depth + 1);
+                  if (nestedValue !== undefined && nestedValue !== null && nestedValue !== '') {
+                    return nestedValue;
+                  }
+                }
+              }
+              return undefined;
+            };
+            
+            // Try each field variation
             for (const field of fieldVariations) {
-              const value = data?.[field];
+              // Check direct field
+              let value = data?.[field];
               if (value !== undefined && value !== null && value !== '') {
                 return value;
+              }
+              
+              // Check nested objects
+              const nestedValue = checkNested(data, field);
+              if (nestedValue !== undefined && nestedValue !== null && nestedValue !== '') {
+                return nestedValue;
+              }
+              
+              // Check nested paths (e.g., Doctor.DoctorName, AdmissionStatus.StatusName)
+              if (field.includes('.')) {
+                const parts = field.split('.');
+                let nestedPathValue = data;
+                for (const part of parts) {
+                  nestedPathValue = nestedPathValue?.[part];
+                  if (nestedPathValue === undefined || nestedPathValue === null) break;
+                }
+                if (nestedPathValue !== undefined && nestedPathValue !== null && nestedPathValue !== '') {
+                  return nestedPathValue;
+                }
               }
             }
             return defaultValue;
@@ -330,6 +406,14 @@ export const admissionsApi = {
             'doctorName', 'DoctorName', 'doctor_name', 'Doctor_Name',
             'admittedByStaff', 'AdmittedByStaff', 'admitted_by_staff',
             'admittedByUser', 'AdmittedByUser', 'admitted_by_user'
+          ], '');
+          
+          // Extract AdmittingDoctorName with various field name formats
+          const admittingDoctorName = extractField(admission, [
+            'admittingDoctorName', 'AdmittingDoctorName', 'admitting_doctor_name', 'Admitting_Doctor_Name',
+            'admittingDoctor', 'AdmittingDoctor', 'admitting_doctor', 'Admitting_Doctor',
+            'doctorName', 'DoctorName', 'doctor_name', 'Doctor_Name',
+            'admittedByDoctorName', 'AdmittedByDoctorName', 'admitted_by_doctor_name', 'Admitted_By_Doctor_Name'
           ], '');
           
           // Extract age
@@ -388,19 +472,25 @@ export const admissionsApi = {
             })(),
             bedNumber: bedNumber,
             admittedBy: admittedBy,
+            admittingDoctorName: admittingDoctorName || undefined,
             diagnosis: extractField(admission, [
               'diagnosis', 'Diagnosis', 'diagnosisDescription', 'DiagnosisDescription',
               'diagnosis_desc', 'Diagnosis_Desc', 'condition', 'Condition'
             ], ''),
             // Extract raw admissionStatus before normalizing
-            admissionStatus: extractField(admission, [
-              'admissionStatus', 'AdmissionStatus', 'admission_status', 'Admission_Status',
-              'admissionStatusName', 'AdmissionStatusName', 'status', 'Status'
-            ], '') || undefined,
+            admissionStatus: (() => {
+              const statusValue = extractField(admission, [
+                'admissionStatus', 'AdmissionStatus', 'admission_status', 'Admission_Status',
+                'admissionStatusName', 'AdmissionStatusName', 'admissionStatusName', 'AdmissionStatusName',
+                'status', 'Status'
+              ], '');
+              return statusValue || undefined;
+            })(),
             status: normalizeStatus(extractField(admission, [
               'status', 'Status', 'admissionStatus', 'AdmissionStatus',
               'admission_status', 'Admission_Status', 'admissionStatusName', 'AdmissionStatusName'
             ], 'Active')),
+            
             scheduleOT: extractField(admission, [
               'scheduleOT', 'ScheduleOT', 'schedule_ot', 'Schedule_OT',
               'scheduleOt', 'ScheduleOt', 'scheduledOT', 'ScheduledOT',
@@ -493,16 +583,88 @@ export const admissionsApi = {
         throw new Error(`Admission with id ${admissionId} not found`);
       }
       
-      // Helper function to extract value with multiple field name variations
+      // Helper function to extract value with multiple field name variations (including nested objects)
       const extractField = (data: any, fieldVariations: string[], defaultValue: any = '') => {
         if (!Array.isArray(fieldVariations)) {
           console.error('extractField: fieldVariations must be an array', fieldVariations);
           return defaultValue;
         }
+        if (!data || typeof data !== 'object') {
+          return defaultValue;
+        }
+        
+        // Helper to recursively check nested objects
+        const checkNested = (obj: any, field: string, depth: number = 0): any => {
+          if (depth > 3 || !obj || typeof obj !== 'object' || Array.isArray(obj)) {
+            return undefined;
+          }
+          
+          // Check direct property (case-sensitive)
+          if (obj.hasOwnProperty(field)) {
+            const value = obj[field];
+            if (value !== undefined && value !== null && value !== '') {
+              return value;
+            }
+          }
+          
+          // Check case-insensitive
+          const lowerField = field.toLowerCase();
+          for (const key in obj) {
+            if (obj.hasOwnProperty(key) && key.toLowerCase() === lowerField) {
+              const value = obj[key];
+              if (value !== undefined && value !== null && value !== '') {
+                return value;
+              }
+            }
+          }
+          
+          // Check partial match
+          for (const key in obj) {
+            if (obj.hasOwnProperty(key) && (key.toLowerCase().includes(lowerField) || lowerField.includes(key.toLowerCase()))) {
+              const value = obj[key];
+              if (value !== undefined && value !== null && value !== '') {
+                return value;
+              }
+            }
+          }
+          
+          // Recursively check nested objects
+          for (const key in obj) {
+            if (obj.hasOwnProperty(key) && typeof obj[key] === 'object' && obj[key] !== null && !Array.isArray(obj[key])) {
+              const nestedValue = checkNested(obj[key], field, depth + 1);
+              if (nestedValue !== undefined && nestedValue !== null && nestedValue !== '') {
+                return nestedValue;
+              }
+            }
+          }
+          return undefined;
+        };
+        
+        // Try each field variation
         for (const field of fieldVariations) {
-          const value = data?.[field];
+          // Check nested paths (e.g., Patient.PatientId, Patient.patientId)
+          if (field.includes('.')) {
+            const parts = field.split('.');
+            let nestedPathValue = data;
+            for (const part of parts) {
+              nestedPathValue = nestedPathValue?.[part];
+              if (nestedPathValue === undefined || nestedPathValue === null) break;
+            }
+            if (nestedPathValue !== undefined && nestedPathValue !== null && nestedPathValue !== '') {
+              return nestedPathValue;
+            }
+          }
+          
+          // Check direct field
+          let value = data?.[field];
           if (value !== undefined && value !== null && value !== '') {
             return value;
+          }
+          
+          // Check nested objects
+          const nestedValue = checkNested(data, field);
+          if (nestedValue !== undefined && nestedValue !== null && nestedValue !== '') {
+            return nestedValue;
           }
         }
         return defaultValue;
@@ -550,7 +712,11 @@ export const admissionsApi = {
         id: admissionData.id || admissionData.Id || roomAdmissionId || admissionId,
         roomAdmissionId: roomAdmissionId || undefined,
         admissionId: Number(roomAdmissionId || admissionData.admissionId || admissionData.AdmissionId || admissionData.id || admissionData.Id || admissionId),
-        patientId: extractField(admissionData, ['patientId', 'PatientId', 'PatientID', 'patient_id', 'Patient_ID'], ''),
+        patientId: extractField(admissionData, [
+          'patientId', 'PatientId', 'PatientID', 'patient_id', 'Patient_ID',
+          'Patient.patientId', 'Patient.PatientId', 'patient.patientId',
+          'PatientId', 'patientID', 'Patient_Id', 'patient_Id'
+        ], ''),
         patientName: extractField(admissionData, [
           'patientName', 'PatientName', 'patient_name', 'Patient_Name',
           'patientFullName', 'PatientFullName', 'name', 'Name', 'fullName', 'FullName'
@@ -573,6 +739,17 @@ export const admissionsApi = {
           'Bed_No', 'bedNo', 'BedNo', 'bed', 'Bed', 'bedId', 'BedId', 'bedID', 'BedID'
         ], ''),
         admittedBy: admittedBy,
+        admittingDoctorName: extractField(admissionData, [
+          'admittingDoctorName', 'AdmittingDoctorName', 'admitting_doctor_name', 'Admitting_Doctor_Name',
+          'admittingDoctor', 'AdmittingDoctor', 'admitting_doctor', 'Admitting_Doctor',
+          'doctorName', 'DoctorName', 'doctor_name', 'Doctor_Name',
+          'admittedByDoctorName', 'AdmittedByDoctorName', 'admitted_by_doctor_name', 'Admitted_By_Doctor_Name'
+        ], undefined),
+        patientNo: extractField(admissionData, [
+          'patientNo', 'PatientNo', 'patient_no', 'Patient_No',
+          'patientNumber', 'PatientNumber', 'patient_number', 'Patient_Number',
+          'patientRegNo', 'PatientRegNo', 'patient_reg_no', 'Patient_Reg_No'
+        ], undefined),
         diagnosis: diagnosis,
         // Extract raw admissionStatus before normalizing
         admissionStatus: extractField(admissionData, [
@@ -602,12 +779,29 @@ export const admissionsApi = {
         ], undefined),
         caseSheetDetails: extractField(admissionData, [
           'caseSheetDetails', 'CaseSheetDetails', 'case_sheet_details', 'Case_Sheet_Details',
-          'caseSheet', 'CaseSheet', 'case_sheet', 'Case_Sheet',
           'caseDetails', 'CaseDetails', 'case_details', 'Case_Details',
           'sheetDetails', 'SheetDetails', 'sheet_details', 'Sheet_Details',
           'admissionNotes', 'AdmissionNotes', 'admission_notes', 'Admission_Notes',
           'notes', 'Notes', 'caseNotes', 'CaseNotes', 'case_notes', 'Case_Notes'
         ], undefined),
+        caseSheet: extractField(admissionData, [
+          'caseSheet', 'CaseSheet', 'case_sheet', 'Case_Sheet',
+          'caseSheetData', 'CaseSheetData', 'case_sheet_data', 'Case_Sheet_Data'
+        ], undefined),
+        isLinkedToICU: (() => {
+          const value = extractField(admissionData, [
+            'isLinkedToICU', 'IsLinkedToICU', 'is_linked_to_icu', 'Is_Linked_To_ICU',
+            'linkedToICU', 'LinkedToICU', 'linked_to_icu', 'Linked_To_ICU',
+            'isICULinked', 'IsICULinked', 'is_icu_linked', 'Is_ICU_Linked'
+          ], undefined);
+          if (value === undefined || value === null) return undefined;
+          if (typeof value === 'boolean') return value;
+          if (typeof value === 'string') {
+            const lower = value.toLowerCase();
+            return lower === 'true' || lower === 'yes' || lower === '1';
+          }
+          return Boolean(value);
+        })(),
       };
       
       console.log('Normalized admission from getById:', {

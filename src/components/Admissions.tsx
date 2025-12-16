@@ -34,7 +34,6 @@ export function Admissions() {
   const [managedAdmission, setManagedAdmission] = useState<Admission | null>(null);
   const [editingAdmission, setEditingAdmission] = useState<Admission | null>(null);
   const [isViewEditDialogOpen, setIsViewEditDialogOpen] = useState(false);
-  const [isEditMode, setIsEditMode] = useState(false);
   
   // New Lab Order Dialog State
   const [isNewLabOrderDialogOpen, setIsNewLabOrderDialogOpen] = useState(false);
@@ -79,6 +78,10 @@ export function Admissions() {
     doctorId: '',
     diagnosis: '',
     roomAllocationDate: '',
+    admissionStatus: 'Active',
+    caseSheet: '',
+    caseDetails: '',
+    isLinkedToICU: 'No',
   });
   const [savingAdmission, setSavingAdmission] = useState(false);
   const [admissionError, setAdmissionError] = useState<string | null>(null);
@@ -299,7 +302,6 @@ export function Admissions() {
   // Handler to view/edit admission
   const handleViewEditAdmission = async (admission: Admission) => {
     setEditingAdmission(admission);
-    setIsEditMode(false);
     
     // Load patient, room bed, and doctor options
     try {
@@ -316,6 +318,28 @@ export function Admissions() {
     }
 
     // Pre-populate form with admission data
+    // Extract admissionStatus - use status if admissionStatus is not available
+    const admissionStatusValue = admission.admissionStatus || admission.status || 'Active';
+    // Preserve all status values: Active, Moved to ICU, Surgery Scheduled, Discharged
+    const normalizedStatus = (admissionStatusValue === 'Discharged' || 
+                               admissionStatusValue === 'Moved to ICU' || 
+                               admissionStatusValue === 'Surgery Scheduled' || 
+                               admissionStatusValue === 'Active') 
+                               ? admissionStatusValue 
+                               : 'Active';
+    
+    // Extract isLinkedToICU and convert to Yes/No
+    const isLinkedToICUValue = admission.isLinkedToICU;
+    let isLinkedToICUString = 'No';
+    if (isLinkedToICUValue !== undefined && isLinkedToICUValue !== null) {
+      if (typeof isLinkedToICUValue === 'boolean') {
+        isLinkedToICUString = isLinkedToICUValue ? 'Yes' : 'No';
+      } else if (typeof isLinkedToICUValue === 'string') {
+        const lower = String(isLinkedToICUValue).toLowerCase();
+        isLinkedToICUString = (lower === 'true' || lower === 'yes' || lower === '1') ? 'Yes' : 'No';
+      }
+    }
+    
     setAddAdmissionForm({
       patientId: admission.patientId || '',
       roomBedId: '',
@@ -326,6 +350,10 @@ export function Admissions() {
       doctorId: '',
       diagnosis: admission.diagnosis || '',
       roomAllocationDate: admission.admissionDate || new Date().toISOString().split('T')[0],
+      admissionStatus: normalizedStatus,
+      caseSheet: admission.caseSheet || '',
+      caseDetails: admission.caseSheetDetails || '',
+      isLinkedToICU: isLinkedToICUString,
     });
     setPatientSearchTerm(admission.patientName || '');
     setRoomBedSearchTerm(`${admission.bedNumber} (${admission.roomType})`);
@@ -418,17 +446,19 @@ export function Admissions() {
           console.log('Room bed availability check response:', checkResponse);
           
           // Check if bed is available
-          // API might return: { available: true/false } or { isAvailable: true/false } or { status: 'available'/'occupied' }
-          // Check multiple possible field names and formats
-          const isAvailable = 
-            checkResponse?.isAvailable === true ||
-            checkResponse?.IsAvailable === true ||
-            checkResponse?.available === true ||
-            checkResponse?.Available === true ||
-            (checkResponse?.status !== undefined && String(checkResponse.status).toLowerCase() === 'available') ||
-            (checkResponse?.Status !== undefined && String(checkResponse.Status).toLowerCase() === 'available');
+          // API response structure: { data: { isAvailable: true/false, ... } }
+          // Also handle direct response: { isAvailable: true/false }
+          const responseData = checkResponse?.data || checkResponse;
           
-          console.log('Room bed availability result:', { isAvailable, checkResponse });
+          const isAvailable = 
+            responseData?.isAvailable === true ||
+            responseData?.IsAvailable === true ||
+            responseData?.available === true ||
+            responseData?.Available === true ||
+            (responseData?.status !== undefined && String(responseData.status).toLowerCase() === 'available') ||
+            (responseData?.Status !== undefined && String(responseData.Status).toLowerCase() === 'available');
+          
+          console.log('Room bed availability result:', { isAvailable, responseData, checkResponse });
           
           if (!isAvailable) {
             throw new Error('The selected room bed is not available for the selected allocation date. Please select another room bed or choose a different date.');
@@ -465,11 +495,15 @@ export function Admissions() {
         bedNumber: bedNumber,
         admittedBy: doctorName,
         diagnosis: addAdmissionForm.diagnosis || '',
-        status: 'Active' as const,
+        status: addAdmissionForm.status || 'Active' as const,
+        admissionStatus: addAdmissionForm.admissionStatus || 'Active' || 'Discharged' || 'Moved to ICU' || 'Surgery Scheduled',
         roomBedsId: String(roomBedsId),
         doctorId: String(doctorId),
         admittedByDoctorId: String(doctorId), // Also include as admittedByDoctorId for API
         roomAllocationDate: addAdmissionForm.roomAllocationDate,
+        caseSheet: addAdmissionForm.caseSheet || '',
+        caseSheetDetails: addAdmissionForm.caseDetails || '',
+        isLinkedToICU: addAdmissionForm.isLinkedToICU === 'Yes',
       };
 
       console.log('Saving admission with data:', admissionData);
@@ -485,7 +519,6 @@ export function Admissions() {
         console.log('Admission updated successfully');
         // Close edit dialog after update
         setIsViewEditDialogOpen(false);
-        setIsEditMode(false);
       } else {
         await admissionsApi.create(admissionData);
         console.log('Admission created successfully');
@@ -501,7 +534,6 @@ export function Admissions() {
       // Close dialog and reset form
       if (isViewEditDialogOpen) {
         setIsViewEditDialogOpen(false);
-        setIsEditMode(false);
       } else {
         setIsDialogOpen(false);
       }
@@ -519,6 +551,10 @@ export function Admissions() {
         doctorId: '',
         diagnosis: '',
         roomAllocationDate: '',
+        admissionStatus: 'Active',
+        caseSheet: '',
+        caseDetails: '',
+        isLinkedToICU: 'No',
       });
       setAdmissionError(null);
     } catch (error: any) {
@@ -1026,13 +1062,54 @@ export function Admissions() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="diagnosis">Diagnosis</Label>
+                  <Label htmlFor="admissionStatus">Admission Status *</Label>
+                  <select
+                    id="admissionStatus"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                    value={addAdmissionForm.admissionStatus}
+                    onChange={(e) => setAddAdmissionForm({ ...addAdmissionForm, admissionStatus: e.target.value })}
+                    required
+                  >
+                    <option value="Active">Active</option>
+                    <option value="Moved to ICU">Moved to ICU</option>
+                    <option value="Surgery Scheduled">Surgery Scheduled</option>
+                    <option value="Discharged">Discharged</option>
+                  </select>
+                </div>
+
+                <div>
+                  <Label htmlFor="caseSheet">Case Sheet</Label>
                   <Input 
-                    id="diagnosis" 
-                    placeholder="Enter diagnosis" 
-                    value={addAdmissionForm.diagnosis}
-                    onChange={(e) => setAddAdmissionForm({ ...addAdmissionForm, diagnosis: e.target.value })}
+                    id="caseSheet" 
+                    placeholder="Enter case sheet" 
+                    value={addAdmissionForm.caseSheet}
+                    onChange={(e) => setAddAdmissionForm({ ...addAdmissionForm, caseSheet: e.target.value })}
                   />
+                </div>
+
+                <div className="col-span-2">
+                  <Label htmlFor="caseDetails">Case Details</Label>
+                  <Textarea 
+                    id="caseDetails" 
+                    placeholder="Enter case details" 
+                    value={addAdmissionForm.caseDetails}
+                    onChange={(e) => setAddAdmissionForm({ ...addAdmissionForm, caseDetails: e.target.value })}
+                    rows={4}
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="isLinkedToICU">Is Linked To ICU *</Label>
+                  <select
+                    id="isLinkedToICU"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                    value={addAdmissionForm.isLinkedToICU}
+                    onChange={(e) => setAddAdmissionForm({ ...addAdmissionForm, isLinkedToICU: e.target.value })}
+                    required
+                  >
+                    <option value="No">No</option>
+                    <option value="Yes">Yes</option>
+                  </select>
                 </div>
               </div>
             </div>
@@ -1056,22 +1133,9 @@ export function Admissions() {
 
         {/* View & Edit Admission Dialog */}
         <Dialog open={isViewEditDialogOpen} onOpenChange={setIsViewEditDialogOpen}>
-          <DialogContent className="p-0 gap-0 large-dialog max-h-[90vh]">
+          <DialogContent className="p-0 gap-0 large-dialog max-h-[90vh] bg-white">
             <DialogHeader className="px-6 pt-4 pb-3 flex-shrink-0">
-              <div className="flex items-center justify-between">
-                <DialogTitle>{editingAdmission ? `View & Edit Admission - ${editingAdmission.patientName}` : 'View & Edit Admission'}</DialogTitle>
-                {!isEditMode && editingAdmission && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setIsEditMode(true)}
-                    className="gap-2"
-                  >
-                    <Edit className="size-4" />
-                    Edit
-                  </Button>
-                )}
-              </div>
+              <DialogTitle>{editingAdmission ? `View & Edit Admission - ${editingAdmission.patientName}` : 'View & Edit Admission'}</DialogTitle>
             </DialogHeader>
             <div className="flex-1 overflow-y-auto px-6 pb-1 patient-list-scrollable min-h-0">
               <div className="space-y-4 py-4">
@@ -1081,68 +1145,8 @@ export function Admissions() {
                   </div>
                 )}
 
-                {!isEditMode && editingAdmission ? (
-                  // View Mode - Display admission details
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-sm text-gray-500">Patient Name</Label>
-                      <p className="text-gray-900 font-medium mt-1">{editingAdmission.patientName || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm text-gray-500">Patient ID</Label>
-                      <p className="text-gray-900 font-medium mt-1 font-mono">{editingAdmission.patientId || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm text-gray-500">Age</Label>
-                      <p className="text-gray-900 font-medium mt-1">{editingAdmission.age || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm text-gray-500">Gender</Label>
-                      <p className="text-gray-900 font-medium mt-1">{editingAdmission.gender || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm text-gray-500">Room Type</Label>
-                      <p className="text-gray-900 font-medium mt-1">{editingAdmission.roomType || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm text-gray-500">Bed Number</Label>
-                      <p className="text-gray-900 font-medium mt-1">{editingAdmission.bedNumber || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm text-gray-500">Admission Date</Label>
-                      <p className="text-gray-900 font-medium mt-1">{editingAdmission.admissionDate || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm text-gray-500">Admitted By</Label>
-                      <p className="text-gray-900 font-medium mt-1">{editingAdmission.admittedBy || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm text-gray-500">Diagnosis</Label>
-                      <p className="text-gray-900 font-medium mt-1">{editingAdmission.diagnosis || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm text-gray-500">Status</Label>
-                      <p className="mt-1">
-                        <Badge variant={
-                          editingAdmission.status === 'Active' ? 'default' :
-                          editingAdmission.status === 'Surgery Scheduled' ? 'secondary' :
-                          editingAdmission.status === 'Moved to ICU' ? 'destructive' :
-                          'outline'
-                        }>
-                          {editingAdmission.status || editingAdmission.admissionStatus || 'N/A'}
-                        </Badge>
-                      </p>
-                    </div>
-                    {editingAdmission.roomAdmissionId && (
-                      <div>
-                        <Label className="text-sm text-gray-500">Room Admission ID</Label>
-                        <p className="text-gray-900 font-medium mt-1 font-mono">{editingAdmission.roomAdmissionId}</p>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  // Edit Mode - Show form fields (same as Add Admission dialog)
-                  <div className="space-y-4">
+                {/* Edit Mode - Show form fields (always editable) */}
+                <div className="space-y-4">
                     {/* Patient Selection */}
                     <div>
                       <Label htmlFor="patient-search-edit">Patient *</Label>
@@ -1433,41 +1437,82 @@ export function Admissions() {
                     </div>
 
                     <div>
-                      <Label htmlFor="diagnosis-edit">Diagnosis</Label>
+                      <Label htmlFor="admissionStatus-edit">Admission Status *</Label>
+                      <select
+                        id="admissionStatus-edit"
+                        className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                        value={addAdmissionForm.admissionStatus}
+                        onChange={(e) => setAddAdmissionForm({ ...addAdmissionForm, admissionStatus: e.target.value })}
+                        required
+                      >
+                        <option value="Active">Active</option>
+                        <option value="Moved to ICU">Moved to ICU</option>
+                        <option value="Surgery Scheduled">Surgery Scheduled</option>
+                        <option value="Discharged">Discharged</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="caseSheet-edit">Case Sheet</Label>
                       <Input 
-                        id="diagnosis-edit" 
-                        placeholder="Enter diagnosis" 
-                        value={addAdmissionForm.diagnosis}
-                        onChange={(e) => setAddAdmissionForm({ ...addAdmissionForm, diagnosis: e.target.value })}
+                        id="caseSheet-edit" 
+                        placeholder="Enter case sheet" 
+                        value={addAdmissionForm.caseSheet}
+                        onChange={(e) => setAddAdmissionForm({ ...addAdmissionForm, caseSheet: e.target.value })}
                       />
                     </div>
+
+                    <div className="col-span-2">
+                      <Label htmlFor="caseDetails-edit">Case Details</Label>
+                      <Textarea 
+                        id="caseDetails-edit" 
+                        placeholder="Enter case details" 
+                        value={addAdmissionForm.caseDetails}
+                        onChange={(e) => setAddAdmissionForm({ ...addAdmissionForm, caseDetails: e.target.value })}
+                        rows={4}
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="isLinkedToICU-edit">Is Linked To ICU *</Label>
+                      <select
+                        id="isLinkedToICU-edit"
+                        className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                        value={addAdmissionForm.isLinkedToICU}
+                        onChange={(e) => setAddAdmissionForm({ ...addAdmissionForm, isLinkedToICU: e.target.value })}
+                        required
+                      >
+                        <option value="No">No</option>
+                        <option value="Yes">Yes</option>
+                      </select>
+                    </div>
                   </div>
-                )}
               </div>
             </div>
-            <div className="px-6 pb-4 flex-shrink-0 flex flex-col gap-2">
+            <DialogFooter className="px-6 py-3 flex-shrink-0 border-t bg-white">
               {admissionError && (
-                <div className="p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">
+                <div className="w-full p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700 mb-2">
                   {admissionError}
                 </div>
               )}
-              <div className="flex justify-end gap-2">
-                {isEditMode ? (
-                  <>
-                    <Button variant="outline" onClick={() => setIsEditMode(false)} disabled={savingAdmission}>
-                      Cancel Edit
-                    </Button>
-                    <Button onClick={handleSaveAdmission} disabled={savingAdmission}>
-                      {savingAdmission ? 'Saving...' : 'Update Admission'}
-                    </Button>
-                  </>
-                ) : (
-                  <Button variant="outline" onClick={() => setIsViewEditDialogOpen(false)}>
-                    Close
-                  </Button>
-                )}
-              </div>
-            </div>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsViewEditDialogOpen(false);
+                  setEditingAdmission(null);
+                  setAdmissionError(null);
+                }}
+                disabled={savingAdmission}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSaveAdmission}
+                disabled={savingAdmission}
+              >
+                {savingAdmission ? 'Saving...' : 'Update Room Admission'}
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
         </div>
@@ -1595,9 +1640,10 @@ export function Admissions() {
         <Tabs defaultValue="all" className="space-y-6">
           <TabsList>
             <TabsTrigger value="all">All Admissions ({filteredAdmissions.length})</TabsTrigger>
-            <TabsTrigger value="active">Active ({getAdmissionsByStatus('Active').length})</TabsTrigger>
-            <TabsTrigger value="surgery">Surgery Scheduled ({getAdmissionsByStatus('Surgery Scheduled').length})</TabsTrigger>
-            <TabsTrigger value="icu">Moved to ICU ({getAdmissionsByStatus('Moved to ICU').length})</TabsTrigger>
+            {/*<TabsTrigger value="active">Active ({getAdmissionsByStatus('Active').length})</TabsTrigger>
+            <TabsTrigger value="surgery">Surgery Scheduled ({getAdmissionsByStatus('Surgery Scheduled').length})</TabsTrigger> 
+            <TabsTrigger value="icu">Moved to ICU ({getAdmissionsByStatus('Moved to ICU').length})</TabsTrigger> */}
+           {/*<TabsTrigger value="icu">Discharged ({getAdmissionsByStatus('Discharged').length})</TabsTrigger> */}
           </TabsList>
 
           <TabsContent value="all">
@@ -1974,8 +2020,7 @@ function AdmissionsList({
                 <th className="text-left py-3 px-4 text-gray-700">Age/Gender</th>
                 <th className="text-left py-3 px-4 text-gray-700">Room Type</th>
                 <th className="text-left py-3 px-4 text-gray-700">Admission Date</th>
-                <th className="text-left py-3 px-4 text-gray-700">Admitted By</th>
-                <th className="text-left py-3 px-4 text-gray-700">Diagnosis</th>
+                <th className="text-left py-3 px-4 text-gray-700">AdmittingDoctorName</th>
                 <th className="text-left py-3 px-4 text-gray-700">Admission Status</th>
                 <th className="text-left py-3 px-4 text-gray-700">Schedule OT</th>
                 <th className="text-left py-3 px-4 text-gray-700">Actions</th>
@@ -1991,8 +2036,9 @@ function AdmissionsList({
                   <td className="py-3 px-4 text-gray-600">{admission.age}Y / {admission.gender}</td>
                   <td className="py-3 px-4 text-gray-600">{admission.roomType}</td>
                   <td className="py-3 px-4 text-gray-600">{admission.admissionDate}</td>
-                  <td className="py-3 px-4 text-gray-600">{admission.admittedBy}</td>
-                  <td className="py-3 px-4 text-gray-600">{admission.diagnosis}</td>
+                  <td className="py-3 px-4 text-gray-600">
+                    {admission.admittingDoctorName || admission.admittedBy || 'N/A'}
+                  </td>
                   <td className="py-3 px-4">
                     <span className={`px-3 py-1 rounded-full text-xs ${
                       admission.status === 'Active' ? 'bg-green-100 text-green-700' :
@@ -2000,7 +2046,7 @@ function AdmissionsList({
                       admission.status === 'Moved to ICU' ? 'bg-red-100 text-red-700' :
                       'bg-gray-100 text-gray-700'
                     }`}>
-                      {admission.admissionStatus || admission.status}
+                      {admission.admissionStatus || admission.status || 'N/A'}
                     </span>
                   </td>
                   <td className="py-3 px-4">

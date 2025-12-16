@@ -45,6 +45,7 @@ export function ManageIPDAdmission() {
     priority: 'Normal',
     orderedDate: '',
     orderedBy: '',
+    orderedByDoctorId: '',
     description: '',
     charges: '',
     patientType: 'IPD',
@@ -60,6 +61,8 @@ export function ManageIPDAdmission() {
   const [availableLabTests, setAvailableLabTests] = useState<LabTest[]>([]);
   const [labTestSearchTerm, setLabTestSearchTerm] = useState('');
   const [showLabTestList, setShowLabTestList] = useState(false);
+  const [ipdLabTestDoctorSearchTerm, setIpdLabTestDoctorSearchTerm] = useState('');
+  const [showIpdLabTestDoctorList, setShowIpdLabTestDoctorList] = useState(false);
 
   // Doctor Visit Dialog State
   const [isAddDoctorVisitDialogOpen, setIsAddDoctorVisitDialogOpen] = useState(false);
@@ -172,8 +175,19 @@ export function ManageIPDAdmission() {
       setPatientLabTests(labTests);
     } catch (err) {
       console.error('Error fetching patient lab tests:', err);
-      setLabTestsError(err instanceof Error ? err.message : 'Failed to load patient lab tests');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load patient lab tests';
+      
+      // Check if the error indicates "no records found" - treat as empty state, not error
+      if (errorMessage.toLowerCase().includes('no patient lab tests found') || 
+          errorMessage.toLowerCase().includes('no lab tests found') ||
+          errorMessage.toLowerCase().includes('not found') ||
+          errorMessage.toLowerCase().includes('no records')) {
       setPatientLabTests([]);
+        setLabTestsError(null); // Clear error to show empty state message
+      } else {
+        setLabTestsError(errorMessage);
+        setPatientLabTests([]);
+      }
     } finally {
       setLabTestsLoading(false);
     }
@@ -462,6 +476,14 @@ export function ManageIPDAdmission() {
       console.error('Error fetching lab tests:', err);
     }
 
+    // Fetch available doctors
+    try {
+      const doctors = await doctorsApi.getAll();
+      setAvailableDoctors(doctors);
+    } catch (err) {
+      console.error('Error fetching doctors:', err);
+    }
+
     const patientLabTestsId = labTest.patientLabTestsId || labTest.patientLabTestId || labTest.id;
     setEditingLabTestId(patientLabTestsId || null);
 
@@ -471,6 +493,19 @@ export function ManageIPDAdmission() {
       return String(lid) === String(labTest.labTestId);
     });
 
+    // Extract orderedByDoctorId with various field name variations
+    const orderedByDoctorId = (labTest as any).orderedByDoctorId || 
+                              (labTest as any).OrderedByDoctorId || 
+                              (labTest as any).ordered_by_doctor_id ||
+                              (labTest as any).Ordered_By_Doctor_Id ||
+                              '';
+
+    // Find the selected doctor to populate the search term
+    const selectedDoctor = availableDoctors.find((doc: Doctor) => {
+      const docId = doc.id || (doc as any).Id || '';
+      return String(docId) === String(orderedByDoctorId);
+    });
+
     setIpdLabTestFormData({
       roomAdmissionId: String(labTest.roomAdmissionId || admission?.roomAdmissionId || admission?.admissionId || ''),
       patientId: String(labTest.patientId || admission?.patientId || ''),
@@ -478,6 +513,7 @@ export function ManageIPDAdmission() {
       priority: labTest.priority || 'Normal',
       orderedDate: labTest.orderedDate || new Date().toISOString().split('T')[0],
       orderedBy: labTest.orderedBy || '',
+      orderedByDoctorId: String(orderedByDoctorId || ''),
       description: labTest.description || '',
       charges: labTest.charges ? String(labTest.charges) : '',
       patientType: (labTest.patientType as string) || 'IPD',
@@ -491,6 +527,8 @@ export function ManageIPDAdmission() {
 
     setLabTestSearchTerm(selectedLabTest ? `${selectedLabTest.testName || 'Unknown'} (${selectedLabTest.testCategory || 'N/A'})` : '');
     setShowLabTestList(false);
+    setIpdLabTestDoctorSearchTerm(selectedDoctor ? (selectedDoctor.name || selectedDoctor.doctorName || '') : '');
+    setShowIpdLabTestDoctorList(false);
     setIpdLabTestSubmitError(null);
     setIsEditIPDLabTestDialogOpen(true);
   };
@@ -506,12 +544,21 @@ export function ManageIPDAdmission() {
         console.error('Error fetching lab tests:', err);
       }
       
+      // Fetch available doctors
+      try {
+        const doctors = await doctorsApi.getAll();
+        setAvailableDoctors(doctors);
+      } catch (err) {
+        console.error('Error fetching doctors:', err);
+      }
+      
       // Extract PatientId with fallbacks for different field name variations
       const patientIdValue = (admission as any).patientId || 
                             (admission as any).PatientId || 
                             (admission as any).PatientID || 
                             (admission as any).patient_id || 
                             (admission as any).Patient_ID || 
+                            admission?.patientId ||
                             '';
       
       // Extract RoomAdmissionId with fallbacks
@@ -525,16 +572,18 @@ export function ManageIPDAdmission() {
       console.log('Initializing IPD Lab Test form:', {
         roomAdmissionId: roomAdmissionIdValue,
         patientId: patientIdValue,
-        admission: admission
+        admission: admission,
+        admissionPatientId: admission?.patientId
       });
       
       setIpdLabTestFormData({
-        roomAdmissionId: String(roomAdmissionIdValue),
-        patientId: String(patientIdValue),
+        roomAdmissionId: String(roomAdmissionIdValue || ''),
+        patientId: String(patientIdValue || admission?.patientId || ''),
         labTestId: '',
         priority: 'Normal',
         orderedDate: new Date().toISOString().split('T')[0], // Today's date
         orderedBy: '',
+        orderedByDoctorId: '',
         description: '',
         charges: '',
         patientType: 'IPD', // Default to IPD
@@ -547,6 +596,8 @@ export function ManageIPDAdmission() {
       });
       setLabTestSearchTerm('');
       setShowLabTestList(false);
+      setIpdLabTestDoctorSearchTerm('');
+      setShowIpdLabTestDoctorList(false);
       setIpdLabTestSubmitError(null);
       setIsAddIPDLabTestDialogOpen(true);
     } else {
@@ -592,6 +643,10 @@ export function ManageIPDAdmission() {
         throw new Error('Ordered Date is required');
       }
 
+      if (!ipdLabTestFormData.orderedByDoctorId) {
+        throw new Error('Ordered By Doctor is required');
+      }
+
       if (!ipdLabTestFormData.patientType || ipdLabTestFormData.patientType === '') {
         throw new Error('Patient Type is required.');
       }
@@ -634,6 +689,11 @@ export function ManageIPDAdmission() {
         }
       }
 
+      // Add OrderedByDoctorId (required)
+      if (ipdLabTestFormData.orderedByDoctorId && ipdLabTestFormData.orderedByDoctorId.trim() !== '') {
+        payload.OrderedByDoctorId = Number(ipdLabTestFormData.orderedByDoctorId);
+      }
+      
       // Add optional fields
       if (ipdLabTestFormData.orderedBy && ipdLabTestFormData.orderedBy.trim() !== '') {
         payload.OrderedBy = ipdLabTestFormData.orderedBy.trim();
@@ -712,6 +772,7 @@ export function ManageIPDAdmission() {
         priority: 'Normal',
         orderedDate: '',
         orderedBy: '',
+        orderedByDoctorId: '',
         description: '',
         charges: '',
         patientType: 'IPD',
@@ -724,6 +785,8 @@ export function ManageIPDAdmission() {
       });
       setLabTestSearchTerm('');
       setShowLabTestList(false);
+      setIpdLabTestDoctorSearchTerm('');
+      setShowIpdLabTestDoctorList(false);
     } catch (err) {
       console.error('Error saving IPD Lab Test:', err);
       setIpdLabTestSubmitError(
@@ -1225,6 +1288,7 @@ export function ManageIPDAdmission() {
             <div>
               <h1 className="text-gray-900 mb-0 text-xl">Manage IPD Case</h1>
               <p className="text-gray-500 text-sm">Room Admission ID: {admission.roomAdmissionId || admission.admissionId}</p>
+              <p className="text-gray-500 text-sm">Patient ID: {admission.patientId || admission.patient_id }</p>
             </div>
           </div>
         </div>
@@ -1243,8 +1307,8 @@ export function ManageIPDAdmission() {
                 <p className="text-gray-900 font-medium mt-1">{admission.patientName}</p>
               </div>
               <div>
-                <Label className="text-sm text-gray-500">Patient ID</Label>
-                <p className="text-gray-900 font-medium mt-1">{admission.patientId || 'N/A'}</p>
+                <Label className="text-sm text-gray-500">Patient No</Label>
+                <p className="text-gray-900 font-medium mt-1">{admission.patientNo || 'N/A'}</p>
               </div>
               <div>
                 <Label className="text-sm text-gray-500">Bed Number</Label>
@@ -1272,9 +1336,9 @@ export function ManageIPDAdmission() {
                 <Label className="text-sm text-gray-500">Admitted By</Label>
                 <p className="text-gray-900 font-medium mt-1">{admission.admittedBy || 'N/A'}</p>
               </div>
-              <div className="col-span-2">
-                <Label className="text-sm text-gray-500">Diagnosis</Label>
-                <p className="text-gray-900 font-medium mt-1">{admission.diagnosis || 'N/A'}</p>
+              <div>
+                <Label className="text-sm text-gray-500">Admitting Doctor Name</Label>
+                <p className="text-gray-900 font-medium mt-1">{admission.admittingDoctorName || 'N/A'}</p>
               </div>
               <div>
                 <Label className="text-sm text-gray-500">Admission Status</Label>
@@ -1295,6 +1359,16 @@ export function ManageIPDAdmission() {
                   <p className="mt-1">
                     <Badge variant={String(admission.scheduleOT).toLowerCase() === 'yes' ? 'default' : 'outline'}>
                       {String(admission.scheduleOT)}
+                    </Badge>
+                  </p>
+                </div>
+              )}
+              {admission.isLinkedToICU !== undefined && (
+                <div>
+                  <Label className="text-sm text-gray-500">Linked to ICU</Label>
+                  <p className="mt-1">
+                    <Badge variant={admission.isLinkedToICU ? 'default' : 'outline'}>
+                      {admission.isLinkedToICU ? 'Yes' : 'No'}
                     </Badge>
                   </p>
                 </div>
@@ -1331,15 +1405,19 @@ export function ManageIPDAdmission() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  <div>
-                    <Label className="text-sm text-gray-500">Diagnosis</Label>
-                    <p className="text-gray-900 font-medium mt-1">{admission.diagnosis || 'N/A'}</p>
-                  </div>
                   {admission.caseSheetDetails && (
                     <div>
-                      <Label className="text-sm text-gray-500">Case Details</Label>
+                      <Label className="text-sm text-gray-500">Case Sheet Details</Label>
                       <div className="mt-1 p-3 bg-gray-50 rounded-md border border-gray-200">
                         <p className="text-gray-900 whitespace-pre-wrap">{admission.caseSheetDetails}</p>
+                      </div>
+                    </div>
+                  )}
+                  {admission.caseSheet && (
+                    <div>
+                      <Label className="text-sm text-gray-500">Case Sheet</Label>
+                      <div className="mt-1 p-3 bg-gray-50 rounded-md border border-gray-200">
+                        <p className="text-gray-900 whitespace-pre-wrap">{admission.caseSheet}</p>
                       </div>
                     </div>
                   )}
@@ -1355,7 +1433,7 @@ export function ManageIPDAdmission() {
                       <p className="text-gray-900 font-medium mt-1">{new Date(admission.createdAt).toLocaleString()}</p>
                     </div>
                   )}
-                  {!admission.caseSheetDetails && (
+                  {!admission.caseSheetDetails && !admission.caseSheet && (
                     <div>
                       <Label className="text-sm text-gray-500">Admission Notes</Label>
                       <p className="text-gray-900 mt-1">Case details and notes will be displayed here.</p>
@@ -1405,21 +1483,15 @@ export function ManageIPDAdmission() {
                     <table className="w-full border-collapse">
                       <thead>
                         <tr className="border-b border-gray-200">
-                          <th className="text-left py-3 px-4 font-semibold text-gray-700">PatientLabTestsId</th>
-                          <th className="text-left py-3 px-4 font-semibold text-gray-700">PatientId</th>
                           <th className="text-left py-3 px-4 font-semibold text-gray-700">PatientName</th>
                           <th className="text-left py-3 px-4 font-semibold text-gray-700">TestName</th>
                           <th className="text-left py-3 px-4 font-semibold text-gray-700">PatientType</th>
-                          <th className="text-left py-3 px-4 font-semibold text-gray-700">LabTestId</th>
-                          <th className="text-left py-3 px-4 font-semibold text-gray-700">EmergencyBedSlotId</th>
-                          <th className="text-left py-3 px-4 font-semibold text-gray-700">BillId</th>
                           <th className="text-left py-3 px-4 font-semibold text-gray-700">Priority</th>
                           <th className="text-left py-3 px-4 font-semibold text-gray-700">LabTestDone</th>
                           <th className="text-left py-3 px-4 font-semibold text-gray-700">ReportsUrl</th>
                           <th className="text-left py-3 px-4 font-semibold text-gray-700">TestStatus</th>
                           <th className="text-left py-3 px-4 font-semibold text-gray-700">TestDoneDateTime</th>
                           <th className="text-left py-3 px-4 font-semibold text-gray-700">Status</th>
-                          <th className="text-left py-3 px-4 font-semibold text-gray-700">CreatedBy</th>
                           <th className="text-left py-3 px-4 font-semibold text-gray-700">CreatedDate</th>
                           <th className="text-left py-3 px-4 font-semibold text-gray-700">Action</th>
                         </tr>
@@ -1437,32 +1509,20 @@ export function ManageIPDAdmission() {
                           };
                           
                           const patientLabTestsId = labTest.patientLabTestsId || labTest.patientLabTestId || labTest.id;
-                          const patientId = labTest.patientId || (labTest as any).PatientId || (labTest as any).patient_id;
                           const patientName = labTest.patientName || (labTest as any).PatientName || (labTest as any).patient_name;
                           const testName = labTest.testName || labTest.labTestName || (labTest as any).TestName;
                           const patientType = labTest.patientType || (labTest as any).PatientType || (labTest as any).patient_type;
                           const labTestId = labTest.labTestId || (labTest as any).LabTestId || (labTest as any).lab_test_id;
-                          const emergencyBedSlotId = labTest.emergencyBedSlotId || (labTest as any).EmergencyBedSlotId || (labTest as any).emergency_bed_slot_id;
-                          const billId = labTest.billId || (labTest as any).BillId || (labTest as any).bill_id;
                           const createdBy = labTest.createdBy || (labTest as any).CreatedBy || (labTest as any).created_by;
                           const createdDate = labTest.createdDate || (labTest as any).CreatedDate || (labTest as any).created_date || (labTest as any).createdAt;
                           
                           return (
                             <tr key={patientLabTestsId || index} className="border-b border-gray-100 hover:bg-gray-50">
-                            <td className="py-3 px-4 text-gray-600">
-                                <Badge variant="outline">{patientLabTestsId || 'N/A'}</Badge>
-                            </td>
-                              <td className="py-3 px-4 text-gray-600">{patientId || 'N/A'}</td>
                               <td className="py-3 px-4 text-gray-900">{patientName || 'N/A'}</td>
                               <td className="py-3 px-4 text-gray-900">{testName || 'N/A'}</td>
                               <td className="py-3 px-4">
                                 <Badge variant="outline">{patientType || 'N/A'}</Badge>
-                              </td>
-                              <td className="py-3 px-4 text-gray-600">
-                                <Badge variant="outline">{labTestId || 'N/A'}</Badge>
-                              </td>
-                              <td className="py-3 px-4 text-gray-600">{emergencyBedSlotId || 'N/A'}</td>
-                              <td className="py-3 px-4 text-gray-600">{billId || 'N/A'}</td>
+                            </td>
                             <td className="py-3 px-4">
                               <Badge variant={
                                 labTest.priority?.toLowerCase() === 'urgent' || labTest.priority?.toLowerCase() === 'high' ? 'destructive' :
@@ -1507,29 +1567,19 @@ export function ManageIPDAdmission() {
                                   {labTest.status || 'N/A'}
                                 </Badge>
                               </td>
-                              <td className="py-3 px-4 text-gray-600">{createdBy || 'N/A'}</td>
                               <td className="py-3 px-4 text-gray-600">
                                 {createdDate ? (typeof createdDate === 'string' ? new Date(createdDate).toLocaleString() : String(createdDate)) : 'N/A'}
                               </td>
                               <td className="py-3 px-4">
-                                <div className="flex items-center gap-2">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleViewIPDLabTest(labTest)}
-                                    className="h-8 w-8 p-0"
-                                  >
-                                    <Eye className="h-4 w-4 text-blue-600" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleOpenEditIPDLabTestDialog(labTest)}
-                                    className="h-8 w-8 p-0"
-                                  >
-                                    <Edit className="h-4 w-4 text-green-600" />
-                                  </Button>
-                                </div>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleOpenEditIPDLabTestDialog(labTest)}
+                                  className="gap-1"
+                                >
+                                  <Edit className="size-3" />
+                                  View & Edit
+                                </Button>
                               </td>
                           </tr>
                           );
@@ -1572,7 +1622,7 @@ export function ManageIPDAdmission() {
                 
                 {!doctorVisitsLoading && !doctorVisitsError && patientDoctorVisits.length === 0 && (
                   <div className="text-center py-8 text-gray-500">
-                    No doctor visits found for this admission.
+                    No Doctor visits found for this admission.
                   </div>
                 )}
                 
@@ -1581,24 +1631,18 @@ export function ManageIPDAdmission() {
                     <table className="w-full border-collapse">
                       <thead>
                         <tr className="border-b border-gray-200">
-                          <th className="text-left py-3 px-4 font-semibold text-gray-700">Patient ID</th>
-                          <th className="text-left py-3 px-4 font-semibold text-gray-700">Doctor ID</th>
+                          <th className="text-left py-3 px-4 font-semibold text-gray-700">Doctor Name</th>
                           <th className="text-left py-3 px-4 font-semibold text-gray-700">Doctor Visited DateTime</th>
                           <th className="text-left py-3 px-4 font-semibold text-gray-700">Visits Remarks</th>
                           <th className="text-left py-3 px-4 font-semibold text-gray-700">Patient Condition</th>
                           <th className="text-left py-3 px-4 font-semibold text-gray-700">Status</th>
-                          <th className="text-left py-3 px-4 font-semibold text-gray-700">Visit Created By</th>
-                          <th className="text-left py-3 px-4 font-semibold text-gray-700">Visit Created At</th>
                           <th className="text-left py-3 px-4 font-semibold text-gray-700">Action</th>
                         </tr>
                       </thead>
                       <tbody>
                         {patientDoctorVisits.map((visit, index) => (
                           <tr key={visit.patientDoctorVisitId || visit.id || index} className="border-b border-gray-100 hover:bg-gray-50">
-                            <td className="py-3 px-4 text-gray-600">{visit.patientId || 'N/A'}</td>
-                            <td className="py-3 px-4 text-gray-900">
-                              <Badge variant="outline">{visit.doctorId || 'N/A'}</Badge>
-                            </td>
+                            <td className="py-3 px-4 text-gray-900 font-medium">{visit.doctorName || 'N/A'}</td>
                             <td className="py-3 px-4 text-gray-600">
                               {visit.doctorVisitedDateTime ? new Date(visit.doctorVisitedDateTime).toLocaleString() : 'N/A'}
                             </td>
@@ -1621,29 +1665,16 @@ export function ManageIPDAdmission() {
                                 {visit.status || 'N/A'}
                               </Badge>
                             </td>
-                            <td className="py-3 px-4 text-gray-600">{visit.visitCreatedBy || 'N/A'}</td>
-                            <td className="py-3 px-4 text-gray-600">
-                              {visit.visitCreatedAt ? (typeof visit.visitCreatedAt === 'string' ? new Date(visit.visitCreatedAt).toLocaleString() : String(visit.visitCreatedAt)) : 'N/A'}
-                            </td>
                             <td className="py-3 px-4">
-                              <div className="flex items-center gap-2">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleViewDoctorVisit(visit)}
-                                  className="h-8 w-8 p-0"
-                                >
-                                  <Eye className="h-4 w-4 text-blue-600" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleOpenEditDoctorVisitDialog(visit)}
-                                  className="h-8 w-8 p-0"
-                                >
-                                  <Edit className="h-4 w-4 text-green-600" />
-                                </Button>
-                              </div>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleOpenEditDoctorVisitDialog(visit)}
+                                className="gap-1"
+                              >
+                                <Edit className="size-3" />
+                                View & Edit
+                              </Button>
                             </td>
                           </tr>
                         ))}
@@ -1694,13 +1725,8 @@ export function ManageIPDAdmission() {
                     <table className="w-full border-collapse">
                       <thead>
                         <tr className="border-b border-gray-200">
-                          <th className="text-left py-3 px-4 font-semibold text-gray-700">PatientAdmitVisitVitalsId</th>
-                          <th className="text-left py-3 px-4 font-semibold text-gray-700">RoomAdmissionId</th>
-                          <th className="text-left py-3 px-4 font-semibold text-gray-700">PatientId</th>
-                          <th className="text-left py-3 px-4 font-semibold text-gray-700">NurseId</th>
                           <th className="text-left py-3 px-4 font-semibold text-gray-700">PatientStatus</th>
                           <th className="text-left py-3 px-4 font-semibold text-gray-700">RecordedDateTime</th>
-                          <th className="text-left py-3 px-4 font-semibold text-gray-700">VisitRemarks</th>
                           <th className="text-left py-3 px-4 font-semibold text-gray-700">DailyOrHourlyVitals</th>
                           <th className="text-left py-3 px-4 font-semibold text-gray-700">HeartRate</th>
                           <th className="text-left py-3 px-4 font-semibold text-gray-700">BloodPressure</th>
@@ -1710,7 +1736,6 @@ export function ManageIPDAdmission() {
                           <th className="text-left py-3 px-4 font-semibold text-gray-700">PulseRate</th>
                           <th className="text-left py-3 px-4 font-semibold text-gray-700">VitalsStatus</th>
                           <th className="text-left py-3 px-4 font-semibold text-gray-700">VitalsRemarks</th>
-                          <th className="text-left py-3 px-4 font-semibold text-gray-700">VitalsCreatedBy</th>
                           <th className="text-left py-3 px-4 font-semibold text-gray-700">VitalsCreatedAt</th>
                           <th className="text-left py-3 px-4 font-semibold text-gray-700">Status</th>
                           <th className="text-left py-3 px-4 font-semibold text-gray-700">Action</th>
@@ -1719,14 +1744,6 @@ export function ManageIPDAdmission() {
                       <tbody>
                         {patientAdmitVisitVitals.map((vital, index) => (
                           <tr key={vital.patientAdmitVisitVitalsId || vital.id || index} className="border-b border-gray-100 hover:bg-gray-50">
-                            <td className="py-3 px-4 text-gray-600">
-                              <Badge variant="outline">{vital.patientAdmitVisitVitalsId || vital.id || 'N/A'}</Badge>
-                            </td>
-                            <td className="py-3 px-4 text-gray-600">{vital.roomAdmissionId || 'N/A'}</td>
-                            <td className="py-3 px-4 text-gray-600">{vital.patientId || 'N/A'}</td>
-                            <td className="py-3 px-4 text-gray-600">
-                              <Badge variant="outline">{vital.nurseId || 'N/A'}</Badge>
-                            </td>
                             <td className="py-3 px-4">
                               <Badge variant={
                                 vital.patientStatus?.toLowerCase() === 'stable' || vital.patientStatus?.toLowerCase() === 'good' ? 'default' :
@@ -1739,7 +1756,6 @@ export function ManageIPDAdmission() {
                             <td className="py-3 px-4 text-gray-600">
                               {vital.recordedDateTime ? new Date(vital.recordedDateTime).toLocaleString() : 'N/A'}
                             </td>
-                            <td className="py-3 px-4 text-gray-600">{vital.visitRemarks || 'N/A'}</td>
                             <td className="py-3 px-4">
                               <Badge variant="outline">{vital.dailyOrHourlyVitals || 'N/A'}</Badge>
                             </td>
@@ -1759,7 +1775,6 @@ export function ManageIPDAdmission() {
                               </Badge>
                             </td>
                             <td className="py-3 px-4 text-gray-600">{vital.vitalsRemarks || 'N/A'}</td>
-                            <td className="py-3 px-4 text-gray-600">{vital.vitalsCreatedBy || 'N/A'}</td>
                             <td className="py-3 px-4 text-gray-600">
                               {vital.vitalsCreatedAt ? (typeof vital.vitalsCreatedAt === 'string' ? new Date(vital.vitalsCreatedAt).toLocaleString() : String(vital.vitalsCreatedAt)) : 'N/A'}
                             </td>
@@ -1772,24 +1787,15 @@ export function ManageIPDAdmission() {
                               </Badge>
                             </td>
                             <td className="py-3 px-4">
-                              <div className="flex items-center gap-2">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleViewVisitVitals(vital)}
-                                  className="h-8 w-8 p-0"
-                                >
-                                  <Eye className="h-4 w-4 text-blue-600" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleOpenEditVisitVitalsDialog(vital)}
-                                  className="h-8 w-8 p-0"
-                                >
-                                  <Edit className="h-4 w-4 text-green-600" />
-                                </Button>
-                              </div>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleOpenEditVisitVitalsDialog(vital)}
+                                className="gap-1"
+                              >
+                                <Edit className="size-3" />
+                                View & Edit
+                              </Button>
                             </td>
                           </tr>
                         ))}
@@ -1837,9 +1843,18 @@ export function ManageIPDAdmission() {
                   <Label htmlFor="ipdLabTestPatientId">Patient ID</Label>
                   <Input
                     id="ipdLabTestPatientId"
-                    value={ipdLabTestFormData.patientId}
-                    onChange={(e) => setIpdLabTestFormData({ ...ipdLabTestFormData, patientId: e.target.value })}
-                    placeholder="Enter Patient ID"
+                    value={admission?.patientId || ipdLabTestFormData.patientId || ''}
+                    disabled
+                    className="bg-gray-100"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="ipdLabTestPatientNo">Patient No</Label>
+                  <Input
+                    id="ipdLabTestPatientNo"
+                    value={admission?.patientNo || 'N/A'}
+                    disabled
+                    className="bg-gray-100"
                   />
                 </div>
                 <div>
@@ -1925,7 +1940,6 @@ export function ManageIPDAdmission() {
                     required
                   >
                     <option value="Normal">Normal</option>
-                    <option value="High">High</option>
                     <option value="Urgent">Urgent</option>
                   </select>
                 </div>
@@ -1940,45 +1954,62 @@ export function ManageIPDAdmission() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="ipdOrderedBy">Ordered By</Label>
-                  <Input
-                    id="ipdOrderedBy"
-                    value={ipdLabTestFormData.orderedBy}
-                    onChange={(e) => setIpdLabTestFormData({ ...ipdLabTestFormData, orderedBy: e.target.value })}
-                    placeholder="Enter name of person ordering"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="ipdCharges">Charges</Label>
-                  <Input
-                    id="ipdCharges"
-                    type="number"
-                    value={ipdLabTestFormData.charges}
-                    onChange={(e) => setIpdLabTestFormData({ ...ipdLabTestFormData, charges: e.target.value })}
-                    placeholder="Enter charges (optional)"
-                  />
-                </div>
-                <div className="col-span-2">
-                  <Label htmlFor="ipdDescription">Description</Label>
-                  <Textarea
-                    id="ipdDescription"
-                    value={ipdLabTestFormData.description}
-                    onChange={(e) => setIpdLabTestFormData({ ...ipdLabTestFormData, description: e.target.value })}
-                    placeholder="Enter description (optional)"
-                    rows={4}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="ipdPatientType">Patient Type *</Label>
-                  <select
-                    id="ipdPatientType"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-100"
-                    value={ipdLabTestFormData.patientType}
-                    disabled
-                    required
-                  >
-                    <option value="IPD">IPD</option>
-                  </select>
+                  <Label htmlFor="ipdOrderedByDoctorId">Ordered By Doctor *</Label>
+                  <div className="relative">
+                    <Input
+                      id="ipdOrderedByDoctorId"
+                      placeholder="Search doctor by name..."
+                      value={ipdLabTestDoctorSearchTerm}
+                      onChange={(e) => {
+                        setIpdLabTestDoctorSearchTerm(e.target.value);
+                        setShowIpdLabTestDoctorList(true);
+                      }}
+                      onFocus={() => setShowIpdLabTestDoctorList(true)}
+                    />
+                    {showIpdLabTestDoctorList && availableDoctors.length > 0 && (
+                      <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                        <table className="w-full text-sm">
+                          <thead className="bg-gray-50 sticky top-0">
+                            <tr>
+                              <th className="py-2 px-3 text-left text-xs font-medium text-gray-700">Doctor Name</th>
+                              <th className="py-2 px-3 text-left text-xs font-medium text-gray-700">Specialization</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {availableDoctors.filter((doctor: any) => {
+                              if (!ipdLabTestDoctorSearchTerm) return true;
+                              const searchLower = ipdLabTestDoctorSearchTerm.toLowerCase();
+                              const doctorName = doctor.name || doctor.Name || doctor.doctorName || doctor.DoctorName || '';
+                              const specialization = doctor.specialization || doctor.Specialization || doctor.speciality || doctor.Speciality || '';
+                              return (
+                                doctorName.toLowerCase().includes(searchLower) ||
+                                specialization.toLowerCase().includes(searchLower)
+                              );
+                            }).map((doctor: any) => {
+                              const doctorId = doctor.id || doctor.Id || doctor.doctorId || doctor.DoctorId || '';
+                              const doctorName = doctor.name || doctor.Name || doctor.doctorName || doctor.DoctorName || '';
+                              const specialization = doctor.specialization || doctor.Specialization || doctor.speciality || doctor.Speciality || '';
+                              const isSelected = ipdLabTestFormData.orderedByDoctorId === String(doctorId);
+                              return (
+                                <tr
+                                  key={doctorId}
+                                  onClick={() => {
+                                    setIpdLabTestFormData({ ...ipdLabTestFormData, orderedByDoctorId: String(doctorId) });
+                                    setIpdLabTestDoctorSearchTerm(doctorName);
+                                    setShowIpdLabTestDoctorList(false);
+                                  }}
+                                  className={`border-b border-gray-100 cursor-pointer hover:bg-blue-50 ${isSelected ? 'bg-blue-100' : ''}`}
+                                >
+                                  <td className="py-2 px-3 text-sm text-gray-900">{doctorName}</td>
+                                  <td className="py-2 px-3 text-sm text-gray-600">{specialization || '-'}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
                 </div>
                 {ipdLabTestFormData.patientType === 'OPD' && (
                   <div>
@@ -2054,7 +2085,12 @@ export function ManageIPDAdmission() {
           <DialogFooter className="px-6 pb-4 flex-shrink-0">
             <Button
               variant="outline"
-              onClick={() => setIsAddIPDLabTestDialogOpen(false)}
+              onClick={() => {
+                setIsAddIPDLabTestDialogOpen(false);
+                setIsEditIPDLabTestDialogOpen(false);
+                setEditingLabTestId(null);
+                setIpdLabTestSubmitError(null);
+              }}
               disabled={ipdLabTestSubmitting}
             >
               Cancel
@@ -2063,7 +2099,9 @@ export function ManageIPDAdmission() {
               onClick={handleSaveIPDLabTest}
               disabled={ipdLabTestSubmitting}
             >
-              {ipdLabTestSubmitting ? 'Saving...' : 'Save'}
+              {ipdLabTestSubmitting 
+                ? (editingLabTestId ? 'Updating...' : 'Saving...') 
+                : (editingLabTestId ? "Update Patient's Lab test" : 'Save')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -2306,6 +2344,8 @@ export function ManageIPDAdmission() {
                     onChange={(e) => setDoctorVisitFormData({ ...doctorVisitFormData, patientId: e.target.value })}
                     placeholder="Enter Patient ID"
                     required
+                    disabled
+                    className="bg-gray-100"
                   />
                 </div>
                 <div>
@@ -2409,15 +2449,6 @@ export function ManageIPDAdmission() {
                     value={doctorVisitFormData.patientCondition}
                     onChange={(e) => setDoctorVisitFormData({ ...doctorVisitFormData, patientCondition: e.target.value })}
                     placeholder="Enter patient condition (optional)"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="doctorVisitCreatedBy">Visit Created By</Label>
-                  <Input
-                    id="doctorVisitCreatedBy"
-                    value={doctorVisitFormData.visitCreatedBy}
-                    onChange={(e) => setDoctorVisitFormData({ ...doctorVisitFormData, visitCreatedBy: e.target.value })}
-                    placeholder="Enter creator name (optional)"
                   />
                 </div>
                 <div>
@@ -2605,6 +2636,8 @@ export function ManageIPDAdmission() {
                     onChange={(e) => setVisitVitalsFormData({ ...visitVitalsFormData, patientId: e.target.value })}
                     placeholder="Enter Patient ID"
                     required
+                    disabled
+                    className="bg-gray-100"
                   />
                 </div>
                 <div>
@@ -2793,15 +2826,6 @@ export function ManageIPDAdmission() {
                   </select>
                 </div>
                 <div>
-                  <Label htmlFor="visitVitalsCreatedBy">Vitals Created By</Label>
-                  <Input
-                    id="visitVitalsCreatedBy"
-                    value={visitVitalsFormData.vitalsCreatedBy}
-                    onChange={(e) => setVisitVitalsFormData({ ...visitVitalsFormData, vitalsCreatedBy: e.target.value })}
-                    placeholder="Enter creator name (optional)"
-                  />
-                </div>
-                <div>
                   <Label htmlFor="visitVitalsCreatedAt">Vitals Created At</Label>
                   <Input
                     id="visitVitalsCreatedAt"
@@ -2809,16 +2833,6 @@ export function ManageIPDAdmission() {
                     value={visitVitalsFormData.vitalsCreatedAt ? new Date(visitVitalsFormData.vitalsCreatedAt).toISOString().slice(0, 16) : ''}
                     onChange={(e) => setVisitVitalsFormData({ ...visitVitalsFormData, vitalsCreatedAt: e.target.value ? new Date(e.target.value).toISOString() : '' })}
                     placeholder="Enter creation date (optional)"
-                  />
-                </div>
-                <div className="col-span-2">
-                  <Label htmlFor="visitVitalsRemarks">Visit Remarks</Label>
-                  <Textarea
-                    id="visitVitalsRemarks"
-                    value={visitVitalsFormData.visitRemarks}
-                    onChange={(e) => setVisitVitalsFormData({ ...visitVitalsFormData, visitRemarks: e.target.value })}
-                    placeholder="Enter visit remarks (optional)"
-                    rows={3}
                   />
                 </div>
                 <div className="col-span-2">
