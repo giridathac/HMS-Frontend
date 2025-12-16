@@ -202,7 +202,7 @@
   padding-right: 1.5rem;
   color: rgb(55, 65, 81); /* text-gray-700 */
   font-size: 1.125rem; /* 18px */
-  font-weight: 500;
+  font-weight: 700; /* font-bold */
 }
 
 /* Table body row */
@@ -585,4 +585,27 @@
 
 .dialog-content-scrollable::-webkit-scrollbar-thumb:hover {
   background: #d1d5db;
+}
+
+/* ============================================
+   Manage Button Styling
+   ============================================ */
+
+/* Manage button - light grey with dark text */
+.dashboard-manage-button {
+  height: 2rem; /* h-8 */
+  padding-left: 0.75rem; /* px-3 */
+  padding-right: 0.75rem;
+  font-size: 0.875rem; /* text-sm */
+  display: flex;
+  align-items: center;
+  gap: 0.5rem; /* gap-2 */
+  background-color: rgb(243, 244, 246); /* bg-gray-100 */
+  color: rgb(55, 65, 81); /* text-gray-700 */
+  border: 1px solid rgb(209, 213, 219); /* border-gray-300 */
+}
+
+.dashboard-manage-button:hover {
+  background-color: rgb(229, 231, 235); /* hover:bg-gray-200 */
+  color: rgb(31, 41, 55); /* hover:text-gray-800 */
 }

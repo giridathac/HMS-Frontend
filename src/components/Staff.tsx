@@ -5,6 +5,7 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Tabs, TabsList, TabsTrigger } from './ui/tabs';
+import { Switch } from './ui/switch';
 import { Plus, Trash2, Edit, Users, Search } from 'lucide-react';
 import { useStaff } from '../hooks/useStaff';
 import { useDepartments } from '../hooks/useDepartments';
@@ -331,19 +332,20 @@ function StaffView({
           Add Staff
         </Button>
       </DialogTrigger>
-        <DialogContent className="p-0 gap-0 large-dialog bg-white">
-          <DialogHeader className="px-6 pt-4 pb-3 flex-shrink-0 bg-white">
-            <DialogTitle className="text-gray-700">Add New Staff Member</DialogTitle>
-          </DialogHeader>
-          <div className="flex-1 overflow-y-auto px-6 pb-1 patient-list-scrollable min-h-0 bg-white">
-            <div className="space-y-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="roleId" className="text-gray-600">Role *</Label>
-                <select
-                  id="roleId"
-                  aria-label="Role"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-50 text-gray-900"
+        <DialogContent className="p-0 gap-0 large-dialog dialog-content-standard">
+          <div className="dialog-scrollable-wrapper dialog-content-scrollable">
+            <DialogHeader className="dialog-header-standard">
+              <DialogTitle className="dialog-title-standard-view">Add New Staff Member</DialogTitle>
+            </DialogHeader>
+            <div className="dialog-body-content-wrapper">
+              <div className="dialog-form-container">
+                <div className="dialog-form-field-grid">
+                  <div className="dialog-field-single-column">
+                    <Label htmlFor="roleId" className="dialog-label-standard">Role *</Label>
+                    <select
+                      id="roleId"
+                      aria-label="Role"
+                      className="dialog-select-standard"
                   value={formData.RoleId}
                   onChange={(e) => {
                     const newRoleId = e.target.value;
@@ -370,84 +372,69 @@ function StaffView({
                   {roles.filter(r => r && r.id && r.name).map(role => (
                     <option key={role.id} value={role.id}>{role.name}</option>
                   ))}
-                </select>
-              </div>
-              <div>
-                <Label htmlFor="userName" className="text-gray-600">User Name *</Label>
-                <Input
-                  id="userName"
-                  placeholder="Enter user name"
-                  value={formData.UserName}
-                  onChange={(e) => setFormData({ ...formData, UserName: e.target.value })}
-                  className="bg-gray-50 text-gray-900"
-                  required
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="password" className="text-gray-600">Password *</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="Enter password"
-                  value={formData.Password}
-                  onChange={(e) => setFormData({ ...formData, Password: e.target.value })}
-                  className="bg-gray-50 text-gray-900"
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="phoneNo" className="text-gray-600">Phone Number</Label>
-                <Input
-                  id="phoneNo"
-                  placeholder="Enter phone number"
-                  value={formData.PhoneNo}
-                  onChange={(e) => setFormData({ ...formData, PhoneNo: e.target.value })}
-                  className="bg-gray-50 text-gray-900"
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="emailId" className="text-gray-600">Email</Label>
-                <Input
-                  id="emailId"
-                  type="email"
-                  placeholder="Enter email"
-                  value={formData.EmailId}
-                  onChange={(e) => setFormData({ ...formData, EmailId: e.target.value })}
-                  className="bg-gray-50 text-gray-900"
-                />
-              </div>
-              <div>
-                <Label htmlFor="status" className="text-gray-600">Status</Label>
-                <select
-                  id="status"
-                  aria-label="Status"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-50 text-gray-900"
-                  value={formData.Status}
-                  onChange={(e) => setFormData({ ...formData, Status: e.target.value as 'Active' | 'InActive' })}
-                >
-                  <option value="Active">Active</option>
-                  <option value="InActive">InActive</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Doctor-specific fields */}
-            {selectedRoleIsDoctor && (
-              <>
-                <div className="border-t pt-4 mt-4">
-                  <h3 className="text-sm font-semibold mb-4 text-gray-700">Doctor Information</h3>
+                    </select>
+                  </div>
+                  <div className="dialog-field-single-column">
+                    <Label htmlFor="userName" className="dialog-label-standard">User Name *</Label>
+                    <Input
+                      id="userName"
+                      placeholder="Enter user name"
+                      value={formData.UserName}
+                      onChange={(e) => setFormData({ ...formData, UserName: e.target.value })}
+                      className="dialog-input-standard"
+                      required
+                    />
+                  </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="doctorDepartmentId" className="text-gray-600">Department</Label>
-                    <select
-                      id="doctorDepartmentId"
-                      aria-label="Department"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-50 text-gray-900"
+                <div className="dialog-form-field-grid">
+                  <div className="dialog-field-single-column">
+                    <Label htmlFor="password" className="dialog-label-standard">Password *</Label>
+                    <Input
+                      id="password"
+                      type="password"
+                      placeholder="Enter password"
+                      value={formData.Password}
+                      onChange={(e) => setFormData({ ...formData, Password: e.target.value })}
+                      className="dialog-input-standard"
+                      required
+                    />
+                  </div>
+                  <div className="dialog-field-single-column">
+                    <Label htmlFor="phoneNo" className="dialog-label-standard">Phone Number</Label>
+                    <Input
+                      id="phoneNo"
+                      placeholder="Enter phone number"
+                      value={formData.PhoneNo}
+                      onChange={(e) => setFormData({ ...formData, PhoneNo: e.target.value })}
+                      className="dialog-input-standard"
+                    />
+                  </div>
+                </div>
+                <div className="dialog-form-field">
+                  <Label htmlFor="emailId" className="dialog-label-standard">Email</Label>
+                  <Input
+                    id="emailId"
+                    type="email"
+                    placeholder="Enter email"
+                    value={formData.EmailId}
+                    onChange={(e) => setFormData({ ...formData, EmailId: e.target.value })}
+                    className="dialog-input-standard"
+                  />
+                </div>
+
+                {/* Doctor-specific fields */}
+                {selectedRoleIsDoctor && (
+                  <>
+                    <div className="dialog-form-field">
+                      <h3 className="text-sm font-semibold mb-4 text-gray-700">Doctor Information</h3>
+                    </div>
+                    <div className="dialog-form-field-grid">
+                      <div className="dialog-field-single-column">
+                        <Label htmlFor="doctorDepartmentId" className="dialog-label-standard">Department</Label>
+                        <select
+                          id="doctorDepartmentId"
+                          aria-label="Department"
+                          className="dialog-select-standard"
                       value={formData.DoctorDepartmentId}
                       onChange={(e) => setFormData({ ...formData, DoctorDepartmentId: e.target.value })}
                     >
@@ -460,127 +447,147 @@ function StaffView({
                         ))
                       ) : (
                         <option value="" disabled>Loading departments...</option>
-                      )}
-                    </select>
-                  </div>
-                  <div>
-                    <Label htmlFor="doctorQualification" className="text-gray-600">Qualification</Label>
-                    <Input
-                      id="doctorQualification"
-                      placeholder="e.g., MBBS, MD"
-                      value={formData.DoctorQualification}
-                      onChange={(e) => setFormData({ ...formData, DoctorQualification: e.target.value })}
-                      className="bg-gray-50 text-gray-900"
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="doctorType" className="text-gray-600">Doctor Type</Label>
-                    <select
-                      id="doctorType"
-                      aria-label="Doctor Type"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-50 text-gray-900"
+                        )}
+                        </select>
+                      </div>
+                      <div className="dialog-field-single-column">
+                        <Label htmlFor="doctorQualification" className="dialog-label-standard">Qualification</Label>
+                        <Input
+                          id="doctorQualification"
+                          placeholder="e.g., MBBS, MD"
+                          value={formData.DoctorQualification}
+                          onChange={(e) => setFormData({ ...formData, DoctorQualification: e.target.value })}
+                          className="dialog-input-standard"
+                        />
+                      </div>
+                    </div>
+                    <div className="dialog-form-field-grid">
+                      <div className="dialog-field-single-column">
+                        <Label htmlFor="doctorType" className="dialog-label-standard">Doctor Type</Label>
+                        <select
+                          id="doctorType"
+                          aria-label="Doctor Type"
+                          className="dialog-select-standard"
                       value={formData.DoctorType || ''}
                       onChange={(e) => setFormData({ ...formData, DoctorType: e.target.value as 'INHOUSE' | 'VISITING' || undefined })}
                     >
                       <option value="">Select type</option>
                       <option value="INHOUSE">INHOUSE</option>
-                      <option value="VISITING">VISITING</option>
-                    </select>
+                        <option value="VISITING">VISITING</option>
+                      </select>
+                    </div>
+                    <div className="dialog-field-single-column">
+                      <Label htmlFor="doctorOPDCharge" className="dialog-label-standard">OPD Charge</Label>
+                      <Input
+                        id="doctorOPDCharge"
+                        type="number"
+                        placeholder="Enter OPD charge"
+                        value={formData.DoctorOPDCharge || ''}
+                        onChange={(e) => setFormData({ ...formData, DoctorOPDCharge: e.target.value ? Number(e.target.value) : undefined })}
+                        className="dialog-input-standard"
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <Label htmlFor="doctorOPDCharge" className="text-gray-600">OPD Charge</Label>
-                    <Input
-                      id="doctorOPDCharge"
-                      type="number"
-                      placeholder="Enter OPD charge"
-                      value={formData.DoctorOPDCharge || ''}
-                      onChange={(e) => setFormData({ ...formData, DoctorOPDCharge: e.target.value ? Number(e.target.value) : undefined })}
-                      className="bg-gray-50 text-gray-900"
-                    />
+                  <div className="dialog-form-field-grid">
+                    <div className="dialog-field-single-column">
+                      <Label htmlFor="doctorSurgeryCharge" className="dialog-label-standard">Surgery Charge</Label>
+                      <Input
+                        id="doctorSurgeryCharge"
+                        type="number"
+                        placeholder="Enter surgery charge"
+                        value={formData.DoctorSurgeryCharge || ''}
+                        onChange={(e) => setFormData({ ...formData, DoctorSurgeryCharge: e.target.value ? Number(e.target.value) : undefined })}
+                        className="dialog-input-standard"
+                      />
+                    </div>
                   </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="doctorSurgeryCharge" className="text-gray-600">Surgery Charge</Label>
-                    <Input
-                      id="doctorSurgeryCharge"
-                      type="number"
-                      placeholder="Enter surgery charge"
-                      value={formData.DoctorSurgeryCharge || ''}
-                      onChange={(e) => setFormData({ ...formData, DoctorSurgeryCharge: e.target.value ? Number(e.target.value) : undefined })}
-                      className="bg-gray-50 text-gray-900"
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="opdConsultation" className="text-gray-600">OPD Consultation</Label>
-                    <select
-                      id="opdConsultation"
-                      aria-label="OPD Consultation"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-50 text-gray-900"
+                  <div className="dialog-form-field-grid">
+                    <div className="dialog-field-single-column">
+                      <Label htmlFor="opdConsultation" className="dialog-label-standard">OPD Consultation</Label>
+                      <select
+                        id="opdConsultation"
+                        aria-label="OPD Consultation"
+                        className="dialog-select-standard"
                       value={formData.OPDConsultation || ''}
                       onChange={(e) => setFormData({ ...formData, OPDConsultation: e.target.value as 'Yes' | 'No' || undefined })}
                     >
                       <option value="">Select</option>
                       <option value="Yes">Yes</option>
-                      <option value="No">No</option>
-                    </select>
-                  </div>
-                  <div>
-                    <Label htmlFor="ipdVisit" className="text-gray-600">IPD Visit</Label>
-                    <select
-                      id="ipdVisit"
-                      aria-label="IPD Visit"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-50 text-gray-900"
+                        <option value="No">No</option>
+                      </select>
+                    </div>
+                    <div className="dialog-field-single-column">
+                      <Label htmlFor="ipdVisit" className="dialog-label-standard">IPD Visit</Label>
+                      <select
+                        id="ipdVisit"
+                        aria-label="IPD Visit"
+                        className="dialog-select-standard"
                       value={formData.IPDVisit || ''}
                       onChange={(e) => setFormData({ ...formData, IPDVisit: e.target.value as 'Yes' | 'No' || undefined })}
                     >
                       <option value="">Select</option>
                       <option value="Yes">Yes</option>
-                      <option value="No">No</option>
-                    </select>
+                        <option value="No">No</option>
+                      </select>
+                    </div>
                   </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="otHandle" className="text-gray-600">OT Handle</Label>
-                    <select
-                      id="otHandle"
-                      aria-label="OT Handle"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-50 text-gray-900"
+                  <div className="dialog-form-field-grid">
+                    <div className="dialog-field-single-column">
+                      <Label htmlFor="otHandle" className="dialog-label-standard">OT Handle</Label>
+                      <select
+                        id="otHandle"
+                        aria-label="OT Handle"
+                        className="dialog-select-standard"
                       value={formData.OTHandle || ''}
                       onChange={(e) => setFormData({ ...formData, OTHandle: e.target.value as 'Yes' | 'No' || undefined })}
                     >
                       <option value="">Select</option>
                       <option value="Yes">Yes</option>
-                      <option value="No">No</option>
-                    </select>
-                  </div>
-                  <div>
-                    <Label htmlFor="icuVisits" className="text-gray-600">ICU Visits</Label>
-                    <select
-                      id="icuVisits"
-                      aria-label="ICU Visits"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-50 text-gray-900"
+                        <option value="No">No</option>
+                      </select>
+                    </div>
+                    <div className="dialog-field-single-column">
+                      <Label htmlFor="icuVisits" className="dialog-label-standard">ICU Visits</Label>
+                      <select
+                        id="icuVisits"
+                        aria-label="ICU Visits"
+                        className="dialog-select-standard"
                       value={formData.ICUVisits || ''}
                       onChange={(e) => setFormData({ ...formData, ICUVisits: e.target.value as 'Yes' | 'No' || undefined })}
                     >
                       <option value="">Select</option>
                       <option value="Yes">Yes</option>
-                      <option value="No">No</option>
-                    </select>
+                        <option value="No">No</option>
+                      </select>
+                    </div>
                   </div>
-                </div>
-              </>
-            )}
+                </>
+              )}
+              </div>
             </div>
-          </div>
-          <div className="flex justify-end gap-2 pt-4 border-t bg-white px-6 pb-4">
-            <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleAddSubmit}>Add Staff</Button>
+            <div className="dialog-footer-standard">
+              <Button variant="outline" onClick={() => {
+                setIsAddDialogOpen(false);
+                setFormData({
+                  RoleId: '',
+                  UserName: '',
+                  Password: '',
+                  PhoneNo: '',
+                  EmailId: '',
+                  DoctorDepartmentId: '',
+                  DoctorQualification: '',
+                  DoctorType: undefined,
+                  DoctorOPDCharge: undefined,
+                  DoctorSurgeryCharge: undefined,
+                  OPDConsultation: undefined,
+                  IPDVisit: undefined,
+                  OTHandle: undefined,
+                  ICUVisits: undefined,
+                  Status: 'Active',
+                });
+              }} className="dialog-footer-button">Cancel</Button>
+              <Button onClick={handleAddSubmit} className="dialog-footer-button">Add Staff</Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
@@ -677,15 +684,17 @@ function StaffView({
                     </span>
                   </td>
                   <td className="py-4 px-6">
-                    <div className="flex gap-2">
-                      <Button variant="ghost" size="sm" onClick={() => handleEdit(member)}>
+                    <div className="dashboard-actions-container">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleEdit(member)}
+                        className="dashboard-manage-button"
+                        title="Manage Staff"
+                      >
                         <Edit className="size-4" />
+                        Manage
                       </Button>
-                      {member.UserId && (
-                        <Button variant="ghost" size="sm" onClick={() => onDeleteStaff(member.UserId!)}>
-                          <Trash2 className="size-4 text-red-600" />
-                        </Button>
-                      )}
                     </div>
                   </td>
                 </tr>
@@ -709,19 +718,20 @@ function StaffView({
 
       {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="p-0 gap-0 large-dialog bg-white">
-          <DialogHeader className="px-6 pt-4 pb-3 flex-shrink-0 bg-white">
-            <DialogTitle className="text-gray-700">Edit Staff Member</DialogTitle>
-          </DialogHeader>
-          <div className="flex-1 overflow-y-auto px-6 pb-1 patient-list-scrollable min-h-0 bg-white">
-            <div className="space-y-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="edit-roleId" className="text-gray-600">Role *</Label>
-                <select
-                  id="edit-roleId"
-                  aria-label="Role"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-50 text-gray-900"
+        <DialogContent className="p-0 gap-0 large-dialog dialog-content-standard">
+          <div className="dialog-scrollable-wrapper dialog-content-scrollable">
+            <DialogHeader className="dialog-header-standard">
+              <DialogTitle className="dialog-title-standard-view">Edit Staff Member</DialogTitle>
+            </DialogHeader>
+            <div className="dialog-body-content-wrapper">
+              <div className="dialog-form-container">
+                <div className="dialog-form-field-grid">
+                  <div className="dialog-field-single-column">
+                    <Label htmlFor="edit-roleId" className="dialog-label-standard">Role *</Label>
+                    <select
+                      id="edit-roleId"
+                      aria-label="Role"
+                      className="dialog-select-standard"
                   value={formData.RoleId}
                   onChange={(e) => {
                     const newRoleId = e.target.value;
@@ -747,73 +757,82 @@ function StaffView({
                   <option value="">Select a role</option>
                   {roles.filter(r => r && r.id && r.name).map(role => (
                     <option key={role.id} value={role.id}>{role.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <Label htmlFor="edit-userName" className="text-gray-600">User Name *</Label>
-                <Input
-                  id="edit-userName"
-                  placeholder="Enter user name"
-                  value={formData.UserName}
-                  onChange={(e) => setFormData({ ...formData, UserName: e.target.value })}
-                  className="bg-gray-50 text-gray-900"
-                  required
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="edit-phoneNo" className="text-gray-600">Phone Number</Label>
-                <Input
-                  id="edit-phoneNo"
-                  placeholder="Enter phone number"
-                  value={formData.PhoneNo}
-                  onChange={(e) => setFormData({ ...formData, PhoneNo: e.target.value })}
-                  className="bg-gray-50 text-gray-900"
-                />
-              </div>
-              <div>
-                <Label htmlFor="edit-emailId" className="text-gray-600">Email</Label>
-                <Input
-                  id="edit-emailId"
-                  type="email"
-                  placeholder="Enter email"
-                  value={formData.EmailId}
-                  onChange={(e) => setFormData({ ...formData, EmailId: e.target.value })}
-                  className="bg-gray-50 text-gray-900"
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="edit-status" className="text-gray-600">Status</Label>
-                <select
-                  id="edit-status"
-                  aria-label="Status"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-50 text-gray-900"
-                  value={formData.Status}
-                  onChange={(e) => setFormData({ ...formData, Status: e.target.value as 'Active' | 'InActive' })}
-                >
-                  <option value="Active">Active</option>
-                  <option value="InActive">InActive</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Doctor-specific fields */}
-            {selectedRoleIsDoctor && (
-              <>
-                <div className="border-t pt-4 mt-4">
-                  <h3 className="text-sm font-semibold mb-4 text-gray-700">Doctor Information</h3>
+                    ))}
+                    </select>
+                  </div>
+                  <div className="dialog-field-single-column">
+                    <Label htmlFor="edit-userName" className="dialog-label-standard">User Name *</Label>
+                    <Input
+                      id="edit-userName"
+                      placeholder="Enter user name"
+                      value={formData.UserName}
+                      onChange={(e) => setFormData({ ...formData, UserName: e.target.value })}
+                      className="dialog-input-standard"
+                      required
+                    />
+                  </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="edit-doctorDepartmentId" className="text-gray-600">Department</Label>
-                    <select
-                      id="edit-doctorDepartmentId"
-                      aria-label="Department"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-50 text-gray-900"
+                <div className="dialog-form-field-grid">
+                  <div className="dialog-field-single-column">
+                    <Label htmlFor="edit-phoneNo" className="dialog-label-standard">Phone Number</Label>
+                    <Input
+                      id="edit-phoneNo"
+                      placeholder="Enter phone number"
+                      value={formData.PhoneNo}
+                      onChange={(e) => setFormData({ ...formData, PhoneNo: e.target.value })}
+                      className="dialog-input-standard"
+                    />
+                  </div>
+                  <div className="dialog-field-single-column">
+                    <Label htmlFor="edit-emailId" className="dialog-label-standard">Email</Label>
+                    <Input
+                      id="edit-emailId"
+                      type="email"
+                      placeholder="Enter email"
+                      value={formData.EmailId}
+                      onChange={(e) => setFormData({ ...formData, EmailId: e.target.value })}
+                      className="dialog-input-standard"
+                    />
+                  </div>
+                </div>
+                <div className="dialog-form-field">
+                  <div className="flex items-center gap-3">
+                    <Label htmlFor="edit-status" className="dialog-label-standard">Status</Label>
+                    <div className="flex-shrink-0 relative" style={{ zIndex: 1 }}>
+                      <Switch
+                        id="edit-status"
+                        checked={formData.Status === 'Active'}
+                        onCheckedChange={(checked) => {
+                          setFormData({ ...formData, Status: checked ? 'Active' : 'InActive' });
+                        }}
+                        className="data-[state=checked]:bg-blue-600 data-[state=unchecked]:bg-gray-300 [&_[data-slot=switch-thumb]]:!bg-white [&_[data-slot=switch-thumb]]:!border [&_[data-slot=switch-thumb]]:!border-gray-400 [&_[data-slot=switch-thumb]]:!shadow-sm"
+                        style={{
+                          width: '2.5rem',
+                          height: '1.5rem',
+                          minWidth: '2.5rem',
+                          minHeight: '1.5rem',
+                          display: 'inline-flex',
+                          position: 'relative',
+                          backgroundColor: formData.Status === 'Active' ? '#2563eb' : '#d1d5db',
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Doctor-specific fields */}
+                {selectedRoleIsDoctor && (
+                  <>
+                    <div className="dialog-form-field">
+                      <h3 className="text-sm font-semibold mb-4 text-gray-700">Doctor Information</h3>
+                    </div>
+                    <div className="dialog-form-field-grid">
+                      <div className="dialog-field-single-column">
+                        <Label htmlFor="edit-doctorDepartmentId" className="dialog-label-standard">Department</Label>
+                        <select
+                          id="edit-doctorDepartmentId"
+                          aria-label="Department"
+                          className="dialog-select-standard"
                       value={formData.DoctorDepartmentId}
                       onChange={(e) => setFormData({ ...formData, DoctorDepartmentId: e.target.value })}
                     >
@@ -827,66 +846,66 @@ function StaffView({
                       ) : (
                         <option value="" disabled>Loading departments...</option>
                       )}
-                    </select>
+                      </select>
+                    </div>
+                    <div className="dialog-field-single-column">
+                      <Label htmlFor="edit-doctorQualification" className="dialog-label-standard">Qualification</Label>
+                      <Input
+                        id="edit-doctorQualification"
+                        placeholder="e.g., MBBS, MD"
+                        value={formData.DoctorQualification}
+                        onChange={(e) => setFormData({ ...formData, DoctorQualification: e.target.value })}
+                        className="dialog-input-standard"
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <Label htmlFor="edit-doctorQualification" className="text-gray-600">Qualification</Label>
-                    <Input
-                      id="edit-doctorQualification"
-                      placeholder="e.g., MBBS, MD"
-                      value={formData.DoctorQualification}
-                      onChange={(e) => setFormData({ ...formData, DoctorQualification: e.target.value })}
-                      className="bg-gray-50 text-gray-900"
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="edit-doctorType" className="text-gray-600">Doctor Type</Label>
-                    <select
-                      id="edit-doctorType"
-                      aria-label="Doctor Type"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-50 text-gray-900"
+                    <div className="dialog-form-field-grid">
+                      <div className="dialog-field-single-column">
+                        <Label htmlFor="edit-doctorType" className="dialog-label-standard">Doctor Type</Label>
+                        <select
+                          id="edit-doctorType"
+                          aria-label="Doctor Type"
+                          className="dialog-select-standard"
                       value={formData.DoctorType || ''}
                       onChange={(e) => setFormData({ ...formData, DoctorType: e.target.value as 'INHOUSE' | 'VISITING' || undefined })}
                     >
                       <option value="">Select type</option>
                       <option value="INHOUSE">INHOUSE</option>
-                      <option value="VISITING">VISITING</option>
-                    </select>
+                        <option value="VISITING">VISITING</option>
+                      </select>
+                    </div>
+                    <div className="dialog-field-single-column">
+                      <Label htmlFor="edit-doctorOPDCharge" className="dialog-label-standard">OPD Charge</Label>
+                      <Input
+                        id="edit-doctorOPDCharge"
+                        type="number"
+                        placeholder="Enter OPD charge"
+                        value={formData.DoctorOPDCharge || ''}
+                        onChange={(e) => setFormData({ ...formData, DoctorOPDCharge: e.target.value ? Number(e.target.value) : undefined })}
+                        className="dialog-input-standard"
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <Label htmlFor="edit-doctorOPDCharge" className="text-gray-600">OPD Charge</Label>
-                    <Input
-                      id="edit-doctorOPDCharge"
-                      type="number"
-                      placeholder="Enter OPD charge"
-                      value={formData.DoctorOPDCharge || ''}
-                      onChange={(e) => setFormData({ ...formData, DoctorOPDCharge: e.target.value ? Number(e.target.value) : undefined })}
-                      className="bg-gray-50 text-gray-900"
-                    />
+                  <div className="dialog-form-field-grid">
+                    <div className="dialog-field-single-column">
+                      <Label htmlFor="edit-doctorSurgeryCharge" className="dialog-label-standard">Surgery Charge</Label>
+                      <Input
+                        id="edit-doctorSurgeryCharge"
+                        type="number"
+                        placeholder="Enter surgery charge"
+                        value={formData.DoctorSurgeryCharge || ''}
+                        onChange={(e) => setFormData({ ...formData, DoctorSurgeryCharge: e.target.value ? Number(e.target.value) : undefined })}
+                        className="dialog-input-standard"
+                      />
+                    </div>
                   </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="edit-doctorSurgeryCharge" className="text-gray-600">Surgery Charge</Label>
-                    <Input
-                      id="edit-doctorSurgeryCharge"
-                      type="number"
-                      placeholder="Enter surgery charge"
-                      value={formData.DoctorSurgeryCharge || ''}
-                      onChange={(e) => setFormData({ ...formData, DoctorSurgeryCharge: e.target.value ? Number(e.target.value) : undefined })}
-                      className="bg-gray-50 text-gray-900"
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="edit-opdConsultation" className="text-gray-600">OPD Consultation</Label>
-                    <select
-                      id="edit-opdConsultation"
-                      aria-label="OPD Consultation"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-50 text-gray-900"
+                  <div className="dialog-form-field-grid">
+                    <div className="dialog-field-single-column">
+                      <Label htmlFor="edit-opdConsultation" className="dialog-label-standard">OPD Consultation</Label>
+                      <select
+                        id="edit-opdConsultation"
+                        aria-label="OPD Consultation"
+                        className="dialog-select-standard"
                       value={formData.OPDConsultation || ''}
                       onChange={(e) => setFormData({ ...formData, OPDConsultation: e.target.value as 'Yes' | 'No' || undefined })}
                     >
@@ -896,11 +915,11 @@ function StaffView({
                     </select>
                   </div>
                   <div>
-                    <Label htmlFor="edit-ipdVisit" className="text-gray-600">IPD Visit</Label>
-                    <select
-                      id="edit-ipdVisit"
-                      aria-label="IPD Visit"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-50 text-gray-900"
+                      <Label htmlFor="edit-ipdVisit" className="dialog-label-standard">IPD Visit</Label>
+                      <select
+                        id="edit-ipdVisit"
+                        aria-label="IPD Visit"
+                        className="dialog-select-standard"
                       value={formData.IPDVisit || ''}
                       onChange={(e) => setFormData({ ...formData, IPDVisit: e.target.value as 'Yes' | 'No' || undefined })}
                     >
@@ -912,11 +931,11 @@ function StaffView({
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="edit-otHandle" className="text-gray-600">OT Handle</Label>
-                    <select
-                      id="edit-otHandle"
-                      aria-label="OT Handle"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-50 text-gray-900"
+                      <Label htmlFor="edit-otHandle" className="dialog-label-standard">OT Handle</Label>
+                      <select
+                        id="edit-otHandle"
+                        aria-label="OT Handle"
+                        className="dialog-select-standard"
                       value={formData.OTHandle || ''}
                       onChange={(e) => setFormData({ ...formData, OTHandle: e.target.value as 'Yes' | 'No' || undefined })}
                     >
@@ -926,27 +945,28 @@ function StaffView({
                     </select>
                   </div>
                   <div>
-                    <Label htmlFor="edit-icuVisits" className="text-gray-600">ICU Visits</Label>
-                    <select
-                      id="edit-icuVisits"
-                      aria-label="ICU Visits"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-50 text-gray-900"
+                      <Label htmlFor="edit-icuVisits" className="dialog-label-standard">ICU Visits</Label>
+                      <select
+                        id="edit-icuVisits"
+                        aria-label="ICU Visits"
+                        className="dialog-select-standard"
                       value={formData.ICUVisits || ''}
                       onChange={(e) => setFormData({ ...formData, ICUVisits: e.target.value as 'Yes' | 'No' || undefined })}
                     >
                       <option value="">Select</option>
                       <option value="Yes">Yes</option>
-                      <option value="No">No</option>
-                    </select>
+                        <option value="No">No</option>
+                      </select>
+                    </div>
                   </div>
-                </div>
-              </>
-            )}
+                </>
+              )}
+              </div>
             </div>
-          </div>
-          <div className="flex justify-end gap-2 pt-4 border-t bg-white px-6 pb-4">
-            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleEditSubmit}>Update Staff</Button>
+            <div className="dialog-footer-standard">
+              <Button variant="outline" onClick={() => setIsEditDialogOpen(false)} className="dialog-footer-button">Cancel</Button>
+              <Button onClick={handleEditSubmit} className="dialog-footer-button">Update Staff</Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

@@ -237,9 +237,15 @@ export const departmentsApi = {
     if (updateData.category !== undefined) {
       requestBody.DepartmentCategory = updateData.category;
     }
+    // Always include description field in update request (backend needs it to update)
+    // Send null for empty/undefined descriptions, trimmed string otherwise
     if (updateData.description !== undefined) {
-      requestBody.Description = updateData.description;
+      requestBody.Description = (updateData.description && updateData.description.trim() !== '') 
+        ? updateData.description.trim() 
+        : null;
     }
+    // Note: If description is undefined, we don't include it (partial update)
+    // But if it's explicitly provided (even as empty string), we include it
     if (updateData.specialisationDetails !== undefined) {
       requestBody.SpecialisationDetails = updateData.specialisationDetails;
     }
@@ -249,6 +255,10 @@ export const departmentsApi = {
     if (updateData.status !== undefined) {
       requestBody.Status = updateData.status === 'active' ? 'Active' : 'Inactive';
     }
+
+    console.log('Updating department with data:', JSON.stringify(requestBody, null, 2));
+    console.log('Description value being sent:', requestBody.Description);
+    console.log('Full request body:', requestBody);
 
     const response = await apiRequest<ApiResponse<DepartmentDto>>(`/doctor-departments/${id}`, {
       method: 'PUT',

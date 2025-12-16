@@ -805,7 +805,7 @@ export function PatientRegistration() {
                                     console.log('Managing patient with PatientId:', patientId);
                                     handleEditPatient(patientId);
                                   }}
-                                  className="h-8 px-3 text-sm bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200 hover:text-gray-800"
+                                  className="dashboard-manage-button"
                                   title="Manage Patient"
                                 >
                                   Manage
@@ -850,7 +850,7 @@ export function PatientRegistration() {
                                     console.log('Managing patient with PatientId:', patientId);
                                     handleEditPatient(patientId);
                                   }}
-                                  className="h-8 px-3 text-sm bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200 hover:text-gray-800"
+                                  className="dashboard-manage-button"
                                   title="Manage Patient"
                                 >
                                   Manage

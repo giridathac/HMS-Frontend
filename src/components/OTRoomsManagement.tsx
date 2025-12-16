@@ -9,6 +9,7 @@ import { Scissors, Plus, Clock, Edit, Trash2, CheckCircle2, XCircle, ArrowLeft, 
 import { useOTRooms } from '../hooks/useOTRooms';
 import { useOTSlots } from '../hooks/useOTSlots';
 import { OTRoom, OTSlot } from '../types';
+import { formatTimeOnlyIST, convertToIST } from '../utils/timeUtils';
 
 export function OTRoomsManagement() {
   // Fixed limit: load 5 records per page
@@ -239,6 +240,44 @@ export function OTRoomsManagement() {
     }
   };
 
+  // Helper function to format time to HH:MM AM/PM format in IST
+  const formatTimeToIST = (timeString: string | undefined | null): string => {
+    if (!timeString) return '-';
+    
+    try {
+      // If it's a full datetime string, use formatTimeOnlyIST
+      if (timeString.includes('T') || timeString.includes('Z') || timeString.length > 10) {
+        return formatTimeOnlyIST(timeString);
+      }
+      
+      // For simple time strings (HH:MM or HH:MM:SS), parse and format
+      const timePattern = /^(\d{1,2}):(\d{2})(?::(\d{2}))?$/;
+      const match = timeString.match(timePattern);
+      
+      if (match) {
+        let hours = parseInt(match[1], 10);
+        const minutes = parseInt(match[2], 10);
+        
+        // Validate hours and minutes
+        if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
+          return timeString; // Return original if invalid
+        }
+        
+        // Convert to 12-hour format with AM/PM
+        const period = hours >= 12 ? 'PM' : 'AM';
+        const displayHour = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
+        
+        return `${String(displayHour).padStart(2, '0')}:${String(minutes).padStart(2, '0')} ${period}`;
+      }
+      
+      // If we can't parse it, return original
+      return timeString;
+    } catch (error) {
+      console.error('Error formatting time:', error, timeString);
+      return timeString || '-';
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex-1 bg-gray-50 flex flex-col overflow-hidden min-h-0 dashboard-scrollable" style={{ maxHeight: '100vh', minHeight: 0 }}>
@@ -435,7 +474,7 @@ export function OTRoomsManagement() {
                       <div className="flex items-center gap-2 text-sm">
                         <Clock className="size-4 text-gray-600" />
                         <span className="text-gray-700">
-                          {otRoom.startTimeofDay} - {otRoom.endTimeofDay}
+                          {formatTimeToIST(otRoom.startTimeofDay)} - {formatTimeToIST(otRoom.endTimeofDay)}
                         </span>
                       </div>
                       
@@ -556,8 +595,8 @@ export function OTRoomsManagement() {
                         <td className="py-4 px-6 text-gray-600 whitespace-nowrap">{otRoom.otType}</td>
                         <td className="py-4 px-6 text-gray-600 whitespace-nowrap min-w-[150px]">{otRoom.otName}</td>
                         <td className="py-4 px-6 text-gray-600 max-w-xs break-words whitespace-normal">{otRoom.otDescription || '-'}</td>
-                        <td className="py-4 px-6 text-gray-600 whitespace-nowrap">{otRoom.startTimeofDay}</td>
-                        <td className="py-4 px-6 text-gray-600 whitespace-nowrap">{otRoom.endTimeofDay}</td>
+                        <td className="py-4 px-6 text-gray-600 whitespace-nowrap">{formatTimeToIST(otRoom.startTimeofDay)}</td>
+                        <td className="py-4 px-6 text-gray-600 whitespace-nowrap">{formatTimeToIST(otRoom.endTimeofDay)}</td>
                         <td className="py-4 px-6 whitespace-nowrap">{getStatusBadge(otRoom.status)}</td>
                         <td className="py-4 px-6 whitespace-nowrap">
                           <div className="flex items-center gap-1">
@@ -738,6 +777,43 @@ export function OTRoomsManagement() {
 }
 
 function OTSlotsManagement({ otId, otRoom, onClose }: { otId: string; otRoom: OTRoom | null; onClose: () => void }) {
+  // Helper function to format time to HH:MM AM/PM format in IST
+  const formatTimeToIST = (timeString: string | undefined | null): string => {
+    if (!timeString) return '-';
+    
+    try {
+      // If it's a full datetime string, use formatTimeOnlyIST
+      if (timeString.includes('T') || timeString.includes('Z') || timeString.length > 10) {
+        return formatTimeOnlyIST(timeString);
+      }
+      
+      // For simple time strings (HH:MM or HH:MM:SS), parse and format
+      const timePattern = /^(\d{1,2}):(\d{2})(?::(\d{2}))?$/;
+      const match = timeString.match(timePattern);
+      
+      if (match) {
+        let hours = parseInt(match[1], 10);
+        const minutes = parseInt(match[2], 10);
+        
+        // Validate hours and minutes
+        if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
+          return timeString; // Return original if invalid
+        }
+        
+        // Convert to 12-hour format with AM/PM
+        const period = hours >= 12 ? 'PM' : 'AM';
+        const displayHour = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
+        
+        return `${String(displayHour).padStart(2, '0')}:${String(minutes).padStart(2, '0')} ${period}`;
+      }
+      
+      // If we can't parse it, return original
+      return timeString;
+    } catch (error) {
+      console.error('Error formatting time:', error, timeString);
+      return timeString || '-';
+    }
+  };
   const { otSlots, loading, error, createOTSlot, updateOTSlot, deleteOTSlot } = useOTSlots(otId);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -949,8 +1025,8 @@ function OTSlotsManagement({ otId, otRoom, onClose }: { otId: string; otRoom: OT
                             <td className="py-4 px-6 text-gray-900 font-mono font-medium whitespace-nowrap">{otSlot.otSlotId}</td>
                             <td className="py-4 px-6 text-gray-900 font-mono font-medium whitespace-nowrap">{otSlot.otId}</td>
                             <td className="py-4 px-6 text-gray-600 whitespace-nowrap">{otSlot.otSlotNo}</td>
-                            <td className="py-4 px-6 text-gray-600 whitespace-nowrap">{otSlot.slotStartTime}</td>
-                            <td className="py-4 px-6 text-gray-600 whitespace-nowrap">{otSlot.slotEndTime}</td>
+                            <td className="py-4 px-6 text-gray-600 whitespace-nowrap">{formatTimeToIST(otSlot.slotStartTime)}</td>
+                            <td className="py-4 px-6 text-gray-600 whitespace-nowrap">{formatTimeToIST(otSlot.slotEndTime)}</td>
                             <td className="py-4 px-6 whitespace-nowrap">{getStatusBadge(otSlot.status)}</td>
                             <td className="py-4 px-6 whitespace-nowrap">
                               <div className="flex items-center gap-1">

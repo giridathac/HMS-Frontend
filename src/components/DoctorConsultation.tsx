@@ -1,20 +1,21 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Card, CardContent } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Badge } from './ui/badge';
-import { Search, Clock, Stethoscope, CheckCircle2, Hospital, Users } from 'lucide-react';
+import { Search, Clock, Stethoscope, CheckCircle2, Hospital, Users, Plus, Edit } from 'lucide-react';
 import { usePatientAppointments } from '../hooks/usePatientAppointments';
 import { useStaff } from '../hooks/useStaff';
 import { useRoles } from '../hooks/useRoles';
 import { useDepartments } from '../hooks/useDepartments';
 import { patientsApi } from '../api/patients';
+import { apiRequest } from '../api/base';
 import { PatientAppointment, Patient, Doctor } from '../types';
-import { formatDateIST, formatTimeIST } from '../utils/timeUtils';
+import { formatDateIST, formatTimeIST, formatDateToDDMMYYYY, formatDateTimeIST } from '../utils/timeUtils';
 
 export function DoctorConsultation() {
   const { patientAppointments, loading, error, updatePatientAppointment, fetchPatientAppointments } = usePatientAppointments();
@@ -46,6 +47,26 @@ export function DoctorConsultation() {
   });
   const [editDateDisplay, setEditDateDisplay] = useState('');
   const [editTimeDisplay, setEditTimeDisplay] = useState('');
+  
+  // Lab Tests state
+  const [patientLabTests, setPatientLabTests] = useState<any[]>([]);
+  const [labTestsLoading, setLabTestsLoading] = useState(false);
+  const [labTestsError, setLabTestsError] = useState<string | null>(null);
+  const [isAddLabTestDialogOpen, setIsAddLabTestDialogOpen] = useState(false);
+  const [labTestFormData, setLabTestFormData] = useState({
+    labTestId: '',
+    priority: 'Normal' as 'Normal' | 'Urgent' | null,
+    labTestDone: 'No' as 'Yes' | 'No',
+    testStatus: 'Pending' as 'Pending' | 'InProgress' | 'Completed' | null,
+  });
+  const [availableLabTests, setAvailableLabTests] = useState<any[]>([]);
+  const [labTestSearchTerm, setLabTestSearchTerm] = useState('');
+  const [showLabTestList, setShowLabTestList] = useState(false);
+  
+  // Manage Lab Test state
+  const [selectedLabTest, setSelectedLabTest] = useState<any>(null);
+  const [isManageLabTestDialogOpen, setIsManageLabTestDialogOpen] = useState(false);
+  const [manageLabTestFormData, setManageLabTestFormData] = useState<any>(null);
 
   // Helper functions for date formatting (dd-mm-yyyy) in IST
   const formatDateToDisplay = (dateStr: string): string => {
@@ -153,6 +174,91 @@ export function DoctorConsultation() {
     return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
   };
 
+  // Helper function to extract field with multiple variations
+  const extractField = useCallback((data: any, fieldVariations: string[], defaultValue: any = '') => {
+    for (const field of fieldVariations) {
+      // Handle nested fields (e.g., 'Patient.PatientNo')
+      if (field.includes('.')) {
+        const parts = field.split('.');
+        let value = data;
+        for (const part of parts) {
+          value = value?.[part];
+          if (value === undefined || value === null) break;
+        }
+        if (value !== undefined && value !== null && value !== '') {
+          return value;
+        }
+      } else {
+        const value = data?.[field];
+        if (value !== undefined && value !== null && value !== '') {
+          return value;
+        }
+      }
+    }
+    return defaultValue;
+  }, []);
+
+  // Fetch lab tests for appointment
+  const fetchPatientLabTests = useCallback(async (appointmentId: number) => {
+    if (!appointmentId) return;
+    try {
+      setLabTestsLoading(true);
+      setLabTestsError(null);
+      const response = await apiRequest<any>(`/patient-lab-tests/with-details?appointmentId=${appointmentId}`);
+      
+      console.log('DoctorConsultation - Lab Tests API Response:', JSON.stringify(response, null, 2));
+      
+      // Handle response structure
+      let labTestsData: any[] = [];
+      if (Array.isArray(response)) {
+        labTestsData = response;
+      } else if (response?.data && Array.isArray(response.data)) {
+        labTestsData = response.data;
+      } else if (response?.data?.data && Array.isArray(response.data.data)) {
+        labTestsData = response.data.data;
+      }
+      
+      console.log('DoctorConsultation - Extracted Lab Tests Data:', JSON.stringify(labTestsData, null, 2));
+      if (labTestsData.length > 0) {
+        console.log('DoctorConsultation - First Lab Test Object Keys:', Object.keys(labTestsData[0]));
+        console.log('DoctorConsultation - First Lab Test Sample:', labTestsData[0]);
+      }
+      
+      setPatientLabTests(labTestsData || []);
+    } catch (err) {
+      setLabTestsError(err instanceof Error ? err.message : 'Failed to fetch lab tests');
+      setPatientLabTests([]);
+    } finally {
+      setLabTestsLoading(false);
+    }
+  }, []);
+
+  // Fetch available lab tests for dropdown
+  const fetchAvailableLabTests = useCallback(async () => {
+    try {
+      const response = await apiRequest<any>('/lab-tests');
+      const labTestsData = response?.data || response || [];
+      
+      // Normalize the data to ensure TestName is properly extracted
+      const normalizedLabTests = Array.isArray(labTestsData) ? labTestsData.map((test: any) => {
+        return {
+          ...test,
+          // Ensure TestName is extracted from various possible field names
+          TestName: test.TestName || test.testName || test.name || test.Name || '',
+          testName: test.TestName || test.testName || test.name || test.Name || '',
+          // Ensure other fields are also normalized
+          LabTestsId: test.LabTestsId || test.labTestsId || test.LabTestId || test.labTestId || test.id || 0,
+          TestCategory: test.TestCategory || test.testCategory || test.category || test.Category || '',
+        };
+      }) : [];
+      
+      setAvailableLabTests(normalizedLabTests);
+    } catch (err) {
+      console.error('Failed to fetch available lab tests:', err);
+      setAvailableLabTests([]);
+    }
+  }, []);
+
   // Filter to show only doctors and surgeons from staff
   const appointmentDoctors = useMemo(() => {
     if (!staff || !roles || !departments) return [];
@@ -181,6 +287,33 @@ export function DoctorConsultation() {
         } as Doctor;
       });
   }, [staff, roles, departments]);
+
+  // Fetch lab tests when appointment is selected
+  useEffect(() => {
+    if (selectedAppointment?.id && typeof selectedAppointment.id === 'number') {
+      fetchPatientLabTests(selectedAppointment.id).catch(err => {
+        console.error('Error fetching patient lab tests:', err);
+      });
+      fetchAvailableLabTests().catch(err => {
+        console.error('Error fetching available lab tests:', err);
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedAppointment?.id]);
+
+  // Close lab test dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (showLabTestList && !target.closest('.dialog-dropdown-container') && !target.closest('#add-labtest-labTestId')) {
+        setShowLabTestList(false);
+      }
+    };
+    if (showLabTestList) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showLabTestList]);
 
   // Fetch patients
   useEffect(() => {
@@ -743,7 +876,13 @@ export function DoctorConsultation() {
                 <DialogHeader className="px-6 pt-4 pb-3 bg-white">
                   <DialogTitle className="text-gray-700" style={{ fontSize: '1.25rem' }}>Edit Patient Appointment</DialogTitle>
                 </DialogHeader>
-                <div className="px-6 pb-1">
+                <Tabs defaultValue="appointment" className="px-6 pb-1">
+                  <TabsList className="mb-4">
+                    <TabsTrigger value="appointment">Appointment Details</TabsTrigger>
+                    <TabsTrigger value="labtests">Lab Tests</TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="appointment" className="mt-0">
                   <div className="space-y-4 py-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
@@ -1022,7 +1161,166 @@ export function DoctorConsultation() {
                     <p className="text-xs text-gray-700 mt-1">Foreign Key to BillId</p>
                   </div>
                 </div>
-                </div>
+                  </TabsContent>
+                  
+                  <TabsContent value="labtests" className="mt-0">
+                    <div className="space-y-4 py-4">
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-semibold text-gray-700">Lab Tests for Appointment</h3>
+                        <Button 
+                          onClick={() => setIsAddLabTestDialogOpen(true)}
+                          className="flex items-center gap-2"
+                        >
+                          <Plus className="size-4" />
+                          Add Lab Test
+                        </Button>
+                      </div>
+                      
+                      {labTestsLoading ? (
+                        <p className="text-gray-500">Loading lab tests...</p>
+                      ) : labTestsError ? (
+                        <p className="text-red-600">Error: {labTestsError}</p>
+                      ) : patientLabTests.length === 0 ? (
+                        <p className="text-gray-500">No lab tests found for this appointment.</p>
+                      ) : (
+                        <div className="dialog-table-container">
+                          <table className="dialog-table">
+                            <thead>
+                              <tr className="dialog-table-header-row">
+                                <th className="dialog-table-header-cell">TestName</th>
+                                <th className="dialog-table-header-cell">PatientType</th>
+                                <th className="dialog-table-header-cell">DisplayTestId</th>
+                                <th className="dialog-table-header-cell">TestCategory</th>
+                                <th className="dialog-table-header-cell">Priority</th>
+                                <th className="dialog-table-header-cell">LabTestDone</th>
+                                <th className="dialog-table-header-cell">ReportsUrl</th>
+                                <th className="dialog-table-header-cell">TestStatus</th>
+                                <th className="dialog-table-header-cell">TestDoneDateTime</th>
+                                <th className="dialog-table-header-cell">Actions</th>
+                              </tr>
+                            </thead>
+                            <tbody className="dialog-table-body">
+                              {patientLabTests.map((test: any, index: number) => {
+                                // Extract fields with multiple variations
+                                const testName = extractField(test, [
+                                  'TestName', 'testName', 'test_name', 'Test_Name',
+                                  'LabTest.TestName', 'LabTest.testName', 'labTest.TestName', 'labTest.testName',
+                                  'LabTest.Name', 'LabTest.name', 'labTest.Name', 'labTest.name'
+                                ], 'N/A');
+                                const patientType = extractField(test, [
+                                  'PatientType', 'patientType', 'patient_type', 'Patient_Type'
+                                ], 'N/A');
+                                const displayTestId = extractField(test, [
+                                  'DisplayTestId', 'displayTestId', 'display_test_id', 'Display_Test_Id',
+                                  'LabTest.DisplayTestId', 'LabTest.displayTestId', 'labTest.DisplayTestId', 'labTest.displayTestId'
+                                ], 'N/A');
+                                const testCategory = extractField(test, [
+                                  'TestCategory', 'testCategory', 'test_category', 'Test_Category',
+                                  'LabTest.TestCategory', 'LabTest.testCategory', 'labTest.TestCategory', 'labTest.testCategory',
+                                  'LabTest.Category', 'LabTest.category', 'labTest.Category', 'labTest.category'
+                                ], 'N/A');
+                                const priority = extractField(test, [
+                                  'Priority', 'priority', 'testPriority', 'TestPriority'
+                                ], 'Normal');
+                                const labTestDone = extractField(test, [
+                                  'LabTestDone', 'labTestDone', 'lab_test_done', 'Lab_Test_Done'
+                                ], 'No');
+                                const reportsUrl = extractField(test, [
+                                  'ReportsUrl', 'reportsUrl', 'reports_url', 'Reports_Url'
+                                ], null);
+                                const testStatus = extractField(test, [
+                                  'TestStatus', 'testStatus', 'test_status', 'Test_Status'
+                                ], 'Pending');
+                                const testDoneDateTime = extractField(test, [
+                                  'TestDoneDateTime', 'testDoneDateTime', 'test_done_date_time', 'Test_Done_Date_Time'
+                                ], null);
+                                const status = extractField(test, [
+                                  'Status', 'status'
+                                ], 'Active');
+                                const charges = extractField(test, [
+                                  'LabTestCharges', 'labTestCharges', 'lab_test_charges', 'Lab_Test_Charges',
+                                  'Charges', 'charges'
+                                ], 0);
+                                const createdDate = extractField(test, [
+                                  'CreatedDate', 'createdDate', 'created_date', 'Created_Date'
+                                ], null);
+                                
+                                return (
+                                  <tr key={test.PatientLabTestsId || test.patientLabTestsId || index} className="dialog-table-body-row">
+                                    <td className="dialog-table-body-cell dialog-table-body-cell-primary">{testName}</td>
+                                    <td className="dialog-table-body-cell dialog-table-body-cell-secondary">
+                                      <Badge variant="outline">{patientType}</Badge>
+                                    </td>
+                                    <td className="dialog-table-body-cell dialog-table-body-cell-secondary">{displayTestId}</td>
+                                    <td className="dialog-table-body-cell dialog-table-body-cell-secondary">
+                                      <Badge variant="outline">{testCategory}</Badge>
+                                    </td>
+                                    <td className="dialog-table-body-cell">
+                                      <Badge variant={
+                                        priority === 'Emergency' || priority === 'Urgent' ? 'destructive' :
+                                        priority === 'Urgent' ? 'default' : 'secondary'
+                                      }>
+                                        {priority}
+                                      </Badge>
+                                    </td>
+                                    <td className="dialog-table-body-cell dialog-table-body-cell-secondary">
+                                      <Badge variant={labTestDone === 'Yes' || labTestDone === true ? 'default' : 'outline'}>
+                                        {labTestDone === 'Yes' || labTestDone === true ? 'Yes' : 'No'}
+                                      </Badge>
+                                    </td>
+                                    <td className="dialog-table-body-cell dialog-table-body-cell-secondary">
+                                      {reportsUrl ? (
+                                        <a href={reportsUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                                          View Report
+                                        </a>
+                                      ) : 'N/A'}
+                                    </td>
+                                    <td className="dialog-table-body-cell">
+                                      <span className={`px-2 py-1 rounded-full text-xs ${
+                                        testStatus === 'Completed' || testStatus === 'completed' ? 'bg-green-100 text-green-700' :
+                                        testStatus === 'In Progress' || testStatus === 'InProgress' || testStatus === 'in_progress' ? 'bg-blue-100 text-blue-700' :
+                                        'bg-orange-100 text-orange-700'
+                                      }`}>
+                                        {testStatus}
+                                      </span>
+                                    </td>
+                                    <td className="dialog-table-body-cell dialog-table-body-cell-secondary">
+                                      {testDoneDateTime ? formatDateTimeIST(testDoneDateTime) : 'N/A'}
+                                    </td>
+                                    <td className="dialog-table-body-cell">
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="dialog-manage-button"
+                                        onClick={() => {
+                                          setSelectedLabTest(test);
+                                          setManageLabTestFormData({
+                                            patientLabTestsId: extractField(test, ['PatientLabTestsId', 'patientLabTestsId', 'id', 'Id'], null),
+                                            priority: priority,
+                                            testStatus: testStatus,
+                                            labTestDone: labTestDone,
+                                            reportsUrl: reportsUrl || '',
+                                            testDoneDateTime: testDoneDateTime || '',
+                                            status: status,
+                                          });
+                                          setIsManageLabTestDialogOpen(true);
+                                        }}
+                                        title="View & Edit Lab Test"
+                                      >
+                                        <Edit className="h-3 w-3" />
+                                        Manage
+                                      </Button>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  </TabsContent>
+                </Tabs>
                 <div className="flex justify-end gap-2 px-6 py-2 border-t bg-white flex-shrink-0">
                   <Button variant="outline" onClick={() => setIsEditDialogOpen(false)} className="py-1">Cancel</Button>
                   <Button 
@@ -1075,6 +1373,364 @@ export function DoctorConsultation() {
                 </div>
               </>
             )}
+          </div>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Add Lab Test Dialog */}
+      <Dialog open={isAddLabTestDialogOpen} onOpenChange={setIsAddLabTestDialogOpen}>
+        <DialogContent className="p-0 gap-0 large-dialog dialog-content-standard">
+          <div className="dialog-scrollable-wrapper dialog-content-scrollable">
+            <DialogHeader className="dialog-header-standard">
+              <DialogTitle className="dialog-title-standard-view">Add Lab Test</DialogTitle>
+            </DialogHeader>
+            <div className="dialog-body-content-wrapper">
+              <div className="dialog-form-container">
+                <div className="dialog-form-field">
+                  <Label htmlFor="add-labtest-labTestId" className="dialog-label-standard">Lab Test *</Label>
+                  <div className="relative">
+                    <Input
+                      id="add-labtest-labTestId"
+                      className="dialog-input-standard"
+                      placeholder="Search lab test by Display Test ID, name, or category..."
+                      value={labTestSearchTerm}
+                      onChange={(e) => {
+                        setLabTestSearchTerm(e.target.value);
+                        setShowLabTestList(true);
+                      }}
+                      onFocus={() => setShowLabTestList(true)}
+                      autoComplete="off"
+                    />
+                    {showLabTestList && availableLabTests.length > 0 && (
+                      <div className="dialog-dropdown-container absolute z-50 w-full mt-1 bg-white shadow-lg">
+                        <table className="w-full text-sm">
+                          <thead className="bg-gray-50 sticky top-0">
+                            <tr>
+                              <th className="py-2 px-3 text-left text-xs font-medium text-gray-700">Display Test ID</th>
+                              <th className="py-2 px-3 text-left text-xs font-medium text-gray-700">Test Name</th>
+                              <th className="py-2 px-3 text-left text-xs font-medium text-gray-700">Category</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {availableLabTests.filter((test: any) => {
+                              if (!labTestSearchTerm) return true;
+                              const searchLower = labTestSearchTerm.toLowerCase();
+                              const displayTestId = test.DisplayTestId || test.displayTestId || test.displayTestID || test.DisplayTestID || '';
+                              const testName = test.TestName || test.testName || test.name || test.Name || '';
+                              const category = test.TestCategory || test.testCategory || test.category || test.Category || '';
+                              return displayTestId.toLowerCase().includes(searchLower) ||
+                                     testName.toLowerCase().includes(searchLower) ||
+                                     category.toLowerCase().includes(searchLower);
+                            }).map((test: any) => {
+                              const testId = test.LabTestsId || test.labTestsId || test.LabTestId || test.labTestId || test.id || 0;
+                              const displayTestId = test.DisplayTestId || test.displayTestId || test.displayTestID || test.DisplayTestID || '';
+                              const testName = test.TestName || test.testName || test.name || test.Name || '';
+                              const category = test.TestCategory || test.testCategory || test.category || test.Category || '';
+                              const isSelected = labTestFormData.labTestId === String(testId);
+                              const displayText = `${displayTestId || ''}, ${testName || 'Unknown'} (${category || 'N/A'})`;
+                              return (
+                                <tr
+                                  key={testId}
+                                  onClick={() => {
+                                    setLabTestFormData({ ...labTestFormData, labTestId: String(testId) });
+                                    setLabTestSearchTerm(displayText);
+                                    setShowLabTestList(false);
+                                  }}
+                                  className={`dialog-dropdown-row ${isSelected ? 'dialog-dropdown-row-selected' : ''}`}
+                                >
+                                  <td className="py-2 px-3 text-sm text-gray-900 font-mono">{displayTestId || '-'}</td>
+                                  <td className="py-2 px-3 text-sm text-gray-900">{testName || '-'}</td>
+                                  <td className="py-2 px-3 text-sm text-gray-600">{category || '-'}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                
+                <div className="dialog-form-field-grid">
+                  <div className="dialog-field-single-column">
+                    <Label htmlFor="add-labtest-priority" className="dialog-label-standard">Priority</Label>
+                    <select
+                      id="add-labtest-priority"
+                      className="dialog-select-standard"
+                      value={labTestFormData.priority || 'Normal'}
+                      onChange={(e) => setLabTestFormData({ ...labTestFormData, priority: e.target.value as 'Normal' | 'Urgent' | null })}
+                    >
+                      <option value="Normal">Normal</option>
+                      <option value="Urgent">Urgent</option>
+                    </select>
+                  </div>
+                  
+                  <div className="dialog-field-single-column">
+                    <Label htmlFor="add-labtest-testStatus" className="dialog-label-standard">Test Status</Label>
+                    <select
+                      id="add-labtest-testStatus"
+                      className="dialog-select-standard"
+                      value={labTestFormData.testStatus || 'Pending'}
+                      onChange={(e) => setLabTestFormData({ ...labTestFormData, testStatus: e.target.value as 'Pending' | 'InProgress' | 'Completed' | null })}
+                    >
+                      <option value="Pending">Pending</option>
+                      <option value="InProgress">In Progress</option>
+                      <option value="Completed">Completed</option>
+                    </select>
+                  </div>
+                </div>
+                
+                <div className="dialog-form-field">
+                  <Label htmlFor="add-labtest-labTestDone" className="dialog-label-standard">Lab Test Done</Label>
+                  <select
+                    id="add-labtest-labTestDone"
+                    className="dialog-select-standard"
+                    value={labTestFormData.labTestDone}
+                    onChange={(e) => setLabTestFormData({ ...labTestFormData, labTestDone: e.target.value as 'Yes' | 'No' })}
+                  >
+                    <option value="No">No</option>
+                    <option value="Yes">Yes</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div className="dialog-footer-standard">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setIsAddLabTestDialogOpen(false);
+                  setLabTestFormData({
+                    labTestId: '',
+                    priority: 'Normal',
+                    labTestDone: 'No',
+                    testStatus: 'Pending',
+                  });
+                  setLabTestSearchTerm('');
+                  setShowLabTestList(false);
+                }} 
+                className="dialog-footer-button"
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={async () => {
+                  if (!labTestFormData.labTestId) {
+                    alert('Please select a lab test.');
+                    return;
+                  }
+                  
+                  if (!selectedAppointment) {
+                    alert('No appointment selected.');
+                    return;
+                  }
+                  
+                  try {
+                    const payload = {
+                      PatientType: 'OPD',
+                      PatientId: selectedAppointment.patientId,
+                      LabTestId: Number(labTestFormData.labTestId),
+                      AppointmentId: selectedAppointment.id,
+                      RoomAdmissionId: null,
+                      EmergencyBedSlotId: null,
+                      BillId: null,
+                      Priority: labTestFormData.priority || null,
+                      LabTestDone: labTestFormData.labTestDone || 'No',
+                      ReportsUrl: null,
+                      TestStatus: labTestFormData.testStatus || null,
+                      TestDoneDateTime: null,
+                      Status: 'Active',
+                      CreatedBy: null,
+                    };
+                    
+                    await apiRequest('/patient-lab-tests', {
+                      method: 'POST',
+                      body: JSON.stringify(payload),
+                    });
+                    
+                    // Refresh lab tests list
+                    if (selectedAppointment.id) {
+                      await fetchPatientLabTests(selectedAppointment.id);
+                    }
+                    
+                    setIsAddLabTestDialogOpen(false);
+                    setLabTestFormData({
+                      labTestId: '',
+                      priority: 'Normal',
+                      labTestDone: 'No',
+                      testStatus: 'Pending',
+                    });
+                    alert('Lab test added successfully!');
+                  } catch (err) {
+                    console.error('Failed to add lab test:', err);
+                    alert('Failed to add lab test. Please try again.');
+                  }
+                }} 
+                className="dialog-footer-button"
+              >
+                Add Lab Test
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Manage Lab Test Dialog */}
+      <Dialog open={isManageLabTestDialogOpen} onOpenChange={setIsManageLabTestDialogOpen}>
+        <DialogContent className="p-0 gap-0 large-dialog dialog-content-standard">
+          <div className="dialog-scrollable-wrapper dialog-content-scrollable">
+            <DialogHeader className="dialog-header-standard">
+              <DialogTitle className="dialog-title-standard-view">Manage Lab Test</DialogTitle>
+            </DialogHeader>
+            <div className="dialog-body-content-wrapper">
+              <div className="dialog-form-container">
+                {manageLabTestFormData && selectedLabTest && (
+                  <>
+                    <div className="dialog-form-field-grid">
+                      <div className="dialog-field-single-column">
+                        <Label htmlFor="manage-priority" className="dialog-label-standard">Priority</Label>
+                        <select
+                          id="manage-priority"
+                          className="dialog-select-standard"
+                          value={manageLabTestFormData.priority || 'Normal'}
+                          onChange={(e) => setManageLabTestFormData({ ...manageLabTestFormData, priority: e.target.value })}
+                        >
+                          <option value="Normal">Normal</option>
+                          <option value="Urgent">Urgent</option>
+                        </select>
+                      </div>
+                      
+                      <div className="dialog-field-single-column">
+                        <Label htmlFor="manage-testStatus" className="dialog-label-standard">Test Status</Label>
+                        <select
+                          id="manage-testStatus"
+                          className="dialog-select-standard"
+                          value={manageLabTestFormData.testStatus || 'Pending'}
+                          onChange={(e) => setManageLabTestFormData({ ...manageLabTestFormData, testStatus: e.target.value })}
+                        >
+                          <option value="Pending">Pending</option>
+                          <option value="InProgress">In Progress</option>
+                          <option value="Completed">Completed</option>
+                        </select>
+                      </div>
+                    </div>
+                    
+                    <div className="dialog-form-field-grid">
+                      <div className="dialog-field-single-column">
+                        <Label htmlFor="manage-labTestDone" className="dialog-label-standard">Lab Test Done</Label>
+                        <select
+                          id="manage-labTestDone"
+                          className="dialog-select-standard"
+                          value={manageLabTestFormData.labTestDone || 'No'}
+                          onChange={(e) => setManageLabTestFormData({ ...manageLabTestFormData, labTestDone: e.target.value })}
+                        >
+                          <option value="No">No</option>
+                          <option value="Yes">Yes</option>
+                        </select>
+                      </div>
+                      
+                      <div className="dialog-field-single-column">
+                        <Label htmlFor="manage-status" className="dialog-label-standard">Status</Label>
+                        <select
+                          id="manage-status"
+                          className="dialog-select-standard"
+                          value={manageLabTestFormData.status || 'Active'}
+                          onChange={(e) => setManageLabTestFormData({ ...manageLabTestFormData, status: e.target.value })}
+                        >
+                          <option value="Active">Active</option>
+                          <option value="Inactive">Inactive</option>
+                        </select>
+                      </div>
+                    </div>
+                    
+                    <div className="dialog-form-field">
+                      <Label htmlFor="manage-reportsUrl" className="dialog-label-standard">Reports URL</Label>
+                      <Input
+                        id="manage-reportsUrl"
+                        className="dialog-input-standard"
+                        value={manageLabTestFormData.reportsUrl || ''}
+                        onChange={(e) => setManageLabTestFormData({ ...manageLabTestFormData, reportsUrl: e.target.value })}
+                        placeholder="Enter report URL (optional)"
+                      />
+                    </div>
+                    
+                    <div className="dialog-form-field">
+                      <Label htmlFor="manage-testDoneDateTime" className="dialog-label-standard">Test Done Date Time</Label>
+                      <Input
+                        id="manage-testDoneDateTime"
+                        type="datetime-local"
+                        className="dialog-input-standard"
+                        value={manageLabTestFormData.testDoneDateTime ? new Date(manageLabTestFormData.testDoneDateTime).toISOString().slice(0, 16) : ''}
+                        onChange={(e) => setManageLabTestFormData({ ...manageLabTestFormData, testDoneDateTime: e.target.value })}
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+            <div className="dialog-footer-standard">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setIsManageLabTestDialogOpen(false);
+                  setSelectedLabTest(null);
+                  setManageLabTestFormData(null);
+                }} 
+                className="dialog-footer-button"
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={async () => {
+                  if (!manageLabTestFormData || !selectedLabTest) return;
+                  
+                  try {
+                    const patientLabTestsId = manageLabTestFormData.patientLabTestsId;
+                    if (!patientLabTestsId) {
+                      alert('Lab Test ID is required.');
+                      return;
+                    }
+                    
+                    const payload: any = {
+                      PatientLabTestsId: patientLabTestsId,
+                      Priority: manageLabTestFormData.priority || null,
+                      TestStatus: manageLabTestFormData.testStatus || null,
+                      LabTestDone: manageLabTestFormData.labTestDone || 'No',
+                      Status: manageLabTestFormData.status || 'Active',
+                    };
+                    
+                    if (manageLabTestFormData.reportsUrl) {
+                      payload.ReportsUrl = manageLabTestFormData.reportsUrl;
+                    }
+                    
+                    if (manageLabTestFormData.testDoneDateTime) {
+                      const testDoneDateTime = new Date(manageLabTestFormData.testDoneDateTime);
+                      payload.TestDoneDateTime = testDoneDateTime.toISOString();
+                    }
+                    
+                    await apiRequest(`/patient-lab-tests/${patientLabTestsId}`, {
+                      method: 'PUT',
+                      body: JSON.stringify(payload),
+                    });
+                    
+                    // Refresh lab tests list
+                    if (selectedAppointment?.id) {
+                      await fetchPatientLabTests(selectedAppointment.id);
+                    }
+                    
+                    setIsManageLabTestDialogOpen(false);
+                    setSelectedLabTest(null);
+                    setManageLabTestFormData(null);
+                    alert('Lab test updated successfully!');
+                  } catch (err) {
+                    console.error('Failed to update lab test:', err);
+                    alert('Failed to update lab test. Please try again.');
+                  }
+                }} 
+                className="dialog-footer-button"
+              >
+                Save Changes
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
@@ -1171,7 +1827,7 @@ function AppointmentList({
                             variant="outline"
                             size="sm"
                             onClick={() => onManage(appointment)}
-                            className="h-8 px-3 text-sm bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200 hover:text-gray-800"
+                            className="dashboard-manage-button"
                             title="Manage Appointment"
                           >
                             Manage
