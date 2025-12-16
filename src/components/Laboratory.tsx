@@ -6,7 +6,7 @@ import { Label } from './ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Badge } from './ui/badge';
-import { TestTube, Search, FileText, Clock, CheckCircle, AlertCircle, Download, Eye, Edit } from 'lucide-react';
+import { TestTube, Search, FileText, Clock, CheckCircle, AlertCircle, Download, Edit } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { apiRequest } from '../api/base';
 import { PatientLabTest } from '../api/admissions';
@@ -42,49 +42,15 @@ interface LabTest {
 }
 
 const mockLabTests: LabTest[] = [
-  
-  {
-    id: 23,
-    testId: 'LAB-2025-023',
-    patientName: 'Joseph Walker',
-    patientId: 'P-12367',
-    age: 52,
-    gender: 'Male',
-    testName: 'Serum Creatinine',
-    category: 'Blood Test',
-    orderedBy: 'Dr. Michael Chen',
-    orderedDate: '2025-11-14',
-    orderedTime: '09:45 AM',
-    priority: 'Routine',
-    status: 'Completed',
-    sampleCollectedBy: 'Nurse Jane',
-    technician: 'Lab Tech Mike',
-    result: 'Creatinine: 1.0 mg/dL - Normal',
-    reportedDate: '2025-11-14',
-    reportedTime: '12:00 PM',
-  },
- 
-];
+  ];
 
 // Doctor-wise daily report data
 const doctorWiseDailyTests = [
-  { doctor: 'Dr. Sarah Johnson', total: 15, pending: 3, completed: 12 },
-  { doctor: 'Dr. Michael Chen', total: 12, pending: 4, completed: 8 },
-  { doctor: 'Dr. James Miller', total: 10, pending: 2, completed: 8 },
-  { doctor: 'Dr. Emily Davis', total: 18, pending: 5, completed: 13 },
-  { doctor: 'Dr. Robert Lee', total: 8, pending: 1, completed: 7 },
-];
+ ];
 
 // Weekly trend data
 const weeklyTestData = [
-  { date: 'Nov 08', tests: 45, completed: 42 },
-  { date: 'Nov 09', tests: 52, completed: 48 },
-  { date: 'Nov 10', tests: 48, completed: 46 },
-  { date: 'Nov 11', tests: 55, completed: 51 },
-  { date: 'Nov 12', tests: 50, completed: 47 },
-  { date: 'Nov 13', tests: 43, completed: 40 },
-  { date: 'Nov 14', tests: 63, completed: 45 },
-];
+ ];
 
 interface TestStatusCounts {
   pending?: number;
@@ -104,11 +70,57 @@ export function Laboratory() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [selectedTest, setSelectedTest] = useState<LabTest | null>(null);
   const [showReportsDialog, setShowReportsDialog] = useState(false);
+  const [activeReportTab, setActiveReportTab] = useState<'daily' | 'weekly'>('daily');
   const [testStatusCounts, setTestStatusCounts] = useState<TestStatusCounts>({});
   const [countsLoading, setCountsLoading] = useState(false);
   const [countsError, setCountsError] = useState<string | null>(null);
   const [testsLoading, setTestsLoading] = useState(true);
   const [testsError, setTestsError] = useState<string | null>(null);
+  
+  // Daily Report state
+  const [doctorWiseDailyTests, setDoctorWiseDailyTests] = useState<Array<{
+    doctor: string;
+    total: number;
+    pending: number;
+    completed: number;
+  }>>([]);
+  const [dailySummary, setDailySummary] = useState<{
+    totalTests: number;
+    pending: number;
+    completed: number;
+    avgTAT: number;
+    avgTATFormatted: string;
+  }>({
+    totalTests: 0,
+    pending: 0,
+    completed: 0,
+    avgTAT: 0,
+    avgTATFormatted: 'N/A',
+  });
+  const [dailyReportLoading, setDailyReportLoading] = useState(false);
+  const [dailyReportError, setDailyReportError] = useState<string | null>(null);
+  
+  // Weekly Report state
+  const [weeklyTestData, setWeeklyTestData] = useState<Array<{
+    date: string;
+    tests: number;
+    completed: number;
+  }>>([]);
+  const [weeklySummary, setWeeklySummary] = useState<{
+    totalTests: number;
+    completed: number;
+    dailyAverage: number;
+    completionRate: number;
+  }>({
+    totalTests: 0,
+    completed: 0,
+    dailyAverage: 0,
+    completionRate: 0,
+  });
+  const [weekStartDate, setWeekStartDate] = useState<string>('');
+  const [weekEndDate, setWeekEndDate] = useState<string>('');
+  const [weeklyReportLoading, setWeeklyReportLoading] = useState(false);
+  const [weeklyReportError, setWeeklyReportError] = useState<string | null>(null);
   
   // View and Edit PatientLabTest state
   const [viewingPatientLabTest, setViewingPatientLabTest] = useState<any>(null);
@@ -123,13 +135,14 @@ export function Laboratory() {
   const [newLabOrderFormData, setNewLabOrderFormData] = useState({
     patientId: '',
     labTestId: '',
-    patientType: 'OPD' as 'IPD' | 'OPD' | 'Emergency',
+    patientType: '' as 'IPD' | 'OPD' | 'Emergency' | '',
     roomAdmissionId: '',
     appointmentId: '',
     emergencyBedSlotId: '',
     priority: 'Normal' as 'Normal' | 'Urgent',
     testStatus: 'Pending' as 'Pending' | 'InProgress' | 'Completed',
     labTestDone: 'No' as 'Yes' | 'No',
+    testDoneDate: '',
     reportsUrl: '',
     orderedByDoctorId: ''
   });
@@ -220,331 +233,978 @@ export function Laboratory() {
   }, [tests]); // Include tests in dependency array to update counts when tests change
 
   // Fetch patient lab tests from API
-  useEffect(() => {
-    const fetchPatientLabTests = async () => {
-      try {
-        setTestsLoading(true);
-        setTestsError(null);
-        console.log('Fetching patient lab tests from /patient-lab-tests/with-details');
-        const response = await apiRequest<any>('/patient-lab-tests/with-details');
-        console.log('Patient lab tests API response (RAW):', JSON.stringify(response, null, 2));
-        
-        // Handle different response structures
-        let labTestsData: any[] = [];
-        
-        if (Array.isArray(response)) {
-          labTestsData = response;
-        } else if (response?.data) {
-          if (Array.isArray(response.data)) {
-            labTestsData = response.data;
-          } else if (response.data.patientLabTests && Array.isArray(response.data.patientLabTests)) {
-            labTestsData = response.data.patientLabTests;
-          } else if (response.data.labTests && Array.isArray(response.data.labTests)) {
-            labTestsData = response.data.labTests;
-          }
-        } else if (response?.patientLabTests && Array.isArray(response.patientLabTests)) {
-          labTestsData = response.patientLabTests;
-        } else if (response?.labTests && Array.isArray(response.labTests)) {
-          labTestsData = response.labTests;
+  const fetchPatientLabTests = async () => {
+    try {
+      setTestsLoading(true);
+      setTestsError(null);
+      console.log('Fetching patient lab tests from /patient-lab-tests/with-details');
+      const response = await apiRequest<any>('/patient-lab-tests/with-details');
+      console.log('Patient lab tests API response (RAW):', JSON.stringify(response, null, 2));
+      
+      // Handle different response structures
+      let labTestsData: any[] = [];
+      
+      if (Array.isArray(response)) {
+        labTestsData = response;
+      } else if (response?.data) {
+        if (Array.isArray(response.data)) {
+          labTestsData = response.data;
+        } else if (response.data.patientLabTests && Array.isArray(response.data.patientLabTests)) {
+          labTestsData = response.data.patientLabTests;
+        } else if (response.data.labTests && Array.isArray(response.data.labTests)) {
+          labTestsData = response.data.labTests;
         }
-        
-        if (!Array.isArray(labTestsData) || labTestsData.length === 0) {
-          console.warn('Patient lab tests response is not an array or is empty:', response);
-          setTests([]);
-          return;
-        }
-        
-        // Helper function to extract field with multiple variations and nested objects
-        const extractField = (data: any, fieldVariations: string[], defaultValue: any = '') => {
-          if (!data) return defaultValue;
-          
-          for (const field of fieldVariations) {
-            // Handle nested objects (e.g., Patient.PatientName, LabTest.TestName)
-            if (field.includes('.')) {
-              const parts = field.split('.');
-              let value = data;
-              for (const part of parts) {
-                if (value && typeof value === 'object') {
-                  value = value[part];
-                } else {
-                  value = undefined;
-                  break;
-                }
-              }
-              if (value !== undefined && value !== null && value !== '') {
-                return value;
-              }
-            } else {
-              // Direct field access
-              const value = data[field];
-              if (value !== undefined && value !== null && value !== '') {
-                return value;
-              }
-            }
-          }
-          
-          // Try nested object access (e.g., Patient.PatientName)
-          for (const field of fieldVariations) {
-            if (data.Patient && data.Patient[field]) {
-              const value = data.Patient[field];
-              if (value !== undefined && value !== null && value !== '') {
-                return value;
-              }
-            }
-            if (data.LabTest && data.LabTest[field]) {
-              const value = data.LabTest[field];
-              if (value !== undefined && value !== null && value !== '') {
-                return value;
-              }
-            }
-            if (data.patient && data.patient[field]) {
-              const value = data.patient[field];
-              if (value !== undefined && value !== null && value !== '') {
-                return value;
-              }
-            }
-            if (data.labTest && data.labTest[field]) {
-              const value = data.labTest[field];
-              if (value !== undefined && value !== null && value !== '') {
-                return value;
-              }
-            }
-          }
-          
-          return defaultValue;
-        };
-        
-        
-        // Map API response to LabTest interface
-        const mappedTests: LabTest[] = labTestsData.map((labTest: any, index: number) => {
-          const patientLabTestsId = extractField(labTest, [
-            'patientLabTestsId', 'PatientLabTestsId', 'patient_lab_tests_id', 'Patient_Lab_Tests_Id',
-            'patientLabTestId', 'PatientLabTestId', 'id', 'Id', 'ID'
-          ], index + 1);
-          
-          const testId = extractField(labTest, [
-            'displayTestId', 'DisplayTestId', 'display_test_id', 'Display_Test_Id',
-            'testId', 'TestId', 'test_id', 'Test_ID',
-            'patientLabTestsId', 'PatientLabTestsId', 'id', 'Id', 'ID'
-          ], `LAB-${patientLabTestsId}`);
-          
-          const patientName = extractField(labTest, [
-            'patientName', 'PatientName', 'patient_name', 'Patient_Name',
-            'patientFullName', 'PatientFullName', 'Patient.PatientName', 'Patient.patientName',
-            'Patient.Name', 'Patient.name', 'name', 'Name'
-          ], 'Unknown Patient');
-          
-          const patientId = extractField(labTest, [
-            'patientId', 'PatientId', 'patient_id', 'Patient_ID',
-            'patientID', 'PatientID', 'Patient.PatientId', 'Patient.patientId',
-            'Patient.Id', 'Patient.id'
-          ], 'N/A');
-          
-          const testName = extractField(labTest, [
-            'testName', 'TestName', 'test_name', 'Test_Name',
-            'labTestName', 'LabTestName', 'lab_test_name', 'Lab_Test_Name',
-            'LabTest.TestName', 'LabTest.testName', 'LabTest.Name', 'LabTest.name',
-            'name', 'Name'
-          ], 'Unknown Test');
-          
-          const category = extractField(labTest, [
-            'testCategory', 'TestCategory', 'test_category', 'Test_Category',
-            'category', 'Category', 'labTestCategory', 'LabTestCategory',
-            'LabTest.TestCategory', 'LabTest.testCategory', 'LabTest.Category', 'LabTest.category'
-          ], 'Other');
-          
-          const orderedBy = extractField(labTest, [
-            'orderedBy', 'OrderedBy', 'ordered_by', 'Ordered_By',
-            'doctorName', 'DoctorName', 'doctor_name', 'Doctor_Name'
-          ], 'N/A');
-          
-          const orderedDate = extractField(labTest, [
-            'orderedDate', 'OrderedDate', 'ordered_date', 'Ordered_Date',
-            'createdDate', 'CreatedDate', 'created_date', 'Created_Date',
-            'date', 'Date'
-          ], new Date().toISOString().split('T')[0]);
-          
-          const orderedTime = extractField(labTest, [
-            'orderedTime', 'OrderedTime', 'ordered_time', 'Ordered_Time',
-            'createdTime', 'CreatedTime', 'created_time', 'Created_Time',
-            'time', 'Time'
-          ], new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }));
-          
-          const priority = extractField(labTest, [
-            'priority', 'Priority', 'testPriority', 'TestPriority'
-          ], 'Routine');
-          
-          const testStatus = extractField(labTest, [
-            'testStatus', 'TestStatus', 'test_status', 'Test_Status',
-            'status', 'Status'
-          ], 'Pending');
-          
-          // Map testStatus to LabTest status format
-          let status: 'Pending' | 'Sample Collected' | 'In Progress' | 'Completed' | 'Reported' = 'Pending';
-          if (testStatus) {
-            const statusLower = String(testStatus).toLowerCase();
-            if (statusLower === 'pending') {
-              status = 'Pending';
-            } else if (statusLower === 'sample collected' || statusLower === 'samplecollected') {
-              status = 'Sample Collected';
-            } else if (statusLower === 'in progress' || statusLower === 'inprogress' || statusLower === 'in_progress') {
-              status = 'In Progress';
-            } else if (statusLower === 'completed' || statusLower === 'done') {
-              status = 'Completed';
-            } else if (statusLower === 'reported') {
-              status = 'Reported';
-            }
-          }
-          
-          const age = extractField(labTest, [
-            'age', 'Age', 'patientAge', 'PatientAge'
-          ], 0);
-          
-          const gender = extractField(labTest, [
-            'gender', 'Gender', 'patientGender', 'PatientGender',
-            'sex', 'Sex'
-          ], 'N/A');
-          
-          const sampleCollectedBy = extractField(labTest, [
-            'sampleCollectedBy', 'SampleCollectedBy', 'sample_collected_by', 'Sample_Collected_By',
-            'collectedBy', 'CollectedBy', 'collected_by', 'Collected_By'
-          ], undefined);
-          
-          const technician = extractField(labTest, [
-            'technician', 'Technician', 'assignedTechnician', 'AssignedTechnician',
-            'tech', 'Tech'
-          ], undefined);
-          
-          const result = extractField(labTest, [
-            'result', 'Result', 'testResult', 'TestResult',
-            'report', 'Report'
-          ], undefined);
-          
-          const reportedDate = extractField(labTest, [
-            'reportedDate', 'ReportedDate', 'reported_date', 'Reported_Date',
-            'resultDate', 'ResultDate', 'result_date', 'Result_Date'
-          ], undefined);
-          
-          const reportedTime = extractField(labTest, [
-            'reportedTime', 'ReportedTime', 'reported_time', 'Reported_Time',
-            'resultTime', 'ResultTime', 'result_time', 'Result_Time'
-          ], undefined);
-          
-          // Extract all PatientLabTest fields
-          const patientType = extractField(labTest, [
-            'patientType', 'PatientType', 'patient_type', 'Patient_Type'
-          ], undefined);
-          
-          const labTestId = extractField(labTest, [
-            'labTestId', 'LabTestId', 'lab_test_id', 'Lab_Test_Id',
-            'LabTest.LabTestId', 'LabTest.labTestId', 'LabTest.Id', 'LabTest.id'
-          ], undefined);
-          
-          const displayTestId = extractField(labTest, [
-            'displayTestId', 'DisplayTestId', 'display_test_id', 'Display_Test_Id',
-            'LabTest.DisplayTestId', 'LabTest.displayTestId', 'LabTest.DisplayTestID', 'LabTest.displayTestID'
-          ], testId);
-          
-          const testCategory = extractField(labTest, [
-            'testCategory', 'TestCategory', 'test_category', 'Test_Category',
-            'category', 'Category', 'labTestCategory', 'LabTestCategory',
-            'LabTest.TestCategory', 'LabTest.testCategory', 'LabTest.Category', 'LabTest.category'
-          ], category);
-          
-          const roomAdmissionId = extractField(labTest, [
-            'roomAdmissionId', 'RoomAdmissionId', 'room_admission_id', 'Room_Admission_Id'
-          ], undefined);
-          
-          const emergencyBedSlotId = extractField(labTest, [
-            'emergencyBedSlotId', 'EmergencyBedSlotId', 'emergency_bed_slot_id', 'Emergency_Bed_Slot_Id'
-          ], undefined);
-          
-          const billId = extractField(labTest, [
-            'billId', 'BillId', 'bill_id', 'Bill_Id'
-          ], undefined);
-          
-          const labTestDone = extractField(labTest, [
-            'labTestDone', 'LabTestDone', 'lab_test_done', 'Lab_Test_Done'
-          ], false);
-          
-          const reportsUrl = extractField(labTest, [
-            'reportsUrl', 'ReportsUrl', 'reports_url', 'Reports_Url'
-          ], undefined);
-          
-          const testDoneDateTime = extractField(labTest, [
-            'testDoneDateTime', 'TestDoneDateTime', 'test_done_date_time', 'Test_Done_Date_Time'
-          ], undefined);
-          
-          const statusValue = extractField(labTest, [
-            'status', 'Status'
-          ], status);
-          
-          const charges = extractField(labTest, [
-            'charges', 'Charges', 'testCharges', 'TestCharges'
-          ], 0);
-          
-          const createdBy = extractField(labTest, [
-            'createdBy', 'CreatedBy', 'created_by', 'Created_By'
-          ], undefined);
-          
-          const createdDate = extractField(labTest, [
-            'createdDate', 'CreatedDate', 'created_date', 'Created_Date'
-          ], orderedDate);
-          
-          return {
-            id: Number(patientLabTestsId) || index + 1,
-            patientLabTestsId: Number(patientLabTestsId) || index + 1,
-            testId: String(testId),
-            patientName: String(patientName),
-            patientId: String(patientId),
-            age: Number(age) || 0,
-            gender: String(gender),
-            testName: String(testName),
-            category: (testCategory as 'Blood Test' | 'Urine Test' | 'Imaging' | 'Pathology' | 'Radiology' | 'Other') || 'Other',
-            testCategory: String(testCategory),
-            orderedBy: String(orderedBy),
-            orderedDate: String(orderedDate),
-            orderedTime: String(orderedTime),
-            priority: (priority as 'Routine' | 'Urgent' | 'Emergency') || 'Routine',
-            status: status,
-            sampleCollectedBy: sampleCollectedBy ? String(sampleCollectedBy) : undefined,
-            technician: technician ? String(technician) : undefined,
-            result: result ? String(result) : undefined,
-            reportedDate: reportedDate ? String(reportedDate) : undefined,
-            reportedTime: reportedTime ? String(reportedTime) : undefined,
-            // Additional PatientLabTest fields
-            patientType: patientType ? String(patientType) : undefined,
-            labTestId: labTestId ? Number(labTestId) : undefined,
-            displayTestId: String(displayTestId),
-            roomAdmissionId: roomAdmissionId ? Number(roomAdmissionId) : undefined,
-            emergencyBedSlotId: emergencyBedSlotId ? (typeof emergencyBedSlotId === 'number' ? emergencyBedSlotId : String(emergencyBedSlotId)) : undefined,
-            billId: billId ? (typeof billId === 'number' ? billId : String(billId)) : undefined,
-            labTestDone: labTestDone === true || labTestDone === 'Yes' || labTestDone === 'yes' ? 'Yes' : 'No',
-            reportsUrl: reportsUrl ? String(reportsUrl) : undefined,
-            testStatus: String(testStatus),
-            testDoneDateTime: testDoneDateTime ? String(testDoneDateTime) : undefined,
-            statusValue: String(statusValue),
-            charges: Number(charges) || 0,
-            createdBy: createdBy ? (typeof createdBy === 'number' ? createdBy : String(createdBy)) : undefined,
-            createdDate: createdDate ? String(createdDate) : undefined
-          } as any;
-        });
-        
-        console.log('Mapped patient lab tests:', mappedTests);
-        console.log('First mapped test:', mappedTests.length > 0 ? JSON.stringify(mappedTests[0], null, 2) : 'No mapped tests');
-        setTests(mappedTests);
-      } catch (err) {
-        console.error('Error fetching patient lab tests:', err);
-        setTestsError(err instanceof Error ? err.message : 'Failed to load patient lab tests');
-        // Fallback to empty array or mock data
-        setTests([]);
-      } finally {
-        setTestsLoading(false);
+      } else if (response?.patientLabTests && Array.isArray(response.patientLabTests)) {
+        labTestsData = response.patientLabTests;
+      } else if (response?.labTests && Array.isArray(response.labTests)) {
+        labTestsData = response.labTests;
       }
-    };
+      
+      if (!Array.isArray(labTestsData) || labTestsData.length === 0) {
+        console.warn('Patient lab tests response is not an array or is empty:', response);
+        setTests([]);
+        return;
+      }
+      
+      // Helper function to extract field with multiple variations and nested objects
+      const extractField = (data: any, fieldVariations: string[], defaultValue: any = '') => {
+        if (!data) return defaultValue;
+        
+        for (const field of fieldVariations) {
+          // Handle nested objects (e.g., Patient.PatientName, LabTest.TestName)
+          if (field.includes('.')) {
+            const parts = field.split('.');
+            let value = data;
+            for (const part of parts) {
+              if (value && typeof value === 'object') {
+                value = value[part];
+              } else {
+                value = undefined;
+                break;
+              }
+            }
+            if (value !== undefined && value !== null && value !== '') {
+              return value;
+            }
+          } else {
+            // Direct field access
+            const value = data[field];
+            if (value !== undefined && value !== null && value !== '') {
+              return value;
+            }
+          }
+        }
+        
+        // Try nested object access (e.g., Patient.PatientName, CreatedBy.CreatedByName)
+        for (const field of fieldVariations) {
+          if (data.Patient && data.Patient[field]) {
+            const value = data.Patient[field];
+            if (value !== undefined && value !== null && value !== '') {
+              return value;
+            }
+          }
+          if (data.LabTest && data.LabTest[field]) {
+            const value = data.LabTest[field];
+            if (value !== undefined && value !== null && value !== '') {
+              return value;
+            }
+          }
+          if (data.CreatedBy && data.CreatedBy[field]) {
+            const value = data.CreatedBy[field];
+            if (value !== undefined && value !== null && value !== '') {
+              return value;
+            }
+          }
+          if (data.patient && data.patient[field]) {
+            const value = data.patient[field];
+            if (value !== undefined && value !== null && value !== '') {
+              return value;
+            }
+          }
+          if (data.labTest && data.labTest[field]) {
+            const value = data.labTest[field];
+            if (value !== undefined && value !== null && value !== '') {
+              return value;
+            }
+          }
+          if (data.createdBy && data.createdBy[field]) {
+            const value = data.createdBy[field];
+            if (value !== undefined && value !== null && value !== '') {
+              return value;
+            }
+          }
+        }
+        
+        return defaultValue;
+      };
+      
+      
+      // Map API response to LabTest interface
+      const mappedTests: LabTest[] = labTestsData.map((labTest: any, index: number) => {
+        const patientLabTestsId = extractField(labTest, [
+          'patientLabTestsId', 'PatientLabTestsId', 'patient_lab_tests_id', 'Patient_Lab_Tests_Id',
+          'patientLabTestId', 'PatientLabTestId', 'id', 'Id', 'ID'
+        ], index + 1);
+        
+        const testId = extractField(labTest, [
+          'displayTestId', 'DisplayTestId', 'display_test_id', 'Display_Test_Id',
+          'testId', 'TestId', 'test_id', 'Test_ID',
+          'patientLabTestsId', 'PatientLabTestsId', 'id', 'Id', 'ID'
+        ], `LAB-${patientLabTestsId}`);
+        
+        const patientName = extractField(labTest, [
+          'patientName', 'PatientName', 'patient_name', 'Patient_Name',
+          'patientFullName', 'PatientFullName', 'Patient.PatientName', 'Patient.patientName',
+          'Patient.Name', 'Patient.name', 'name', 'Name'
+        ], 'Unknown Patient');
+        
+        const patientId = extractField(labTest, [
+          'patientId', 'PatientId', 'patient_id', 'Patient_ID',
+          'patientID', 'PatientID', 'Patient.PatientId', 'Patient.patientId',
+          'Patient.Id', 'Patient.id'
+        ], 'N/A');
+        
+        const patientNo = extractField(labTest, [
+          'patientNo', 'PatientNo', 'patient_no', 'Patient_No',
+          'patientNumber', 'PatientNumber', 'patient_number', 'Patient_Number',
+          'Patient.PatientNo', 'Patient.patientNo', 'Patient.PatientNumber', 'Patient.patientNumber'
+        ], undefined);
+        
+        const testName = extractField(labTest, [
+          'testName', 'TestName', 'test_name', 'Test_Name',
+          'labTestName', 'LabTestName', 'lab_test_name', 'Lab_Test_Name',
+          'LabTest.TestName', 'LabTest.testName', 'LabTest.Name', 'LabTest.name',
+          'name', 'Name'
+        ], 'Unknown Test');
+        
+        const category = extractField(labTest, [
+          'testCategory', 'TestCategory', 'test_category', 'Test_Category',
+          'category', 'Category', 'labTestCategory', 'LabTestCategory',
+          'LabTest.TestCategory', 'LabTest.testCategory', 'LabTest.Category', 'LabTest.category'
+        ], 'Other');
+        
+        const orderedBy = extractField(labTest, [
+          'orderedBy', 'OrderedBy', 'ordered_by', 'Ordered_By',
+          'doctorName', 'DoctorName', 'doctor_name', 'Doctor_Name'
+        ], 'N/A');
+        
+        const orderedDate = extractField(labTest, [
+          'orderedDate', 'OrderedDate', 'ordered_date', 'Ordered_Date',
+          'createdDate', 'CreatedDate', 'created_date', 'Created_Date',
+          'date', 'Date'
+        ], new Date().toISOString().split('T')[0]);
+        
+        const orderedTime = extractField(labTest, [
+          'orderedTime', 'OrderedTime', 'ordered_time', 'Ordered_Time',
+          'createdTime', 'CreatedTime', 'created_time', 'Created_Time',
+          'time', 'Time'
+        ], new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }));
+        
+        const priority = extractField(labTest, [
+          'priority', 'Priority', 'testPriority', 'TestPriority'
+        ], 'Routine');
+        
+        const testStatus = extractField(labTest, [
+          'testStatus', 'TestStatus', 'test_status', 'Test_Status',
+          'status', 'Status'
+        ], 'Pending');
+        
+        // Map testStatus to LabTest status format
+        let status: 'Pending' | 'Sample Collected' | 'In Progress' | 'Completed' | 'Reported' = 'Pending';
+        if (testStatus) {
+          const statusLower = String(testStatus).toLowerCase();
+          if (statusLower === 'pending') {
+            status = 'Pending';
+          } else if (statusLower === 'sample collected' || statusLower === 'samplecollected') {
+            status = 'Sample Collected';
+          } else if (statusLower === 'in progress' || statusLower === 'inprogress' || statusLower === 'in_progress') {
+            status = 'In Progress';
+          } else if (statusLower === 'completed' || statusLower === 'done') {
+            status = 'Completed';
+          } else if (statusLower === 'reported') {
+            status = 'Reported';
+          }
+        }
+        
+        const age = extractField(labTest, [
+          'age', 'Age', 'patientAge', 'PatientAge'
+        ], 0);
+        
+        const gender = extractField(labTest, [
+          'gender', 'Gender', 'patientGender', 'PatientGender',
+          'sex', 'Sex'
+        ], 'N/A');
+        
+        const sampleCollectedBy = extractField(labTest, [
+          'sampleCollectedBy', 'SampleCollectedBy', 'sample_collected_by', 'Sample_Collected_By',
+          'collectedBy', 'CollectedBy', 'collected_by', 'Collected_By'
+        ], undefined);
+        
+        const technician = extractField(labTest, [
+          'technician', 'Technician', 'assignedTechnician', 'AssignedTechnician',
+          'tech', 'Tech'
+        ], undefined);
+        
+        const result = extractField(labTest, [
+          'result', 'Result', 'testResult', 'TestResult',
+          'report', 'Report'
+        ], undefined);
+        
+        const reportedDate = extractField(labTest, [
+          'reportedDate', 'ReportedDate', 'reported_date', 'Reported_Date',
+          'resultDate', 'ResultDate', 'result_date', 'Result_Date'
+        ], undefined);
+        
+        const reportedTime = extractField(labTest, [
+          'reportedTime', 'ReportedTime', 'reported_time', 'Reported_Time',
+          'resultTime', 'ResultTime', 'result_time', 'Result_Time'
+        ], undefined);
+        
+        // Extract all PatientLabTest fields
+        const patientType = extractField(labTest, [
+          'patientType', 'PatientType', 'patient_type', 'Patient_Type'
+        ], undefined);
+        
+        const labTestId = extractField(labTest, [
+          'labTestId', 'LabTestId', 'lab_test_id', 'Lab_Test_Id',
+          'LabTest.LabTestId', 'LabTest.labTestId', 'LabTest.Id', 'LabTest.id'
+        ], undefined);
+        
+        const displayTestId = extractField(labTest, [
+          'displayTestId', 'DisplayTestId', 'display_test_id', 'Display_Test_Id',
+          'LabTest.DisplayTestId', 'LabTest.displayTestId', 'LabTest.DisplayTestID', 'LabTest.displayTestID'
+        ], testId);
+        
+        const testCategory = extractField(labTest, [
+          'testCategory', 'TestCategory', 'test_category', 'Test_Category',
+          'category', 'Category', 'labTestCategory', 'LabTestCategory',
+          'LabTest.TestCategory', 'LabTest.testCategory', 'LabTest.Category', 'LabTest.category'
+        ], category);
+        
+        const roomAdmissionId = extractField(labTest, [
+          'roomAdmissionId', 'RoomAdmissionId', 'room_admission_id', 'Room_Admission_Id'
+        ], undefined);
+        
+        const emergencyBedSlotId = extractField(labTest, [
+          'emergencyBedSlotId', 'EmergencyBedSlotId', 'emergency_bed_slot_id', 'Emergency_Bed_Slot_Id'
+        ], undefined);
+        
+        const billId = extractField(labTest, [
+          'billId', 'BillId', 'bill_id', 'Bill_Id'
+        ], undefined);
+        
+        const labTestDone = extractField(labTest, [
+          'labTestDone', 'LabTestDone', 'lab_test_done', 'Lab_Test_Done'
+        ], false);
+        
+        const reportsUrl = extractField(labTest, [
+          'reportsUrl', 'ReportsUrl', 'reports_url', 'Reports_Url'
+        ], undefined);
+        
+        const testDoneDateTime = extractField(labTest, [
+          'testDoneDateTime', 'TestDoneDateTime', 'TestDoneDateTime', 'test_done_date_time', 'Test_Done_Date_Time'
+        ], undefined);
+        
+        const statusValue = extractField(labTest, [
+          'status', 'Status'
+        ], status);
+        
+        const charges = extractField(labTest, [
+          'charges', 'Charges', 'testCharges', 'TestCharges'
+        ], 0);
+        
+        const createdBy = extractField(labTest, [
+          'createdBy', 'CreatedBy', 'created_by', 'Created_By'
+        ], undefined);
+        
+        const createdByName = extractField(labTest, [
+          'createdByName', 'CreatedByName', 'created_by_name', 'Created_By_Name',
+          'CreatedBy.CreatedByName', 'CreatedBy.createdByName', 'createdBy.createdByName', 'createdBy.CreatedByName',
+          'CreatedBy.Name', 'CreatedBy.name', 'createdBy.name', 'createdBy.Name',
+          'CreatedBy.FullName', 'CreatedBy.fullName', 'createdBy.fullName', 'createdBy.FullName',
+          'CreatedBy.UserName', 'CreatedBy.userName', 'createdBy.userName', 'CreatedBy.UserName'
+        ], undefined);
+        
+        const createdDate = extractField(labTest, [
+          'createdDate', 'CreatedDate', 'created_date', 'Created_Date'
+        ], orderedDate);
+        
+        return {
+          id: Number(patientLabTestsId) || index + 1,
+          patientLabTestsId: Number(patientLabTestsId) || index + 1,
+          testId: String(testId),
+          patientName: String(patientName),
+          patientId: String(patientId),
+          patientNo: patientNo ? String(patientNo) : undefined,
+          age: Number(age) || 0,
+          gender: String(gender),
+          testName: String(testName),
+          category: (testCategory as 'Blood Test' | 'Urine Test' | 'Imaging' | 'Pathology' | 'Radiology' | 'Other') || 'Other',
+          testCategory: String(testCategory),
+          orderedBy: String(orderedBy),
+          orderedDate: String(orderedDate),
+          orderedTime: String(orderedTime),
+          priority: (priority as 'Routine' | 'Urgent' | 'Emergency') || 'Routine',
+          status: status,
+          sampleCollectedBy: sampleCollectedBy ? String(sampleCollectedBy) : undefined,
+          technician: technician ? String(technician) : undefined,
+          result: result ? String(result) : undefined,
+          reportedDate: reportedDate ? String(reportedDate) : undefined,
+          reportedTime: reportedTime ? String(reportedTime) : undefined,
+          // Additional PatientLabTest fields
+          patientType: patientType ? String(patientType) : undefined,
+          labTestId: labTestId ? Number(labTestId) : undefined,
+          displayTestId: String(displayTestId),
+          roomAdmissionId: roomAdmissionId ? Number(roomAdmissionId) : undefined,
+          emergencyBedSlotId: emergencyBedSlotId ? (typeof emergencyBedSlotId === 'number' ? emergencyBedSlotId : String(emergencyBedSlotId)) : undefined,
+          billId: billId ? (typeof billId === 'number' ? billId : String(billId)) : undefined,
+          labTestDone: labTestDone === true || labTestDone === 'Yes' || labTestDone === 'yes' ? 'Yes' : 'No',
+          reportsUrl: reportsUrl ? String(reportsUrl) : undefined,
+          testStatus: String(testStatus),
+          testDoneDateTime: testDoneDateTime ? String(testDoneDateTime) : undefined,
+          statusValue: String(statusValue),
+          charges: Number(charges) || 0,
+          createdBy: createdBy ? (typeof createdBy === 'number' ? createdBy : String(createdBy)) : undefined,
+          createdByName: createdByName ? String(createdByName) : undefined,
+          createdDate: createdDate ? String(createdDate) : undefined
+        } as any;
+      });
+      
+      console.log('Mapped patient lab tests:', mappedTests);
+      console.log('First mapped test:', mappedTests.length > 0 ? JSON.stringify(mappedTests[0], null, 2) : 'No mapped tests');
+      setTests(mappedTests);
+    } catch (err) {
+      console.error('Error fetching patient lab tests:', err);
+      setTestsError(err instanceof Error ? err.message : 'Failed to load patient lab tests');
+      // Fallback to empty array or mock data
+      setTests([]);
+    } finally {
+      setTestsLoading(false);
+    }
+  };
 
+  // Fetch patient lab tests on mount
+  useEffect(() => {
     fetchPatientLabTests();
   }, []); // Empty dependency array - fetch once on mount
+
+  // Get today's date in YYYY-MM-DD format
+  const getTodayDate = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  // Fetch lab test daily report
+  const fetchLabTestDailyReport = async () => {
+    try {
+      setDailyReportLoading(true);
+      setDailyReportError(null);
+      
+      const today = getTodayDate();
+      console.log('Fetching lab test daily report for today:', today);
+      
+      const params = new URLSearchParams();
+      params.append('date', today);
+      
+      const response = await apiRequest<any>(`/reports/lab-test-daily-report?${params.toString()}`);
+      console.log('Lab test daily report API response (RAW):', JSON.stringify(response, null, 2));
+      console.log('Response type:', typeof response);
+      console.log('Response keys:', response && typeof response === 'object' ? Object.keys(response) : 'N/A');
+      
+      // Handle different response structures
+      let reportData: any = null;
+      
+      if (response && typeof response === 'object') {
+        // Check if response is directly an array
+        if (Array.isArray(response)) {
+          reportData = { doctorWiseTests: response };
+          console.log('Response is directly an array, wrapping in doctorWiseTests');
+        } else if (response.data && typeof response.data === 'object') {
+          reportData = response.data;
+          console.log('Using response.data');
+        } else if (response.report && typeof response.report === 'object') {
+          reportData = response.report;
+          console.log('Using response.report');
+        } else if (response.result && typeof response.result === 'object') {
+          reportData = response.result;
+          console.log('Using response.result');
+        } else {
+          reportData = response;
+          console.log('Using response directly');
+        }
+      }
+      
+      if (!reportData) {
+        console.warn('Lab test daily report response is empty:', response);
+        setDoctorWiseDailyTests([]);
+        setDailySummary({
+          totalTests: 0,
+          pending: 0,
+          completed: 0,
+          avgTAT: 0,
+          avgTATFormatted: 'N/A',
+        });
+        return;
+      }
+      
+      console.log('Report data structure:', {
+        keys: Object.keys(reportData),
+        hasDoctorWiseTests: !!reportData.doctorWiseTests,
+        hasDoctorWiseDailyTests: !!reportData.doctorWiseDailyTests,
+        hasDoctors: !!reportData.doctors,
+        isArray: Array.isArray(reportData)
+      });
+      
+      // Helper function to extract field with multiple variations
+      const extractField = (data: any, fieldVariations: string[], defaultValue: any = 0) => {
+        if (!data || typeof data !== 'object') return defaultValue;
+        
+        const checkNested = (obj: any, field: string, depth: number = 0): any => {
+          if (depth > 3 || !obj || typeof obj !== 'object') return undefined;
+          
+          // Check direct property
+          if (obj[field] !== undefined && obj[field] !== null && obj[field] !== '') {
+            return obj[field];
+          }
+          
+          // Check case-insensitive property
+          const keys = Object.keys(obj);
+          const lowerField = field.toLowerCase();
+          const caseInsensitiveMatch = keys.find(k => k.toLowerCase() === lowerField);
+          if (caseInsensitiveMatch) {
+            const value = obj[caseInsensitiveMatch];
+            if (value !== undefined && value !== null && value !== '') {
+              return value;
+            }
+          }
+          
+          // Check partial match
+          const partialMatch = keys.find(k => k.toLowerCase().includes(lowerField) || lowerField.includes(k.toLowerCase()));
+          if (partialMatch) {
+            const value = obj[partialMatch];
+            if (value !== undefined && value !== null && value !== '') {
+              return value;
+            }
+          }
+          
+          // Check nested objects
+          for (const key in obj) {
+            if (obj.hasOwnProperty(key) && typeof obj[key] === 'object' && obj[key] !== null) {
+              const nestedValue = checkNested(obj[key], field, depth + 1);
+              if (nestedValue !== undefined && nestedValue !== null && nestedValue !== '') {
+                return nestedValue;
+              }
+            }
+          }
+          return undefined;
+        };
+        
+        for (const field of fieldVariations) {
+          const value = checkNested(data, field);
+          if (value !== undefined && value !== null && value !== '') {
+            return value;
+          }
+        }
+        return defaultValue;
+      };
+      
+      const safeNumber = (value: any): number => {
+        if (value === null || value === undefined || value === '') return 0;
+        const num = typeof value === 'string' ? parseFloat(value) : Number(value);
+        return isNaN(num) ? 0 : num;
+      };
+      
+      // Extract doctor-wise tests - check multiple possible locations
+      let doctorTests: any[] = [];
+      
+      console.log('Report data structure:', Object.keys(reportData));
+      
+      // Try known field names first
+      if (reportData.doctorWiseTests && Array.isArray(reportData.doctorWiseTests)) {
+        doctorTests = reportData.doctorWiseTests;
+        console.log('Found doctorWiseTests array:', doctorTests.length);
+      } else if (reportData.doctorWiseDailyTests && Array.isArray(reportData.doctorWiseDailyTests)) {
+        doctorTests = reportData.doctorWiseDailyTests;
+        console.log('Found doctorWiseDailyTests array:', doctorTests.length);
+      } else if (reportData.doctors && Array.isArray(reportData.doctors)) {
+        doctorTests = reportData.doctors;
+        console.log('Found doctors array:', doctorTests.length);
+      } else if (reportData.doctorStatistics && Array.isArray(reportData.doctorStatistics)) {
+        doctorTests = reportData.doctorStatistics;
+        console.log('Found doctorStatistics array:', doctorTests.length);
+      } else if (reportData.data && Array.isArray(reportData.data)) {
+        doctorTests = reportData.data;
+        console.log('Found data array:', doctorTests.length);
+      } else if (Array.isArray(reportData)) {
+        doctorTests = reportData;
+        console.log('Report data is directly an array:', doctorTests.length);
+      } else {
+        // Fallback: search for any array in the response that might contain doctor data
+        console.log('Searching for arrays in response...');
+        for (const key in reportData) {
+          if (Array.isArray(reportData[key]) && reportData[key].length > 0) {
+            const firstItem = reportData[key][0];
+            // Check if the array items look like doctor data (have doctor-related fields)
+            if (firstItem && typeof firstItem === 'object') {
+              const itemKeys = Object.keys(firstItem).map(k => k.toLowerCase());
+              const hasDoctorField = itemKeys.some(k => k.includes('doctor') || k.includes('physician') || k.includes('name'));
+              const hasTestField = itemKeys.some(k => k.includes('test') || k.includes('total') || k.includes('count') || k.includes('pending') || k.includes('completed'));
+              
+              if (hasDoctorField || hasTestField) {
+                doctorTests = reportData[key];
+                console.log(`Found potential doctor data array in key "${key}":`, doctorTests.length);
+                break;
+              }
+            }
+          }
+        }
+      }
+      
+      console.log('Doctor tests array length:', doctorTests.length);
+      if (doctorTests.length > 0) {
+        console.log('First doctor test item (raw):', JSON.stringify(doctorTests[0], null, 2));
+        console.log('First doctor test item keys:', Object.keys(doctorTests[0]));
+        console.log('First doctor test item values:', Object.entries(doctorTests[0]).map(([k, v]) => `${k}: ${v} (${typeof v})`));
+      } else {
+        console.warn('No doctor tests found in response!');
+        console.log('Available keys in reportData:', Object.keys(reportData));
+      }
+      
+      // Map doctor tests to our format
+      const mappedDoctorTests = doctorTests.map((doc: any, index: number) => {
+        // Try multiple field name variations for doctor name
+        const doctorName = extractField(doc, [
+          'doctorName', 'DoctorName', 'doctor_name',
+          'doctor', 'Doctor', 'DoctorName',
+          'orderedBy', 'OrderedBy', 'ordered_by',
+          'doctorFullName', 'DoctorFullName', 'doctor_full_name',
+          'name', 'Name', 'fullName', 'FullName',
+          'physicianName', 'PhysicianName', 'physician_name'
+        ], `Doctor ${index + 1}`);
+        
+        // Try multiple field name variations for total tests
+        const total = safeNumber(extractField(doc, [
+          'total', 'Total',
+          'totalTests', 'TotalTests', 'total_tests',
+          'totalTestCount', 'TotalTestCount', 'total_test_count',
+          'count', 'Count', 'testCount', 'TestCount'
+        ], 0));
+        
+        // Try multiple field name variations for pending
+        const pending = safeNumber(extractField(doc, [
+          'pending', 'Pending',
+          'pendingTests', 'PendingTests', 'pending_tests',
+          'pendingCount', 'PendingCount', 'pending_count',
+          'pendingTestCount', 'PendingTestCount', 'pending_test_count'
+        ], 0));
+        
+        // Try multiple field name variations for completed
+        const completed = safeNumber(extractField(doc, [
+          'completed', 'Completed',
+          'completedTests', 'CompletedTests', 'completed_tests',
+          'completedCount', 'CompletedCount', 'completed_count',
+          'completedTestCount', 'CompletedTestCount', 'completed_test_count'
+        ], 0));
+        
+        console.log(`Doctor ${index + 1} mapping:`, {
+          raw: doc,
+          mapped: { doctor: doctorName, total, pending, completed }
+        });
+        
+        return {
+          doctor: doctorName,
+          total,
+          pending,
+          completed,
+        };
+      });
+      
+      console.log('Mapped doctor-wise tests:', mappedDoctorTests);
+      
+      if (mappedDoctorTests.length === 0 && doctorTests.length > 0) {
+        console.error('Mapping failed! Original doctor tests:', doctorTests);
+        console.error('This might indicate a field name mismatch. Please check the console logs above.');
+      }
+      
+      setDoctorWiseDailyTests(mappedDoctorTests);
+      
+      // Extract daily summary
+      const summary = reportData.dailySummary || reportData.summary || reportData;
+      const totalTests = safeNumber(extractField(summary, ['totalTests', 'TotalTests', 'total_tests', 'total', 'Total'], 0));
+      const pending = safeNumber(extractField(summary, ['pending', 'Pending', 'pendingTests', 'PendingTests', 'pending_tests'], 0));
+      const completed = safeNumber(extractField(summary, ['completed', 'Completed', 'completedTests', 'CompletedTests', 'completed_tests'], 0));
+      
+      // Try to get formatted avgTAT first, then fallback to numeric avgTAT
+      const avgTATFormattedRaw = extractField(summary, [
+        'avgTATFormatted', 'avgTATFormatted', 'AvgTATFormatted', 'avg_tat_formatted',
+        'averageTATFormatted', 'AverageTATFormatted',
+        'avgTurnaroundTimeFormatted', 'AvgTurnaroundTimeFormatted'
+      ], '');
+      
+      console.log('&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&AvgTATFormattedRaw:', avgTATFormattedRaw);
+      let avgTATFormatted = 'N/A';
+      if (avgTATFormattedRaw && typeof avgTATFormattedRaw === 'string' && avgTATFormattedRaw.trim() !== '') {
+        avgTATFormatted = avgTATFormattedRaw;
+      } else {
+        // Fallback to numeric avgTAT and format it
+        const avgTAT = safeNumber(extractField(summary, ['avgTAT', 'AvgTAT', 'avg_tat', 'averageTAT', 'AverageTAT', 'averageTurnaroundTime', 'avgTurnaroundTime'], 0));
+        avgTATFormatted = avgTAT > 0 ? `${avgTAT.toFixed(1)}h` : 'N/A';
+      }
+      
+      const avgTAT = safeNumber(extractField(summary, ['avgTAT','avgTAT', 'AvgTAT', 'avg_tat', 'averageTAT', 'AverageTAT', 'averageTurnaroundTime', 'avgTurnaroundTime'], 0));
+      console.log('&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&setDailySummary:', setDailySummary.avgTAT, '++++++++', setDailySummary.avgTATFormatted);
+      setDailySummary({
+        totalTests,
+        pending,
+        completed,
+        avgTAT,
+        avgTATFormatted,
+      });
+      
+      console.log('Mapped doctor-wise tests:', mappedDoctorTests);
+      console.log('Mapped daily summary:', { totalTests, pending, completed, avgTAT, avgTATFormatted });
+      
+    } catch (err) {
+      console.error('Error fetching lab test daily report:', err);
+      setDailyReportError(err instanceof Error ? err.message : 'Failed to fetch lab test daily report');
+      setDoctorWiseDailyTests([]);
+      setDailySummary({
+        totalTests: 0,
+        pending: 0,
+        completed: 0,
+        avgTAT: 0,
+        avgTATFormatted: 'N/A',
+      });
+    } finally {
+      setDailyReportLoading(false);
+    }
+  };
+
+  // Get current week start and end dates
+  const getCurrentWeekDates = () => {
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // Adjust to Monday
+    const weekStart = new Date(today.setDate(diff));
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekEnd.getDate() + 6);
+    
+    const formatDate = (date: Date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+    
+    const formatDateDisplay = (date: Date) => {
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const month = months[date.getMonth()];
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${month} ${day}`;
+    };
+    
+    return {
+      startDate: formatDate(weekStart),
+      endDate: formatDate(weekEnd),
+      startDateDisplay: formatDateDisplay(weekStart),
+      endDateDisplay: formatDateDisplay(weekEnd),
+    };
+  };
+
+  // Fetch lab test weekly report
+  const fetchLabTestWeeklyReport = async () => {
+    try {
+      setWeeklyReportLoading(true);
+      setWeeklyReportError(null);
+      
+      const weekDates = getCurrentWeekDates();
+      setWeekStartDate(weekDates.startDateDisplay);
+      setWeekEndDate(weekDates.endDateDisplay);
+      
+      console.log('Fetching lab test weekly report for week:', weekDates);
+      
+      const params = new URLSearchParams();
+      params.append('startDate', weekDates.startDate);
+      params.append('endDate', weekDates.endDate);
+      
+      const response = await apiRequest<any>(`/reports/lab-test-weekly-report?${params.toString()}`);
+      console.log('Lab test weekly report API response:', JSON.stringify(response, null, 2));
+      
+      // Handle different response structures
+      let reportData: any = null;
+      
+      if (response && typeof response === 'object') {
+        if (response.data && typeof response.data === 'object') {
+          reportData = response.data;
+        } else if (response.report && typeof response.report === 'object') {
+          reportData = response.report;
+        } else {
+          reportData = response;
+        }
+      }
+      
+      if (!reportData) {
+        console.warn('Lab test weekly report response is empty:', response);
+        setWeeklyTestData([]);
+        setWeeklySummary({
+          totalTests: 0,
+          completed: 0,
+          dailyAverage: 0,
+          completionRate: 0,
+        });
+        return;
+      }
+      
+      // Helper function to extract field with multiple variations
+      const extractField = (data: any, fieldVariations: string[], defaultValue: any = 0) => {
+        if (!data || typeof data !== 'object') return defaultValue;
+        
+        const checkNested = (obj: any, field: string, depth: number = 0): any => {
+          if (depth > 3 || !obj || typeof obj !== 'object') return undefined;
+          
+          // Check direct property
+          if (obj[field] !== undefined && obj[field] !== null && obj[field] !== '') {
+            return obj[field];
+          }
+          
+          // Check case-insensitive property
+          const keys = Object.keys(obj);
+          const lowerField = field.toLowerCase();
+          const caseInsensitiveMatch = keys.find(k => k.toLowerCase() === lowerField);
+          if (caseInsensitiveMatch) {
+            const value = obj[caseInsensitiveMatch];
+            if (value !== undefined && value !== null && value !== '') {
+              return value;
+            }
+          }
+          
+          // Check partial match
+          const partialMatch = keys.find(k => k.toLowerCase().includes(lowerField) || lowerField.includes(k.toLowerCase()));
+          if (partialMatch) {
+            const value = obj[partialMatch];
+            if (value !== undefined && value !== null && value !== '') {
+              return value;
+            }
+          }
+          
+          // Check nested objects
+          for (const key in obj) {
+            if (obj.hasOwnProperty(key) && typeof obj[key] === 'object' && obj[key] !== null) {
+              const nestedValue = checkNested(obj[key], field, depth + 1);
+              if (nestedValue !== undefined && nestedValue !== null && nestedValue !== '') {
+                return nestedValue;
+              }
+            }
+          }
+          return undefined;
+        };
+        
+        for (const field of fieldVariations) {
+          const value = checkNested(data, field);
+          if (value !== undefined && value !== null && value !== '') {
+            return value;
+          }
+        }
+        return defaultValue;
+      };
+      
+      const safeNumber = (value: any): number => {
+        if (value === null || value === undefined || value === '') return 0;
+        const num = typeof value === 'string' ? parseFloat(value) : Number(value);
+        return isNaN(num) ? 0 : num;
+      };
+      
+      // Extract weekly trend data (daily data for the week)
+      let dailyData: any[] = [];
+      
+      if (reportData.dailyData && Array.isArray(reportData.dailyData)) {
+        dailyData = reportData.dailyData;
+      } else if (reportData.weeklyTrend && Array.isArray(reportData.weeklyTrend)) {
+        dailyData = reportData.weeklyTrend;
+      } else if (reportData.days && Array.isArray(reportData.days)) {
+        dailyData = reportData.days;
+      } else if (Array.isArray(reportData)) {
+        dailyData = reportData;
+      }
+      
+      // Map daily data to chart format
+      const mappedDailyData = dailyData.map((day: any) => {
+        const dateValue = extractField(day, ['date', 'Date', 'day', 'Day', 'testDate', 'TestDate'], '');
+        const tests = safeNumber(extractField(day, ['tests', 'Tests', 'totalTests', 'TotalTests', 'total_tests', 'total'], 0));
+        const completed = safeNumber(extractField(day, ['completed', 'Completed', 'completedTests', 'CompletedTests', 'completed_tests'], 0));
+        
+        // Format date for display (e.g., "Nov 08")
+        let dateDisplay = dateValue;
+        if (dateValue) {
+          try {
+            const dateObj = new Date(dateValue);
+            if (!isNaN(dateObj.getTime())) {
+              const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+              const month = months[dateObj.getMonth()];
+              const day = String(dateObj.getDate()).padStart(2, '0');
+              dateDisplay = `${month} ${day}`;
+            }
+          } catch (e) {
+            // Keep original value if parsing fails
+          }
+        }
+        
+        return {
+          date: dateDisplay || 'N/A',
+          tests,
+          completed,
+        };
+      });
+      
+      setWeeklyTestData(mappedDailyData);
+      
+      // Extract weekly summary
+      const summary = reportData.weeklySummary || reportData.summary || reportData;
+      const totalTests = safeNumber(extractField(summary, ['totalTests', 'TotalTests', 'total_tests', 'total', 'Total'], 0));
+      const completed = safeNumber(extractField(summary, ['completed', 'Completed', 'completedTests', 'CompletedTests', 'completed_tests'], 0));
+      const dailyAverage = mappedDailyData.length > 0 
+        ? Math.round(mappedDailyData.reduce((sum, day) => sum + day.tests, 0) / mappedDailyData.length)
+        : 0;
+      const completionRate = totalTests > 0 
+        ? Math.round((completed / totalTests) * 100)
+        : 0;
+      
+      setWeeklySummary({
+        totalTests,
+        completed,
+        dailyAverage,
+        completionRate,
+      });
+      
+      console.log('Mapped weekly test data:', mappedDailyData);
+      console.log('Mapped weekly summary:', { totalTests, completed, dailyAverage, completionRate });
+      
+    } catch (err) {
+      console.error('Error fetching lab test weekly report:', err);
+      setWeeklyReportError(err instanceof Error ? err.message : 'Failed to fetch lab test weekly report');
+      setWeeklyTestData([]);
+      setWeeklySummary({
+        totalTests: 0,
+        completed: 0,
+        dailyAverage: 0,
+        completionRate: 0,
+      });
+    } finally {
+      setWeeklyReportLoading(false);
+    }
+  };
+
+  // Fetch daily report when reports dialog opens
+  useEffect(() => {
+    if (showReportsDialog) {
+      setActiveReportTab('daily'); // Reset to daily tab when dialog opens
+      fetchLabTestDailyReport();
+      fetchLabTestWeeklyReport();
+    }
+  }, [showReportsDialog]);
+
+  // Fetch room admissions when patient is selected and PatientType is IPD
+  useEffect(() => {
+    if (newLabOrderFormData.patientType === 'IPD' && newLabOrderFormData.patientId) {
+      fetchPatientRoomAdmissions(newLabOrderFormData.patientId);
+    }
+  }, [newLabOrderFormData.patientId, newLabOrderFormData.patientType]);
+
+  // Fetch emergency admissions when patient is selected and PatientType is Emergency
+  useEffect(() => {
+    if (newLabOrderFormData.patientType === 'Emergency' && newLabOrderFormData.patientId) {
+      fetchPatientEmergencyAdmissions(newLabOrderFormData.patientId);
+    }
+  }, [newLabOrderFormData.patientId, newLabOrderFormData.patientType]);
+
+  // Export Daily Report to CSV
+  const exportDailyReport = () => {
+    const today = getTodayDate();
+    const filename = `Lab_Test_Daily_Report_${today}.csv`;
+    
+    // Create CSV header
+    let csvContent = 'Laboratory Test Daily Report\n';
+    csvContent += `Date: ${today}\n\n`;
+    
+    // Doctor-wise Lab Tests section
+    csvContent += 'Doctor-wise Lab Tests - Today\n';
+    csvContent += 'Doctor,Total Tests,Pending,Completed,Completion Rate (%)\n';
+    
+    doctorWiseDailyTests.forEach((doc) => {
+      const completionRate = doc.total > 0 ? Math.round((doc.completed / doc.total) * 100) : 0;
+      csvContent += `"${doc.doctor}",${doc.total},${doc.pending},${doc.completed},${completionRate}\n`;
+    });
+    
+    csvContent += '\n';
+    
+    // Daily Summary section
+    csvContent += 'Daily Summary\n';
+    csvContent += `Total Tests,${dailySummary.totalTests}\n`;
+    csvContent += `Pending,${dailySummary.pending}\n`;
+    csvContent += `Completed,${dailySummary.completed}\n`;
+    csvContent += `Avg. TAT,${dailySummary.avgTATFormatted}\n`;
+    
+    // Create blob and download
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Export Weekly Report to CSV
+  const exportWeeklyReport = () => {
+    const weekDates = getCurrentWeekDates();
+    const filename = `Lab_Test_Weekly_Report_${weekDates.startDate}_to_${weekDates.endDate}.csv`;
+    
+    // Create CSV header
+    let csvContent = 'Laboratory Test Weekly Report\n';
+    csvContent += `Week: ${weekDates.startDateDisplay} - ${weekDates.endDateDisplay}\n\n`;
+    
+    // Weekly Lab Test Trend section
+    csvContent += 'Weekly Lab Test Trend\n';
+    csvContent += 'Date,Total Tests,Completed\n';
+    
+    weeklyTestData.forEach((day) => {
+      csvContent += `"${day.date}",${day.tests},${day.completed}\n`;
+    });
+    
+    csvContent += '\n';
+    
+    // Weekly Summary section
+    csvContent += 'Weekly Summary\n';
+    csvContent += `Total Tests,${weeklySummary.totalTests}\n`;
+    csvContent += `Completed,${weeklySummary.completed}\n`;
+    csvContent += `Daily Average,${weeklySummary.dailyAverage}\n`;
+    csvContent += `Completion Rate (%),${weeklySummary.completionRate}\n`;
+    
+    // Create blob and download
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Handle export report based on active tab
+  const handleExportReport = () => {
+    if (activeReportTab === 'daily') {
+      exportDailyReport();
+    } else {
+      exportWeeklyReport();
+    }
+  };
 
   // Handle viewing PatientLabTest
   const handleViewPatientLabTest = (test: any) => {
@@ -554,11 +1214,16 @@ export function Laboratory() {
 
   // Handle editing PatientLabTest
   const handleEditPatientLabTest = (test: any) => {
+    console.log('Edit Patient Lab Test - test object:', test);
+    console.log('Edit Patient Lab Test - patientNo:', test.patientNo);
+    console.log('Edit Patient Lab Test - testName:', test.testName);
     setEditingPatientLabTest(test);
     setEditPatientLabTestFormData({
       patientLabTestsId: test.patientLabTestsId || test.id,
       patientId: test.patientId || '',
+      patientNo: test.patientNo || (test as any).PatientNo || (test as any).Patient?.PatientNo || '',
       labTestId: test.labTestId || '',
+      testName: test.testName || test.labTestName || (test as any).TestName || (test as any).LabTest?.TestName || '',
       patientType: test.patientType || 'OPD',
       priority: test.priority || 'Normal',
       testStatus: test.testStatus || test.status || 'Pending',
@@ -628,133 +1293,8 @@ export function Laboratory() {
         body: JSON.stringify(payload),
       });
 
-      // Refresh the tests list by re-fetching (reuse existing fetch logic)
-      const response = await apiRequest<any>('/patient-lab-tests/with-details');
-      const labTestsData = response?.data || response || [];
-      
-      if (Array.isArray(labTestsData) && labTestsData.length > 0) {
-        // Reuse the same mapping logic from useEffect
-        const extractField = (data: any, fieldVariations: string[], defaultValue: any = '') => {
-          for (const field of fieldVariations) {
-            const value = data?.[field];
-            if (value !== undefined && value !== null && value !== '') {
-              return value;
-            }
-          }
-          return defaultValue;
-        };
-        
-        const mappedTests: LabTest[] = labTestsData.map((labTest: any, index: number) => {
-          const patientLabTestsId = extractField(labTest, [
-            'patientLabTestsId', 'PatientLabTestsId', 'patient_lab_tests_id', 'Patient_Lab_Tests_Id',
-            'patientLabTestId', 'PatientLabTestId', 'id', 'Id', 'ID'
-          ], index + 1);
-          
-          const testId = extractField(labTest, [
-            'displayTestId', 'DisplayTestId', 'display_test_id', 'Display_Test_Id',
-            'testId', 'TestId', 'test_id', 'Test_ID',
-            'patientLabTestsId', 'PatientLabTestsId', 'id', 'Id', 'ID'
-          ], `LAB-${patientLabTestsId}`);
-          
-          const patientName = extractField(labTest, [
-            'patientName', 'PatientName', 'patient_name', 'Patient_Name',
-            'patientFullName', 'PatientFullName', 'name', 'Name'
-          ], 'Unknown Patient');
-          
-          const patientId = extractField(labTest, [
-            'patientId', 'PatientId', 'patient_id', 'Patient_ID',
-            'patientID', 'PatientID'
-          ], 'N/A');
-          
-          const testName = extractField(labTest, [
-            'testName', 'TestName', 'test_name', 'Test_Name',
-            'labTestName', 'LabTestName', 'lab_test_name', 'Lab_Test_Name',
-            'name', 'Name'
-          ], 'Unknown Test');
-          
-          const category = extractField(labTest, [
-            'testCategory', 'TestCategory', 'test_category', 'Test_Category',
-            'category', 'Category', 'labTestCategory', 'LabTestCategory'
-          ], 'Other');
-          
-          const priority = extractField(labTest, [
-            'priority', 'Priority', 'testPriority', 'TestPriority'
-          ], 'Routine');
-          
-          const testStatus = extractField(labTest, [
-            'testStatus', 'TestStatus', 'test_status', 'Test_Status',
-            'status', 'Status'
-          ], 'Pending');
-          
-          let status: 'Pending' | 'Sample Collected' | 'In Progress' | 'Completed' | 'Reported' = 'Pending';
-          if (testStatus) {
-            const statusLower = String(testStatus).toLowerCase();
-            if (statusLower === 'pending') {
-              status = 'Pending';
-            } else if (statusLower === 'sample collected' || statusLower === 'samplecollected') {
-              status = 'Sample Collected';
-            } else if (statusLower === 'in progress' || statusLower === 'inprogress' || statusLower === 'in_progress') {
-              status = 'In Progress';
-            } else if (statusLower === 'completed' || statusLower === 'done') {
-              status = 'Completed';
-            } else if (statusLower === 'reported') {
-              status = 'Reported';
-            }
-          }
-          
-          // Extract all other fields (simplified - you can add more if needed)
-          const patientType = extractField(labTest, ['patientType', 'PatientType'], undefined);
-          const labTestId = extractField(labTest, ['labTestId', 'LabTestId'], undefined);
-          const displayTestId = extractField(labTest, ['displayTestId', 'DisplayTestId'], testId);
-          const testCategory = extractField(labTest, ['testCategory', 'TestCategory'], category);
-          const roomAdmissionId = extractField(labTest, ['roomAdmissionId', 'RoomAdmissionId'], undefined);
-          const emergencyBedSlotId = extractField(labTest, ['emergencyBedSlotId', 'EmergencyBedSlotId'], undefined);
-          const billId = extractField(labTest, ['billId', 'BillId'], undefined);
-          const labTestDone = extractField(labTest, ['labTestDone', 'LabTestDone'], false);
-          const reportsUrl = extractField(labTest, ['reportsUrl', 'ReportsUrl'], undefined);
-          const testDoneDateTime = extractField(labTest, ['testDoneDateTime', 'TestDoneDateTime'], undefined);
-          const statusValue = extractField(labTest, ['status', 'Status'], status);
-          const charges = extractField(labTest, ['charges', 'Charges'], 0);
-          const createdBy = extractField(labTest, ['createdBy', 'CreatedBy'], undefined);
-          const createdDate = extractField(labTest, ['createdDate', 'CreatedDate'], new Date().toISOString().split('T')[0]);
-          
-          return {
-            id: Number(patientLabTestsId) || index + 1,
-            patientLabTestsId: Number(patientLabTestsId) || index + 1,
-            testId: String(testId),
-            patientName: String(patientName),
-            patientId: String(patientId),
-            age: 0,
-            gender: 'N/A',
-            testName: String(testName),
-            category: (testCategory as 'Blood Test' | 'Urine Test' | 'Imaging' | 'Pathology' | 'Radiology' | 'Other') || 'Other',
-            testCategory: String(testCategory),
-            orderedBy: 'N/A',
-            orderedDate: String(createdDate),
-            orderedTime: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
-            priority: (priority as 'Routine' | 'Urgent' | 'Emergency') || 'Routine',
-            status: status,
-            patientType: patientType ? String(patientType) : undefined,
-            labTestId: labTestId ? Number(labTestId) : undefined,
-            displayTestId: String(displayTestId),
-            roomAdmissionId: roomAdmissionId ? Number(roomAdmissionId) : undefined,
-            emergencyBedSlotId: emergencyBedSlotId ? (typeof emergencyBedSlotId === 'number' ? emergencyBedSlotId : String(emergencyBedSlotId)) : undefined,
-            billId: billId ? (typeof billId === 'number' ? billId : String(billId)) : undefined,
-            labTestDone: labTestDone === true || labTestDone === 'Yes' || labTestDone === 'yes' ? 'Yes' : 'No',
-            reportsUrl: reportsUrl ? String(reportsUrl) : undefined,
-            testStatus: String(testStatus),
-            testDoneDateTime: testDoneDateTime ? String(testDoneDateTime) : undefined,
-            statusValue: String(statusValue),
-            charges: Number(charges) || 0,
-            createdBy: createdBy ? (typeof createdBy === 'number' ? createdBy : String(createdBy)) : undefined,
-            createdDate: createdDate ? String(createdDate) : undefined
-          } as any;
-        });
-        
-        setTests(mappedTests);
-      } else {
-        setTests([]);
-      }
+      // Refresh the tests list by calling the main fetch function
+      await fetchPatientLabTests();
 
       // Close dialog
       setIsEditPatientLabTestDialogOpen(false);
@@ -806,13 +1346,14 @@ export function Laboratory() {
       setNewLabOrderFormData({
         patientId: '',
         labTestId: '',
-        patientType: 'OPD',
+        patientType: '',
         roomAdmissionId: '',
         appointmentId: '',
         emergencyBedSlotId: '',
         priority: 'Normal',
         testStatus: 'Pending',
         labTestDone: 'No',
+        testDoneDate: '',
         reportsUrl: '',
         orderedByDoctorId: ''
       });
@@ -829,26 +1370,147 @@ export function Laboratory() {
     }
   };
 
+  // Fetch appointments for a specific patient
+  const fetchPatientAppointments = async (patientId: string) => {
+    if (!patientId) {
+      setAvailableAppointments([]);
+      return;
+    }
+    
+    try {
+      console.log('Fetching appointments for patient:', patientId);
+      const response = await apiRequest<any>(`/patient-appointments/patient/${patientId}`);
+      console.log('Patient appointments API response:', response);
+      
+      // Handle different response structures
+      let appointments: any[] = [];
+      
+      if (Array.isArray(response)) {
+        appointments = response;
+      } else if (response?.data && Array.isArray(response.data)) {
+        appointments = response.data;
+      } else if (response?.appointments && Array.isArray(response.appointments)) {
+        appointments = response.appointments;
+      } else if (response?.patientAppointments && Array.isArray(response.patientAppointments)) {
+        appointments = response.patientAppointments;
+      }
+      
+      console.log('Mapped appointments:', appointments);
+      setAvailableAppointments(appointments);
+    } catch (err) {
+      console.error('Error fetching patient appointments:', err);
+      setAvailableAppointments([]);
+    }
+  };
+
+  // Fetch room admissions for a specific patient
+  const fetchPatientRoomAdmissions = async (patientId: string) => {
+    if (!patientId) {
+      setAvailableAdmissions([]);
+      return;
+    }
+    
+    try {
+      console.log('Fetching room admissions for patient:', patientId);
+      const response = await apiRequest<any>(`/room-admissions/patient/${patientId}`);
+      console.log('Room admissions API response:', response);
+      
+      // Handle different response structures
+      let admissions: any[] = [];
+      
+      if (Array.isArray(response)) {
+        admissions = response;
+      } else if (response?.data && Array.isArray(response.data)) {
+        admissions = response.data;
+      } else if (response?.admissions && Array.isArray(response.admissions)) {
+        admissions = response.admissions;
+      } else if (response?.roomAdmissions && Array.isArray(response.roomAdmissions)) {
+        admissions = response.roomAdmissions;
+      }
+      
+      console.log('Mapped room admissions:', admissions);
+      setAvailableAdmissions(admissions);
+    } catch (err) {
+      console.error('Error fetching room admissions:', err);
+      setAvailableAdmissions([]);
+    }
+  };
+
+  // Fetch emergency admissions for a specific patient
+  const fetchPatientEmergencyAdmissions = async (patientId: string) => {
+    if (!patientId) {
+      setAvailableEmergencyBedSlots([]);
+      return;
+    }
+    
+    try {
+      console.log('Fetching emergency admissions for patient:', patientId);
+      const response = await apiRequest<any>(`/emergency-admissions/patient/${patientId}`);
+      console.log('Emergency admissions API response:', response);
+      
+      // Handle different response structures
+      let emergencyAdmissions: any[] = [];
+      
+      if (Array.isArray(response)) {
+        emergencyAdmissions = response;
+      } else if (response?.data && Array.isArray(response.data)) {
+        emergencyAdmissions = response.data;
+      } else if (response?.admissions && Array.isArray(response.admissions)) {
+        emergencyAdmissions = response.admissions;
+      } else if (response?.emergencyAdmissions && Array.isArray(response.emergencyAdmissions)) {
+        emergencyAdmissions = response.emergencyAdmissions;
+      } else if (response?.emergencyBedSlots && Array.isArray(response.emergencyBedSlots)) {
+        emergencyAdmissions = response.emergencyBedSlots;
+      }
+      
+      console.log('Mapped emergency admissions:', emergencyAdmissions);
+      setAvailableEmergencyBedSlots(emergencyAdmissions);
+    } catch (err) {
+      console.error('Error fetching emergency admissions:', err);
+      setAvailableEmergencyBedSlots([]);
+    }
+  };
+
   // Handle PatientType change - fetch conditional data
-  const handlePatientTypeChange = async (patientType: 'IPD' | 'OPD' | 'Emergency') => {
+  const handlePatientTypeChange = async (patientType: 'IPD' | 'OPD' | 'Emergency' | '') => {
     setNewLabOrderFormData({
       ...newLabOrderFormData,
-      patientType,
+      patientType: patientType as 'IPD' | 'OPD' | 'Emergency',
       roomAdmissionId: '',
       appointmentId: '',
       emergencyBedSlotId: ''
     });
 
+    // Clear conditional data if no patient type selected
+    if (!patientType) {
+      setAvailableAdmissions([]);
+      setAvailableAppointments([]);
+      setAvailableEmergencyBedSlots([]);
+      return;
+    }
+
     try {
       if (patientType === 'IPD') {
-        const admissions = await admissionsApi.getAll();
-        setAvailableAdmissions(admissions);
+        // If patient is already selected, fetch their room admissions
+        if (newLabOrderFormData.patientId) {
+          await fetchPatientRoomAdmissions(newLabOrderFormData.patientId);
+        } else {
+          setAvailableAdmissions([]);
+        }
       } else if (patientType === 'OPD') {
-        const appointments = await patientAppointmentsApi.getAll({ status: 'Active' });
-        setAvailableAppointments(appointments);
+        // If patient is already selected, fetch their appointments
+        if (newLabOrderFormData.patientId) {
+          await fetchPatientAppointments(newLabOrderFormData.patientId);
+        } else {
+          setAvailableAppointments([]);
+        }
       } else if (patientType === 'Emergency') {
-        const bedSlots = await emergencyBedSlotsApi.getAll('Active');
-        setAvailableEmergencyBedSlots(bedSlots);
+        // If patient is already selected, fetch their emergency admissions
+        if (newLabOrderFormData.patientId) {
+          await fetchPatientEmergencyAdmissions(newLabOrderFormData.patientId);
+        } else {
+          setAvailableEmergencyBedSlots([]);
+        }
       }
     } catch (err) {
       console.error(`Error fetching ${patientType} data:`, err);
@@ -871,6 +1533,9 @@ export function Laboratory() {
       if (!newLabOrderFormData.orderedByDoctorId) {
         throw new Error('Ordered By Doctor is required');
       }
+      if (!newLabOrderFormData.patientType) {
+        throw new Error('Patient Type is required');
+      }
 
       // Validate conditional fields based on PatientType
       if (newLabOrderFormData.patientType === 'IPD' && !newLabOrderFormData.roomAdmissionId) {
@@ -887,7 +1552,7 @@ export function Laboratory() {
       const payload: any = {
         PatientId: newLabOrderFormData.patientId,
         LabTestId: Number(newLabOrderFormData.labTestId),
-        PatientType: newLabOrderFormData.patientType,
+        PatientType: newLabOrderFormData.patientType as 'IPD' | 'OPD' | 'Emergency',
         Priority: newLabOrderFormData.priority,
         TestStatus: newLabOrderFormData.testStatus,
         LabTestDone: newLabOrderFormData.labTestDone,
@@ -910,6 +1575,12 @@ export function Laboratory() {
       if (newLabOrderFormData.reportsUrl) {
         payload.ReportsUrl = newLabOrderFormData.reportsUrl;
       }
+      
+      if (newLabOrderFormData.testDoneDate) {
+        // Convert date to ISO format with time (assuming time is 00:00:00 if not provided)
+        const testDoneDateTime = new Date(newLabOrderFormData.testDoneDate + 'T00:00:00');
+        payload.TestDoneDateTime = testDoneDateTime.toISOString();
+      }
 
       console.log('Saving new lab order with payload:', payload);
       await apiRequest('/patient-lab-tests', {
@@ -922,13 +1593,14 @@ export function Laboratory() {
       setNewLabOrderFormData({
         patientId: '',
         labTestId: '',
-        patientType: 'OPD',
+        patientType: '',
         roomAdmissionId: '',
         appointmentId: '',
         emergencyBedSlotId: '',
         priority: 'Normal',
         testStatus: 'Pending',
         labTestDone: 'No',
+        testDoneDate: '',
         reportsUrl: '',
         orderedByDoctorId: ''
       });
@@ -950,12 +1622,12 @@ export function Laboratory() {
   };
 
   return (
-    <div className="dashboard-container">
+    <div className="dashboard-container bg-white">
       <div className="dashboard-scrollable-container">
         <div className="dashboard-header-section">
           <div className="dashboard-header-content">
             <div>
-              <h1 className="dashboard-header">Laboratory Management</h1>
+              <h1 className="dashboard-header">Laboratory Tests Management</h1>
               <p className="dashboard-subheader">Manage lab tests, samples, and reports</p>
             </div>
             <div className="flex gap-2">
@@ -975,11 +1647,11 @@ export function Laboratory() {
                 New Lab Order
               </Button>
             </DialogTrigger>
-            <DialogContent className="p-0 gap-0 large-dialog max-w-4xl">
-              <DialogHeader className="px-6 pt-4 pb-3 flex-shrink-0">
+            <DialogContent className="p-0 gap-0 large-dialog max-w-4xl bg-white">
+              <DialogHeader className="px-6 pt-4 pb-3 flex-shrink-0 bg-white">
                 <DialogTitle>New Lab Order</DialogTitle>
               </DialogHeader>
-              <div className="flex-1 overflow-y-auto px-6 pb-1 patient-list-scrollable min-h-0">
+              <div className="flex-1 overflow-y-auto px-6 pb-1 patient-list-scrollable min-h-0 bg-white">
                 <div className="space-y-4 py-4">
                   {/* Patient Selection - Searchable */}
                   <div>
@@ -1032,10 +1704,24 @@ export function Laboratory() {
                                 return (
                                   <tr
                                     key={patientId}
-                                    onClick={() => {
-                                      setNewLabOrderFormData({ ...newLabOrderFormData, patientId });
+                                    onClick={async () => {
+                                      const updatedFormData = { ...newLabOrderFormData, patientId };
+                                      setNewLabOrderFormData(updatedFormData);
                                       setPatientSearchTerm(`${patientNo ? `${patientNo} - ` : ''}${fullName || 'Unknown'}`);
                                       setShowPatientList(false);
+                                      
+                                      // If PatientType is OPD, fetch appointments for this patient
+                                      if (updatedFormData.patientType === 'OPD' && patientId) {
+                                        await fetchPatientAppointments(patientId);
+                                      }
+                                      // If PatientType is IPD, fetch room admissions for this patient
+                                      if (updatedFormData.patientType === 'IPD' && patientId) {
+                                        await fetchPatientRoomAdmissions(patientId);
+                                      }
+                                      // If PatientType is Emergency, fetch emergency admissions for this patient
+                                      if (updatedFormData.patientType === 'Emergency' && patientId) {
+                                        await fetchPatientEmergencyAdmissions(patientId);
+                                      }
                                     }}
                                     className={`border-b border-gray-100 cursor-pointer hover:bg-blue-50 ${isSelected ? 'bg-blue-100' : ''}`}
                                   >
@@ -1123,8 +1809,9 @@ export function Laboratory() {
                       id="patientType"
                       className="w-full px-3 py-2 border border-gray-200 rounded-md"
                       value={newLabOrderFormData.patientType}
-                      onChange={(e) => handlePatientTypeChange(e.target.value as 'IPD' | 'OPD' | 'Emergency')}
+                      onChange={(e) => handlePatientTypeChange(e.target.value as 'IPD' | 'OPD' | 'Emergency' | '')}
                     >
+                      <option value="">Select Patient Type</option>
                       <option value="OPD">OPD</option>
                       <option value="IPD">IPD</option>
                       <option value="Emergency">Emergency</option>
@@ -1134,7 +1821,7 @@ export function Laboratory() {
                   {/* Conditional Fields based on PatientType */}
                   {newLabOrderFormData.patientType === 'IPD' && (
                     <div>
-                      <Label htmlFor="roomAdmissionId">Room Admission ID *</Label>
+                      <Label htmlFor="roomAdmissionId">Room Admission ID (BedNo_RoomAllocationDate) *</Label>
                       <select
                         id="roomAdmissionId"
                         className="w-full px-3 py-2 border border-gray-200 rounded-md"
@@ -1143,12 +1830,39 @@ export function Laboratory() {
                       >
                         <option value="">Select Room Admission</option>
                         {availableAdmissions.map((admission: any) => {
-                          const admissionId = admission.roomAdmissionId || admission.admissionId || admission.id || '';
-                          const patientName = admission.patientName || admission.PatientName || '';
-                          const bedNumber = admission.bedNumber || admission.BedNumber || '';
+                          const admissionId = admission.roomAdmissionId || admission.admissionId || admission.id || admission.RoomAdmissionId || '';
+                          
+                          // Extract room allocation date
+                          const roomAllocationDate = admission.roomAllocationDate || 
+                                                     admission.RoomAllocationDate || 
+                                                     admission.room_allocation_date ||
+                                                     admission.date ||
+                                                     admission.Date || '';
+                          
+                          // Format date: Extract YYYY-MM-DD from date string or Date object
+                          let formattedDate = '';
+                          if (roomAllocationDate) {
+                            try {
+                              if (typeof roomAllocationDate === 'string') {
+                                // If it's a string, extract date part (before 'T' if present)
+                                formattedDate = roomAllocationDate.split('T')[0];
+                              } else {
+                                // If it's a Date object, convert to ISO string and extract date part
+                                formattedDate = new Date(roomAllocationDate).toISOString().split('T')[0];
+                              }
+                            } catch {
+                              formattedDate = String(roomAllocationDate).split('T')[0] || 'N/A';
+                            }
+                          } else {
+                            formattedDate = 'N/A';
+                          }
+                          
+                          // Build display text: RoomAdmissionId_RoomAllocationDate
+                          const displayText = `${admissionId || 'N/A'}_${formattedDate}`;
+                          
                           return (
                             <option key={admissionId} value={String(admissionId)}>
-                              {patientName} - Bed {bedNumber}
+                              {displayText}
                             </option>
                           );
                         })}
@@ -1158,7 +1872,7 @@ export function Laboratory() {
 
                   {newLabOrderFormData.patientType === 'OPD' && (
                     <div>
-                      <Label htmlFor="appointmentId">Appointment ID *</Label>
+                      <Label htmlFor="appointmentId">Appointment ID (TokenNo_AppointmentDateTime) *</Label>
                       <select
                         id="appointmentId"
                         className="w-full px-3 py-2 border border-gray-200 rounded-md"
@@ -1167,11 +1881,60 @@ export function Laboratory() {
                       >
                         <option value="">Select Appointment</option>
                         {availableAppointments.map((appointment: any) => {
-                          const appointmentId = appointment.id || appointment.patientAppointmentId || '';
+                          const appointmentId = appointment.id || appointment.patientAppointmentId || appointment.PatientAppointmentId || '';
                           const tokenNo = appointment.tokenNo || appointment.TokenNo || '';
+                          
+                          // Extract appointment date (handle both camelCase and PascalCase)
+                          const appointmentDate = appointment.appointmentDate || appointment.AppointmentDate || '';
+                          
+                          // Extract appointment time (handle both camelCase and PascalCase)
+                          const appointmentTime = appointment.appointmentTime || appointment.AppointmentTime || '';
+                          
+                          // Format date: Extract YYYY-MM-DD from date string or Date object
+                          let formattedDate = '';
+                          if (appointmentDate) {
+                            try {
+                              if (typeof appointmentDate === 'string') {
+                                // If it's a string, extract date part (before 'T' if present)
+                                formattedDate = appointmentDate.split('T')[0];
+                              } else {
+                                // If it's a Date object, convert to ISO string and extract date part
+                                formattedDate = new Date(appointmentDate).toISOString().split('T')[0];
+                              }
+                            } catch {
+                              formattedDate = String(appointmentDate).split('T')[0] || 'N/A';
+                            }
+                          } else {
+                            formattedDate = 'N/A';
+                          }
+                          
+                          // Format time: Extract HH:MM from time string
+                          let formattedTime = '';
+                          if (appointmentTime) {
+                            try {
+                              const timeStr = String(appointmentTime);
+                              // If it's already in HH:MM:SS or HH:MM format, extract HH:MM
+                              if (timeStr.match(/^\d{2}:\d{2}/)) {
+                                formattedTime = timeStr.substring(0, 5); // HH:MM format
+                              } else if (timeStr.includes('T')) {
+                                // If it's a datetime string, extract time part
+                                formattedTime = timeStr.split('T')[1]?.substring(0, 5) || '';
+                              } else {
+                                formattedTime = timeStr.substring(0, 5) || 'N/A';
+                              }
+                            } catch {
+                              formattedTime = 'N/A';
+                            }
+                          } else {
+                            formattedTime = 'N/A';
+                          }
+                          
+                          // Build display text: TokenNo_AppointmentDate_AppointmentTime
+                          const displayText = `${tokenNo || 'N/A'}_${formattedDate}_${formattedTime}`;
+                          
                           return (
                             <option key={appointmentId} value={String(appointmentId)}>
-                              {tokenNo} - {appointment.patientId?.substring(0, 8) || ''}
+                              {displayText}
                             </option>
                           );
                         })}
@@ -1181,7 +1944,7 @@ export function Laboratory() {
 
                   {newLabOrderFormData.patientType === 'Emergency' && (
                     <div>
-                      <Label htmlFor="emergencyBedSlotId">Emergency Bed Slot ID *</Label>
+                      <Label htmlFor="emergencyBedSlotId"> (SlotNo_EmergencyAdmissionDateTime) *</Label>
                       <select
                         id="emergencyBedSlotId"
                         className="w-full px-3 py-2 border border-gray-200 rounded-md"
@@ -1189,12 +1952,51 @@ export function Laboratory() {
                         onChange={(e) => setNewLabOrderFormData({ ...newLabOrderFormData, emergencyBedSlotId: e.target.value })}
                       >
                         <option value="">Select Emergency Bed Slot</option>
-                        {availableEmergencyBedSlots.map((slot: any) => {
-                          const slotId = slot.emergencyBedSlotId || slot.id || slot.EmergencyBedSlotId || '';
-                          const slotNo = slot.eBedSlotNo || slot.EBedSlotNo || slot.slotNo || '';
+                        {availableEmergencyBedSlots.map((admission: any) => {
+                          // Extract emergency admission ID
+                          const emergencyAdmissionId = admission.emergencyAdmissionId || 
+                                                         admission.EmergencyAdmissionId || 
+                                                         admission.emergency_admission_id ||
+                                                         admission.id ||
+                                                         admission.Id || '';
+                          
+                          // Extract emergency admission date
+                          const emergencyAdmissionDate = admission.emergencyAdmissionDate || 
+                                                          admission.EmergencyAdmissionDate || 
+                                                          admission.emergency_admission_date ||
+                                                          admission.date ||
+                                                          admission.Date || '';
+                          
+                          // Format date: Extract YYYY-MM-DD from date string or Date object
+                          let formattedDate = '';
+                          if (emergencyAdmissionDate) {
+                            try {
+                              if (typeof emergencyAdmissionDate === 'string') {
+                                // If it's a string, extract date part (before 'T' if present)
+                                formattedDate = emergencyAdmissionDate.split('T')[0];
+                              } else {
+                                // If it's a Date object, convert to ISO string and extract date part
+                                formattedDate = new Date(emergencyAdmissionDate).toISOString().split('T')[0];
+                              }
+                            } catch {
+                              formattedDate = String(emergencyAdmissionDate).split('T')[0] || 'N/A';
+                            }
+                          } else {
+                            formattedDate = 'N/A';
+                          }
+                          
+                          // Build display text: EmergencyAdmissionId_EmergencyAdmissionDate
+                          const displayText = `${emergencyAdmissionId || 'N/A'}_${formattedDate}`;
+                          
+                          // Use emergencyAdmissionId as the value, fallback to other IDs
+                          const valueId = emergencyAdmissionId || 
+                                         admission.emergencyBedSlotId || 
+                                         admission.id || 
+                                         admission.EmergencyBedSlotId || '';
+                          
                           return (
-                            <option key={slotId} value={String(slotId)}>
-                              Slot {slotNo}
+                            <option key={valueId} value={String(valueId)}>
+                              {displayText}
                             </option>
                           );
                         })}
@@ -1243,6 +2045,18 @@ export function Laboratory() {
                       <option value="No">No</option>
                       <option value="Yes">Yes</option>
                     </select>
+                  </div>
+
+                  {/* Test Done Date */}
+                  <div>
+                    <Label htmlFor="testDoneDate">Test Done Date</Label>
+                    <Input
+                      id="testDoneDate"
+                      type="date"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                      value={newLabOrderFormData.testDoneDate}
+                      onChange={(e) => setNewLabOrderFormData({ ...newLabOrderFormData, testDoneDate: e.target.value })}
+                    />
                   </div>
 
                   {/* Report URL */}
@@ -1324,7 +2138,7 @@ export function Laboratory() {
                   )}
                 </div>
               </div>
-              <DialogFooter className="px-6 py-3 flex-shrink-0 border-t">
+              <DialogFooter className="px-6 py-3 flex-shrink-0 border-t bg-white">
                 <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
                   Cancel
                 </Button>
@@ -1466,16 +2280,14 @@ export function Laboratory() {
             <TestsList 
               tests={filteredTests} 
               onSelectTest={setSelectedTest}
-              onViewTest={(test) => {
-                setViewingPatientLabTest(test);
-                setIsViewPatientLabTestDialogOpen(true);
-              }}
               onEditTest={(test) => {
                 setEditingPatientLabTest(test);
                 setEditPatientLabTestFormData({
                   patientLabTestsId: test.patientLabTestsId || test.id,
                   patientId: test.patientId || '',
+                  patientNo: test.patientNo || (test as any).PatientNo || (test as any).Patient?.PatientNo || '',
                   labTestId: test.labTestId || '',
+                  testName: test.testName || test.labTestName || (test as any).TestName || (test as any).LabTest?.TestName || '',
                   patientType: test.patientType || 'OPD',
                   priority: test.priority || 'Normal',
                   testStatus: test.testStatus || test.status || 'Pending',
@@ -1496,7 +2308,6 @@ export function Laboratory() {
             <TestsList 
               tests={getTestsByStatus('Pending')} 
               onSelectTest={setSelectedTest}
-              onViewTest={handleViewPatientLabTest}
               onEditTest={handleEditPatientLabTest}
             />
           </TabsContent>
@@ -1504,7 +2315,6 @@ export function Laboratory() {
             <TestsList 
               tests={[...getTestsByStatus('In Progress'), ...getTestsByStatus('Sample Collected')]} 
               onSelectTest={setSelectedTest}
-              onViewTest={handleViewPatientLabTest}
               onEditTest={handleEditPatientLabTest}
             />
           </TabsContent>
@@ -1512,7 +2322,6 @@ export function Laboratory() {
             <TestsList 
               tests={[...getTestsByStatus('Completed'), ...getTestsByStatus('Reported')]} 
               onSelectTest={setSelectedTest}
-              onViewTest={handleViewPatientLabTest}
               onEditTest={handleEditPatientLabTest}
             />
           </TabsContent>
@@ -1630,157 +2439,208 @@ export function Laboratory() {
 
       {/* Reports Dialog */}
       <Dialog open={showReportsDialog} onOpenChange={setShowReportsDialog}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
+        <DialogContent className="p-0 gap-0 large-dialog max-w-6xl max-h-[90vh]">
+          <DialogHeader className="px-6 pt-4 pb-3 flex-shrink-0">
             <DialogTitle>Laboratory Reports</DialogTitle>
           </DialogHeader>
-          <div className="space-y-6 py-4">
-            <Tabs defaultValue="daily">
-              <TabsList>
-                <TabsTrigger value="daily">Daily Report</TabsTrigger>
-                <TabsTrigger value="weekly">Weekly Report</TabsTrigger>
-              </TabsList>
+          <div className="flex-1 overflow-y-auto px-6 pb-1 patient-list-scrollable min-h-0">
+            <div className="space-y-6 py-4">
+              <Tabs value={activeReportTab} onValueChange={(value) => setActiveReportTab(value as 'daily' | 'weekly')}>
+                <TabsList>
+                  <TabsTrigger value="daily">Daily Report</TabsTrigger>
+                  <TabsTrigger value="weekly">Weekly Report</TabsTrigger>
+                </TabsList>
 
-              <TabsContent value="daily" className="space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Doctor-wise Lab Tests - Today</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="overflow-x-auto">
-                      <table className="w-full">
-                        <thead>
-                          <tr className="border-b border-gray-200">
-                            <th className="text-left py-3 px-4 text-gray-700">Doctor</th>
-                            <th className="text-left py-3 px-4 text-gray-700">Total Tests</th>
-                            <th className="text-left py-3 px-4 text-gray-700">Pending</th>
-                            <th className="text-left py-3 px-4 text-gray-700">Completed</th>
-                            <th className="text-left py-3 px-4 text-gray-700">Completion Rate</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {doctorWiseDailyTests.map((doc, index) => {
-                            const completionRate = Math.round((doc.completed / doc.total) * 100);
-                            return (
-                              <tr key={index} className="border-b border-gray-100 hover:bg-gray-50">
-                                <td className="py-3 px-4 text-gray-900">{doc.doctor}</td>
-                                <td className="py-3 px-4 text-gray-900">{doc.total}</td>
-                                <td className="py-3 px-4">
-                                  <Badge variant="outline">{doc.pending}</Badge>
-                                </td>
-                                <td className="py-3 px-4">
-                                  <Badge variant="default">{doc.completed}</Badge>
-                                </td>
-                                <td className="py-3 px-4">
-                                  <span className={completionRate >= 80 ? 'text-green-600' : 'text-orange-600'}>
-                                    {completionRate}%
-                                  </span>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  </CardContent>
-                </Card>
+                <TabsContent value="daily" className="space-y-6">
+                  {dailyReportLoading ? (
+                    <Card>
+                      <CardContent className="py-8">
+                        <div className="text-center text-gray-600">Loading daily report data...</div>
+                      </CardContent>
+                    </Card>
+                  ) : dailyReportError ? (
+                    <Card>
+                      <CardContent className="py-8">
+                        <div className="text-center text-red-600">Error: {dailyReportError}</div>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <>
+                      <Card>
+                        <CardHeader>
+                          <CardTitle>Doctor-wise Lab Tests - Today</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="overflow-x-auto">
+                            <table className="w-full">
+                              <thead>
+                                <tr className="border-b border-gray-200">
+                                  <th className="text-left py-3 px-4 text-gray-700">Doctor</th>
+                                  <th className="text-left py-3 px-4 text-gray-700">Total Tests</th>
+                                  <th className="text-left py-3 px-4 text-gray-700">Pending</th>
+                                  <th className="text-left py-3 px-4 text-gray-700">Completed</th>
+                                  <th className="text-left py-3 px-4 text-gray-700">Completion Rate</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {doctorWiseDailyTests.length === 0 ? (
+                                  <tr>
+                                    <td colSpan={5} className="text-center py-8 text-gray-500">
+                                      No data available for today
+                                    </td>
+                                  </tr>
+                                ) : (
+                                  doctorWiseDailyTests.map((doc, index) => {
+                                    const completionRate = doc.total > 0 ? Math.round((doc.completed / doc.total) * 100) : 0;
+                                    return (
+                                      <tr key={index} className="border-b border-gray-100 hover:bg-gray-50">
+                                        <td className="py-3 px-4 text-gray-900">{doc.doctor}</td>
+                                        <td className="py-3 px-4 text-gray-900">{doc.total}</td>
+                                        <td className="py-3 px-4">
+                                          <Badge variant="outline">{doc.pending}</Badge>
+                                        </td>
+                                        <td className="py-3 px-4">
+                                          <Badge variant="default">{doc.completed}</Badge>
+                                        </td>
+                                        <td className="py-3 px-4">
+                                          <span className={completionRate >= 80 ? 'text-green-600' : 'text-orange-600'}>
+                                            {completionRate}%
+                                          </span>
+                                        </td>
+                                      </tr>
+                                    );
+                                  })
+                                )}
+                              </tbody>
+                            </table>
+                          </div>
+                        </CardContent>
+                      </Card>
 
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Daily Summary</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-4 gap-4">
-                      <div className="p-4 bg-blue-50 rounded-lg">
-                        <p className="text-sm text-gray-500 mb-1">Total Tests</p>
-                        <p className="text-2xl text-gray-900">
-                          {doctorWiseDailyTests.reduce((sum, doc) => sum + doc.total, 0)}
-                        </p>
-                      </div>
-                      <div className="p-4 bg-orange-50 rounded-lg">
-                        <p className="text-sm text-gray-500 mb-1">Pending</p>
-                        <p className="text-2xl text-gray-900">
-                          {doctorWiseDailyTests.reduce((sum, doc) => sum + doc.pending, 0)}
-                        </p>
-                      </div>
-                      <div className="p-4 bg-green-50 rounded-lg">
-                        <p className="text-sm text-gray-500 mb-1">Completed</p>
-                        <p className="text-2xl text-gray-900">
-                          {doctorWiseDailyTests.reduce((sum, doc) => sum + doc.completed, 0)}
-                        </p>
-                      </div>
-                      <div className="p-4 bg-purple-50 rounded-lg">
-                        <p className="text-sm text-gray-500 mb-1">Avg. TAT</p>
-                        <p className="text-2xl text-gray-900">3.2h</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
+                      <Card>
+                        <CardHeader>
+                          <CardTitle>Daily Summary</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="grid grid-cols-4 gap-4">
+                            <div className="p-4 bg-blue-50 rounded-lg">
+                              <p className="text-sm text-gray-500 mb-1">Total Tests</p>
+                              <p className="text-2xl text-gray-900">
+                                {dailySummary.totalTests}
+                              </p>
+                            </div>
+                            <div className="p-4 bg-orange-50 rounded-lg">
+                              <p className="text-sm text-gray-500 mb-1">Pending</p>
+                              <p className="text-2xl text-gray-900">
+                                {dailySummary.pending}
+                              </p>
+                            </div>
+                            <div className="p-4 bg-green-50 rounded-lg">
+                              <p className="text-sm text-gray-500 mb-1">Completed</p>
+                              <p className="text-2xl text-gray-900">
+                                {dailySummary.completed}
+                              </p>
+                            </div>
+                            <div className="p-4 bg-purple-50 rounded-lg">
+                              <p className="text-sm text-gray-500 mb-1">Avg. TAT</p>
+                              <p className="text-2xl text-gray-900">
+                                {dailySummary.avgTATFormatted}
+                              </p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </>
+                  )}
+                </TabsContent>
 
-              <TabsContent value="weekly" className="space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Weekly Lab Test Trend</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <ResponsiveContainer width="100%" height={300}>
-                      <BarChart data={weeklyTestData}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="date" />
-                        <YAxis />
-                        <Tooltip />
-                        <Legend />
-                        <Bar dataKey="tests" fill="#3b82f6" name="Total Tests" />
-                        <Bar dataKey="completed" fill="#10b981" name="Completed" />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </CardContent>
-                </Card>
+                <TabsContent value="weekly" className="space-y-6">
+                  {weeklyReportLoading ? (
+                    <Card>
+                      <CardContent className="py-8">
+                        <div className="text-center text-gray-600">Loading weekly report data...</div>
+                      </CardContent>
+                    </Card>
+                  ) : weeklyReportError ? (
+                    <Card>
+                      <CardContent className="py-8">
+                        <div className="text-center text-red-600">Error: {weeklyReportError}</div>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <>
+                      <Card>
+                        <CardHeader>
+                          <CardTitle>Weekly Lab Test Trend</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          {weeklyTestData.length === 0 ? (
+                            <div className="text-center py-8 text-gray-500">
+                              No data available for this week
+                            </div>
+                          ) : (
+                            <ResponsiveContainer width="100%" height={300}>
+                              <BarChart data={weeklyTestData}>
+                                <CartesianGrid strokeDasharray="3 3" />
+                                <XAxis dataKey="date" />
+                                <YAxis />
+                                <Tooltip />
+                                <Legend />
+                                <Bar dataKey="tests" fill="#3b82f6" name="Total Tests" />
+                                <Bar dataKey="completed" fill="#10b981" name="Completed" />
+                              </BarChart>
+                            </ResponsiveContainer>
+                          )}
+                        </CardContent>
+                      </Card>
 
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Weekly Summary (Nov 08 - Nov 14)</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-4 gap-4">
-                      <div className="p-4 bg-blue-50 rounded-lg">
-                        <p className="text-sm text-gray-500 mb-1">Total Tests</p>
-                        <p className="text-2xl text-gray-900">
-                          {weeklyTestData.reduce((sum, day) => sum + day.tests, 0)}
-                        </p>
-                      </div>
-                      <div className="p-4 bg-green-50 rounded-lg">
-                        <p className="text-sm text-gray-500 mb-1">Completed</p>
-                        <p className="text-2xl text-gray-900">
-                          {weeklyTestData.reduce((sum, day) => sum + day.completed, 0)}
-                        </p>
-                      </div>
-                      <div className="p-4 bg-purple-50 rounded-lg">
-                        <p className="text-sm text-gray-500 mb-1">Daily Average</p>
-                        <p className="text-2xl text-gray-900">
-                          {Math.round(weeklyTestData.reduce((sum, day) => sum + day.tests, 0) / 7)}
-                        </p>
-                      </div>
-                      <div className="p-4 bg-orange-50 rounded-lg">
-                        <p className="text-sm text-gray-500 mb-1">Completion Rate</p>
-                        <p className="text-2xl text-gray-900">
-                          {Math.round((weeklyTestData.reduce((sum, day) => sum + day.completed, 0) / 
-                            weeklyTestData.reduce((sum, day) => sum + day.tests, 0)) * 100)}%
-                        </p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-            </Tabs>
-
-            <div className="flex justify-end">
-              <Button className="gap-2">
-                <Download className="size-4" />
-                Export Report
-              </Button>
+                      <Card>
+                        <CardHeader>
+                          <CardTitle>
+                            Weekly Summary {weekStartDate && weekEndDate ? `(${weekStartDate} - ${weekEndDate})` : ''}
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="grid grid-cols-4 gap-4">
+                            <div className="p-4 bg-blue-50 rounded-lg">
+                              <p className="text-sm text-gray-500 mb-1">Total Tests</p>
+                              <p className="text-2xl text-gray-900">
+                                {weeklySummary.totalTests}
+                              </p>
+                            </div>
+                            <div className="p-4 bg-green-50 rounded-lg">
+                              <p className="text-sm text-gray-500 mb-1">Completed</p>
+                              <p className="text-2xl text-gray-900">
+                                {weeklySummary.completed}
+                              </p>
+                            </div>
+                            <div className="p-4 bg-purple-50 rounded-lg">
+                              <p className="text-sm text-gray-500 mb-1">Daily Average</p>
+                              <p className="text-2xl text-gray-900">
+                                {weeklySummary.dailyAverage}
+                              </p>
+                            </div>
+                            <div className="p-4 bg-orange-50 rounded-lg">
+                              <p className="text-sm text-gray-500 mb-1">Completion Rate</p>
+                              <p className="text-2xl text-gray-900">
+                                {weeklySummary.completionRate}%
+                              </p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </>
+                  )}
+                </TabsContent>
+              </Tabs>
             </div>
+          </div>
+          <div className="flex justify-end gap-2 pt-4 border-t bg-white px-6 pb-4">
+            <Button variant="outline" onClick={() => setShowReportsDialog(false)}>Close</Button>
+            <Button className="gap-2" onClick={handleExportReport}>
+              <Download className="size-4" />
+              Export Report
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -1914,21 +2774,21 @@ export function Laboratory() {
               <div className="space-y-4 py-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="editPatientId">PatientId *</Label>
+                    <Label htmlFor="editPatientNo">Patient No</Label>
                     <Input
-                      id="editPatientId"
-                      value={editPatientLabTestFormData.patientId}
-                      onChange={(e) => setEditPatientLabTestFormData({ ...editPatientLabTestFormData, patientId: e.target.value })}
+                      id="editPatientNo"
+                      value={editPatientLabTestFormData?.patientNo ? String(editPatientLabTestFormData.patientNo) : 'N/A'}
                       disabled
+                      className="bg-gray-100"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="editLabTestId">LabTestId *</Label>
+                    <Label htmlFor="editTestName">Lab Name</Label>
                     <Input
-                      id="editLabTestId"
-                      value={editPatientLabTestFormData.labTestId}
-                      onChange={(e) => setEditPatientLabTestFormData({ ...editPatientLabTestFormData, labTestId: e.target.value })}
+                      id="editTestName"
+                      value={editPatientLabTestFormData?.testName ? String(editPatientLabTestFormData.testName) : 'N/A'}
                       disabled
+                      className="bg-gray-100"
                     />
                   </div>
                   <div>
@@ -1999,58 +2859,6 @@ export function Laboratory() {
                       onChange={(e) => setEditPatientLabTestFormData({ ...editPatientLabTestFormData, testDoneDateTime: e.target.value })}
                     />
                   </div>
-                  <div>
-                    <Label htmlFor="editRoomAdmissionId">RoomAdmissionId</Label>
-                    <Input
-                      id="editRoomAdmissionId"
-                      type="number"
-                      value={editPatientLabTestFormData.roomAdmissionId}
-                      onChange={(e) => setEditPatientLabTestFormData({ ...editPatientLabTestFormData, roomAdmissionId: e.target.value })}
-                      placeholder="Room Admission ID"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="editEmergencyBedSlotId">EmergencyBedSlotId</Label>
-                    <Input
-                      id="editEmergencyBedSlotId"
-                      type="number"
-                      value={editPatientLabTestFormData.emergencyBedSlotId}
-                      onChange={(e) => setEditPatientLabTestFormData({ ...editPatientLabTestFormData, emergencyBedSlotId: e.target.value })}
-                      placeholder="Emergency Bed Slot ID"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="editBillId">BillId</Label>
-                    <Input
-                      id="editBillId"
-                      type="number"
-                      value={editPatientLabTestFormData.billId}
-                      onChange={(e) => setEditPatientLabTestFormData({ ...editPatientLabTestFormData, billId: e.target.value })}
-                      placeholder="Bill ID"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="editStatus">Status *</Label>
-                    <select
-                      id="editStatus"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-md"
-                      value={editPatientLabTestFormData.status}
-                      onChange={(e) => setEditPatientLabTestFormData({ ...editPatientLabTestFormData, status: e.target.value })}
-                    >
-                      <option value="Active">Active</option>
-                      <option value="Inactive">Inactive</option>
-                    </select>
-                  </div>
-                  <div>
-                    <Label htmlFor="editCharges">Charges</Label>
-                    <Input
-                      id="editCharges"
-                      type="number"
-                      value={editPatientLabTestFormData.charges}
-                      onChange={(e) => setEditPatientLabTestFormData({ ...editPatientLabTestFormData, charges: Number(e.target.value) })}
-                      placeholder="Enter charges"
-                    />
-                  </div>
                 </div>
                 {editPatientLabTestSubmitError && (
                   <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
@@ -2078,32 +2886,25 @@ export function Laboratory() {
 function TestsList({ 
   tests, 
   onSelectTest,
-  onViewTest,
   onEditTest
 }: { 
   tests: LabTest[]; 
   onSelectTest: (test: LabTest) => void;
-  onViewTest: (test: any) => void;
   onEditTest: (test: any) => void;
 }) {
   return (
-    <Card className="mb-4">
-      <CardContent className="p-6">
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse">
+    <Card className="mb-4 bg-white">
+      <CardContent className="p-6 bg-white">
+        <div className="overflow-x-auto bg-white">
+          <table className="w-full border-collapse bg-white">
             <thead>
               <tr className="border-b border-gray-200">
-                <th className="text-left py-3 px-4 text-xs font-medium text-gray-700">PatientLabTestsId</th>
-                <th className="text-left py-3 px-4 text-xs font-medium text-gray-700">PatientId</th>
+                <th className="text-left py-3 px-4 text-xs font-medium text-gray-700">PatientNo</th>
                 <th className="text-left py-3 px-4 text-xs font-medium text-gray-700">PatientName</th>
                 <th className="text-left py-3 px-4 text-xs font-medium text-gray-700">TestName</th>
                 <th className="text-left py-3 px-4 text-xs font-medium text-gray-700">PatientType</th>
-                <th className="text-left py-3 px-4 text-xs font-medium text-gray-700">LabTestId</th>
                 <th className="text-left py-3 px-4 text-xs font-medium text-gray-700">DisplayTestId</th>
                 <th className="text-left py-3 px-4 text-xs font-medium text-gray-700">TestCategory</th>
-                <th className="text-left py-3 px-4 text-xs font-medium text-gray-700">RoomAdmissionId</th>
-                <th className="text-left py-3 px-4 text-xs font-medium text-gray-700">EmergencyBedSlotId</th>
-                <th className="text-left py-3 px-4 text-xs font-medium text-gray-700">BillId</th>
                 <th className="text-left py-3 px-4 text-xs font-medium text-gray-700">Priority</th>
                 <th className="text-left py-3 px-4 text-xs font-medium text-gray-700">LabTestDone</th>
                 <th className="text-left py-3 px-4 text-xs font-medium text-gray-700">ReportsUrl</th>
@@ -2111,29 +2912,23 @@ function TestsList({
                 <th className="text-left py-3 px-4 text-xs font-medium text-gray-700">TestDoneDateTime</th>
                 <th className="text-left py-3 px-4 text-xs font-medium text-gray-700">Status</th>
                 <th className="text-left py-3 px-4 text-xs font-medium text-gray-700">Charges</th>
-                <th className="text-left py-3 px-4 text-xs font-medium text-gray-700">CreatedBy</th>
                 <th className="text-left py-3 px-4 text-xs font-medium text-gray-700">CreatedDate</th>
                 <th className="text-left py-3 px-4 text-xs font-medium text-gray-700">Actions</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="bg-white">
               {tests.map((test: any) => (
-                <tr key={test.id} className="border-b border-gray-100 hover:bg-gray-50">
-                  <td className="py-3 px-4 text-sm text-gray-600">{test.patientLabTestsId || test.id || 'N/A'}</td>
-                  <td className="py-3 px-4 text-sm text-gray-600">{test.patientId || 'N/A'}</td>
+                <tr key={test.id} className="border-b border-gray-100 hover:bg-gray-50 bg-white">
+                  <td className="py-3 px-4 text-sm text-gray-600 font-mono">{test.patientNo || 'N/A'}</td>
                   <td className="py-3 px-4 text-sm text-gray-900">{test.patientName || 'N/A'}</td>
                   <td className="py-3 px-4 text-sm text-gray-900">{test.testName || 'N/A'}</td>
                   <td className="py-3 px-4 text-sm text-gray-600">
                     <Badge variant="outline">{test.patientType || 'N/A'}</Badge>
                   </td>
-                  <td className="py-3 px-4 text-sm text-gray-600">{test.labTestId || 'N/A'}</td>
                   <td className="py-3 px-4 text-sm text-gray-600 font-mono">{test.displayTestId || test.testId || 'N/A'}</td>
                   <td className="py-3 px-4 text-sm text-gray-600">
                     <Badge variant="outline">{test.testCategory || test.category || 'N/A'}</Badge>
                   </td>
-                  <td className="py-3 px-4 text-sm text-gray-600">{test.roomAdmissionId || 'N/A'}</td>
-                  <td className="py-3 px-4 text-sm text-gray-600">{test.emergencyBedSlotId || 'N/A'}</td>
-                  <td className="py-3 px-4 text-sm text-gray-600">{test.billId || 'N/A'}</td>
                   <td className="py-3 px-4 text-sm">
                     <Badge variant={
                       test.priority === 'Emergency' || test.priority === 'Urgent' ? 'destructive' :
@@ -2164,7 +2959,14 @@ function TestsList({
                     </span>
                   </td>
                   <td className="py-3 px-4 text-sm text-gray-600">
-                    {test.testDoneDateTime ? new Date(test.testDoneDateTime).toLocaleString() : 'N/A'}
+                    {test.testDoneDateTime ? (() => {
+                      try {
+                        const date = new Date(test.testDoneDateTime);
+                        return isNaN(date.getTime()) ? 'N/A' : date.toLocaleString();
+                      } catch (e) {
+                        return 'N/A';
+                      }
+                    })() : 'N/A'}
                   </td>
                   <td className="py-3 px-4 text-sm">
                     <Badge variant={(test as any).statusValue === 'Active' || (test as any).statusValue === 'active' ? 'default' : 'outline'}>
@@ -2172,31 +2974,20 @@ function TestsList({
                     </Badge>
                   </td>
                   <td className="py-3 px-4 text-sm text-gray-600">₹{test.charges || 0}</td>
-                  <td className="py-3 px-4 text-sm text-gray-600">{test.createdBy || 'N/A'}</td>
                   <td className="py-3 px-4 text-sm text-gray-600">
                     {test.createdDate ? new Date(test.createdDate).toLocaleDateString() : 'N/A'}
                   </td>
                   <td className="py-3 px-4">
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onViewTest(test)}
-                        className="h-8 w-8 p-0"
-                        title="View Patient Lab Test Details"
-                      >
-                        <Eye className="h-4 w-4 text-blue-600" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onEditTest(test)}
-                        className="h-8 w-8 p-0"
-                        title="Edit Patient Lab Test"
-                      >
-                        <Edit className="h-4 w-4 text-green-600" />
-                      </Button>
-                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-1"
+                      onClick={() => onEditTest(test)}
+                      title="View & Edit Patient Lab Test"
+                    >
+                      <Edit className="h-3 w-3" />
+                      View & Edit
+                    </Button>
                   </td>
                 </tr>
               ))}

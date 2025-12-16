@@ -419,26 +419,17 @@ export function Admissions() {
           
           // Check if bed is available
           // API might return: { available: true/false } or { isAvailable: true/false } or { status: 'available'/'occupied' }
-          //const isAvailable = checkResponse?.available !== false && 
-           //                  checkResponse?.isAvailable !== false &&
-            //                 checkResponse?.Available !== false &&
-            //                 checkResponse?.IsAvailable !== false &&
-             //                (checkResponse?.status === undefined || String(checkResponse.status).toLowerCase() === 'available') &&
-             //                (checkResponse?.Status === undefined || String(checkResponse.Status).toLowerCase() === 'available');
-             const isAvailable = checkResponse?.isAvailable !== false && checkResponse?.available === true &&
-             (checkResponse?.status === undefined || String(checkResponse.status).toLowerCase() === 'available') &&
-             (checkResponse?.Status === undefined || String(checkResponse.Status).toLowerCase() === 'available');
-   
-          //const isOccupied = checkResponse?.occupied === true ||
-           //                checkResponse?.isOccupied === true ||
-           //                checkResponse?.Occupied === true ||
-           //                checkResponse?.IsOccupied === true ||
-           //                checkResponse?.available === false ||
-           //                checkResponse?.isAvailable === false ||
-           //                (checkResponse?.status && String(checkResponse.status).toLowerCase() === 'occupied') ||
-           //                (checkResponse?.Status && String(checkResponse.Status).toLowerCase() === 'occupied');
+          // Check multiple possible field names and formats
+          const isAvailable = 
+            checkResponse?.isAvailable === true ||
+            checkResponse?.IsAvailable === true ||
+            checkResponse?.available === true ||
+            checkResponse?.Available === true ||
+            (checkResponse?.status !== undefined && String(checkResponse.status).toLowerCase() === 'available') ||
+            (checkResponse?.Status !== undefined && String(checkResponse.Status).toLowerCase() === 'available');
           
-          //if (isOccupied || !isAvailable) {
+          console.log('Room bed availability result:', { isAvailable, checkResponse });
+          
           if (!isAvailable) {
             throw new Error('The selected room bed is not available for the selected allocation date. Please select another room bed or choose a different date.');
           }
@@ -673,7 +664,7 @@ export function Admissions() {
   };
 
   return (
-    <div className="flex-1 bg-blue-100 flex flex-col overflow-hidden min-h-0">
+    <div className="flex-1 bg-white flex flex-col overflow-hidden min-h-0">
       <div className="px-4 pt-4 pb-0 flex-shrink-0">
         <div className="flex items-center justify-between mb-4 flex-shrink-0">
           <div>
@@ -687,11 +678,11 @@ export function Admissions() {
               New IPD Admission
             </Button>
           </DialogTrigger>
-          <DialogContent className="p-0 gap-0 large-dialog max-h-[90vh]">
-            <DialogHeader className="px-6 pt-4 pb-3 flex-shrink-0">
+          <DialogContent className="p-0 gap-0 large-dialog max-w-4xl max-h-[90vh] bg-white">
+            <DialogHeader className="px-6 pt-4 pb-3 flex-shrink-0 bg-white">
               <DialogTitle>{editingAdmission ? 'Edit Admission' : 'Register New Admission'}</DialogTitle>
             </DialogHeader>
-            <div className="flex-1 overflow-y-auto px-6 pb-1 patient-list-scrollable min-h-0">
+            <div className="flex-1 overflow-y-auto px-6 pb-1 patient-list-scrollable min-h-0 bg-white">
               <div className="space-y-4 py-4">
                 {/* Patient Selection - Same pattern as Front Desk */}
                 <div>
@@ -1045,21 +1036,21 @@ export function Admissions() {
                 </div>
               </div>
             </div>
-            <div className="px-6 pb-4 flex-shrink-0 flex flex-col gap-2">
-              {admissionError && (
+            {admissionError && (
+              <div className="px-6 pb-2 flex-shrink-0 bg-white">
                 <div className="p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">
                   {admissionError}
                 </div>
-              )}
-              <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setIsDialogOpen(false)} disabled={savingAdmission}>
-                  Cancel
-                </Button>
-                <Button onClick={handleSaveAdmission} disabled={savingAdmission}>
-                  {savingAdmission ? 'Saving...' : editingAdmission ? 'Update Admission' : 'Admit Patient'}
-                </Button>
               </div>
-            </div>
+            )}
+            <DialogFooter className="px-6 py-3 flex-shrink-0 border-t bg-white">
+              <Button variant="outline" onClick={() => setIsDialogOpen(false)} disabled={savingAdmission}>
+                Cancel
+              </Button>
+              <Button onClick={handleSaveAdmission} disabled={savingAdmission}>
+                {savingAdmission ? 'Saving...' : editingAdmission ? 'Update Admission' : 'Admit Patient'}
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
 
@@ -2217,7 +2208,7 @@ function PatientAdmissionManagement({ admission }: { admission: Admission }) {
         <TabsContent value="lab-tests" className="mt-4">
           <Card>
             <CardHeader>
-              <CardTitle>Lab Tests</CardTitle>
+              <CardTitle>Laboratory Management -</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-center py-8 text-gray-500">
