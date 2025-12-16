@@ -6,7 +6,7 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
-import { Plus, Trash2, Edit, Shield, Search } from 'lucide-react';
+import { Plus, Trash2, Edit, Shield, Search, Eye, CheckCircle2, XCircle } from 'lucide-react';
 import { useRoles } from '../hooks/useRoles';
 import { Role } from '../types/roles';
 
@@ -170,7 +170,7 @@ function RolesView({
     }
   };
 
-  const handleEdit = (role: Role) => {
+  const handleViewEdit = (role: Role) => {
     setSelectedRole(role);
     setFormData({
       RoleName: role.name,
@@ -197,6 +197,25 @@ function RolesView({
     });
   };
 
+  const getStatusBadge = (status?: 'Active' | 'InActive' | string) => {
+    const roleStatus = status || 'Active';
+    if (roleStatus === 'Active' || roleStatus === 'active') {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+          <CheckCircle2 className="size-3" />
+          Active
+        </span>
+      );
+    } else {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+          <XCircle className="size-3" />
+          Inactive
+        </span>
+      );
+    }
+  };
+
   return (
     <>
       <div className="flex-1 bg-gray-50 flex flex-col overflow-hidden min-h-0 dashboard-scrollable" style={{ maxHeight: '100vh', minHeight: 0 }}>
@@ -211,7 +230,7 @@ function RolesView({
                 <DialogTrigger asChild>
                   <Button className="gap-2">
                     <Plus className="size-4" />
-                    Add Role
+                    Add New Role
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="p-0 gap-0 large-dialog bg-white">
@@ -240,40 +259,6 @@ function RolesView({
                           rows={3}
                           className="bg-gray-50 text-gray-900"
                         />
-                      </div>
-                      <div>
-                        <Label htmlFor="permissions" className="text-gray-600">Permissions</Label>
-                        <div className="flex flex-wrap gap-2 mb-2">
-                          {formData.permissions.map((permission, index) => (
-                            <span
-                              key={index}
-                              className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm flex items-center gap-2"
-                            >
-                              {permission}
-                              <button
-                                onClick={() => removePermission(permission)}
-                                className="text-gray-700 hover:text-gray-900"
-                              >
-                                ×
-                              </button>
-                            </span>
-                          ))}
-                        </div>
-                        <div className="flex gap-2">
-                          <Input
-                            placeholder="Enter permission (e.g., 'patients', 'reports')"
-                            value={newPermission}
-                            onChange={(e) => setNewPermission(e.target.value)}
-                            onKeyPress={(e) => {
-                              if (e.key === 'Enter') {
-                                e.preventDefault();
-                                addPermission();
-                              }
-                            }}
-                            className="bg-gray-50 text-gray-900"
-                          />
-                          <Button type="button" onClick={addPermission}>Add</Button>
-                        </div>
                       </div>
                     </div>
                   </div>
@@ -309,16 +294,15 @@ function RolesView({
                       <tr className="border-b border-gray-200">
                         <th className="text-left py-4 px-6 text-gray-700 bg-white whitespace-nowrap">Role Name</th>
                         <th className="text-left py-4 px-6 text-gray-700 bg-white whitespace-nowrap">Description</th>
-                        <th className="text-left py-4 px-6 text-gray-700 bg-white whitespace-nowrap">Permissions</th>
+                        <th className="text-left py-4 px-6 text-gray-700 bg-white whitespace-nowrap">Status</th>
                         <th className="text-left py-4 px-6 text-gray-700 bg-white whitespace-nowrap">Created</th>
-                        <th className="text-left py-4 px-6 text-gray-700 bg-white whitespace-nowrap">Updated</th>
                         <th className="text-left py-4 px-6 text-gray-700 bg-white whitespace-nowrap">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {filteredRoles.length === 0 ? (
                         <tr>
-                          <td colSpan={6} className="text-center py-8 text-gray-500">
+                          <td colSpan={5} className="text-center py-8 text-gray-500">
                             {searchTerm ? 'No roles found matching your search.' : 'No roles found.'}
                           </td>
                         </tr>
@@ -342,39 +326,21 @@ function RolesView({
                               )}
                             </td>
                             <td className="py-4 px-6">
-                              <div className="flex flex-wrap gap-1">
-                                {role.permissions && role.permissions.length > 0 ? (
-                                  role.permissions.slice(0, 3).map((permission, index) => (
-                                    <span
-                                      key={index}
-                                      className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-xs"
-                                    >
-                                      {permission}
-                                    </span>
-                                  ))
-                                ) : (
-                                  <span className="text-gray-400 text-xs">No permissions</span>
-                                )}
-                                {role.permissions && role.permissions.length > 3 && (
-                                  <span className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-xs">
-                                    +{role.permissions.length - 3} more
-                                  </span>
-                                )}
-                              </div>
+                              {getStatusBadge((role as any).status || 'Active')}
                             </td>
                             <td className="py-4 px-6 text-gray-600 text-sm">
                               {role.createdAt ? new Date(role.createdAt).toLocaleDateString() : '-'}
                             </td>
-                            <td className="py-4 px-6 text-gray-600 text-sm">
-                              {role.updatedAt ? new Date(role.updatedAt).toLocaleDateString() : '-'}
-                            </td>
                             <td className="py-4 px-6">
                               <div className="flex gap-2">
-                                <Button variant="ghost" size="sm" onClick={() => handleEdit(role)}>
-                                  <Edit className="size-4" />
-                                </Button>
-                                <Button variant="ghost" size="sm" onClick={() => onDeleteRole(role.id)}>
-                                  <Trash2 className="size-4 text-red-600" />
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  className="gap-1"
+                                  onClick={() => handleViewEdit(role)}
+                                >
+                                  <Edit className="size-3" />
+                                  View & Edit
                                 </Button>
                               </div>
                             </td>
@@ -390,11 +356,11 @@ function RolesView({
         </div>
       </div>
 
-      {/* Edit Dialog */}
+      {/* View & Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="p-0 gap-0 large-dialog bg-white">
           <DialogHeader className="px-6 pt-4 pb-3 flex-shrink-0 bg-white">
-            <DialogTitle className="text-gray-700">Edit Role</DialogTitle>
+            <DialogTitle className="text-gray-700">View &Edit Role</DialogTitle>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto px-6 pb-1 patient-list-scrollable min-h-0 bg-white">
             <div className="space-y-4 py-4">
@@ -419,40 +385,16 @@ function RolesView({
                   className="bg-gray-50 text-gray-900"
                 />
               </div>
-              <div>
-                <Label htmlFor="edit-permissions" className="text-gray-600">Permissions</Label>
-                <div className="flex flex-wrap gap-2 mb-2">
-                  {formData.permissions.map((permission, index) => (
-                    <span
-                      key={index}
-                      className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm flex items-center gap-2"
-                    >
-                      {permission}
-                      <button
-                        onClick={() => removePermission(permission)}
-                        className="text-gray-700 hover:text-gray-900"
-                      >
-                        ×
-                      </button>
-                    </span>
-                  ))}
-                </div>
-                <div className="flex gap-2">
+              {selectedRole && (
+                <div>
+                  <Label className="text-gray-600">Created At</Label>
                   <Input
-                    placeholder="Enter permission (e.g., 'patients', 'reports')"
-                    value={newPermission}
-                    onChange={(e) => setNewPermission(e.target.value)}
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        addPermission();
-                      }
-                    }}
-                    className="bg-gray-50 text-gray-900"
+                    value={selectedRole.createdAt ? new Date(selectedRole.createdAt).toLocaleString() : '-'}
+                    disabled
+                    className="bg-gray-50 text-gray-700"
                   />
-                  <Button type="button" onClick={addPermission}>Add</Button>
                 </div>
-              </div>
+              )}
             </div>
           </div>
           <div className="flex justify-end gap-2 pt-4 border-t bg-white px-6 pb-4">

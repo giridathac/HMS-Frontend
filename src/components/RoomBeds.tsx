@@ -1,11 +1,11 @@
 // RoomBeds Management Component - Separated UI from logic
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
-import { Plus, Trash2, Edit, BedDouble, Home, Tag, CheckCircle2, XCircle, Wrench, User } from 'lucide-react';
+import { Plus, Edit, BedDouble, Home, Tag, CheckCircle2, XCircle, Wrench, User, Search } from 'lucide-react';
 import { useRoomBeds } from '../hooks/useRoomBeds';
 import { roomBedsApi } from '../api/roomBeds';
 import { RoomBed } from '../types';
@@ -123,6 +123,7 @@ function RoomBedsView({
   const [selectedRoomBed, setSelectedRoomBed] = useState<RoomBed | null>(null);
   const [loadingEditData, setLoadingEditData] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState({
     bedNo: '',
     roomNo: '',
@@ -131,6 +132,27 @@ function RoomBedsView({
     chargesPerDay: 0,
     status: 'Active' as RoomBed['status'],
   });
+
+  // Filter room beds based on search term
+  const filteredRoomBeds = useMemo(() => {
+    if (!searchTerm) return roomBeds;
+    const searchLower = searchTerm.toLowerCase();
+    return roomBeds.filter(roomBed => {
+      const bedNo = (roomBed.bedNo || '').toLowerCase();
+      const roomNo = (roomBed.roomNo || '').toLowerCase();
+      const roomCategory = (roomBed.roomCategory || '').toLowerCase();
+      const roomType = (roomBed.roomType || '').toLowerCase();
+      const status = (roomBed.status || '').toLowerCase();
+      const chargesPerDay = String(roomBed.chargesPerDay || 0).toLowerCase();
+      
+      return bedNo.includes(searchLower) ||
+             roomNo.includes(searchLower) ||
+             roomCategory.includes(searchLower) ||
+             roomType.includes(searchLower) ||
+             status.includes(searchLower) ||
+             chargesPerDay.includes(searchLower);
+    });
+  }, [roomBeds, searchTerm]);
 
   const handleAddSubmit = async () => {
     setSubmitError(null);
@@ -286,120 +308,130 @@ function RoomBedsView({
   };
 
   return (
-    <div className="px-4 pt-4 pb-4 bg-blue-100 h-screen flex flex-col overflow-hidden">
-      <div className="flex-shrink-0">
-        <div className="flex items-center justify-between mb-4 flex-shrink-0">
-          <div>
-            <h1 className="text-gray-900 mb-0 text-xl">Room & Beds Management</h1>
-            <p className="text-gray-500 text-sm">Manage hospital rooms and beds</p>
-          </div>
+    <div className="flex-1 bg-gray-50 flex flex-col overflow-hidden min-h-0 dashboard-scrollable" style={{ maxHeight: '100vh', minHeight: 0 }}>
+      <div className="overflow-y-auto overflow-x-hidden flex-1 flex flex-col min-h-0">
+        <div className="px-6 pt-6 pb-0 flex-shrink-0">
+          <div className="flex items-center justify-between mb-4 flex-shrink-0">
+            <div>
+              <h1 className="dashboard-header">IPD Room & Beds Management</h1>
+              <p className="dashboard-subheader">Manage hospital rooms and beds</p>
+            </div>
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
             <Button className="gap-2">
               <Plus className="size-4" />
-              Add Room Bed
+              Add New Room Bed
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Add New Room Bed</DialogTitle>
+          <DialogContent className="p-0 gap-0 large-dialog bg-white">
+            <DialogHeader className="px-6 pt-4 pb-3 flex-shrink-0 bg-white">
+              <DialogTitle className="text-gray-700" style={{ fontSize: '1.25rem' }}>Add New Room Bed</DialogTitle>
             </DialogHeader>
-            <div className="space-y-4 py-4">
-              {submitError && (
-                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
-                  {submitError}
+            <div className="flex-1 overflow-y-auto px-6 pb-1 patient-list-scrollable min-h-0 bg-white">
+              <div className="space-y-4 py-4">
+                {submitError && (
+                  <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
+                    {submitError}
+                  </div>
+                )}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="bedNo" className="text-gray-600" style={{ fontSize: '1.125rem' }}>Bed No</Label>
+                    <Input
+                      id="bedNo"
+                      placeholder="e.g., B101"
+                      value={formData.bedNo}
+                      onChange={(e) => setFormData({ ...formData, bedNo: e.target.value })}
+                      className="text-gray-700 bg-gray-100"
+                      style={{ fontSize: '1.125rem' }}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="roomNo" className="text-gray-600" style={{ fontSize: '1.125rem' }}>Room No</Label>
+                    <Input
+                      id="roomNo"
+                      placeholder="e.g., R101"
+                      value={formData.roomNo}
+                      onChange={(e) => setFormData({ ...formData, roomNo: e.target.value })}
+                      className="text-gray-700 bg-gray-100"
+                      style={{ fontSize: '1.125rem' }}
+                    />
+                  </div>
                 </div>
-              )}
-              <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="roomCategory" className="text-gray-600" style={{ fontSize: '1.125rem' }}>Room Category</Label>
+                    <select
+                      id="roomCategory"
+                      aria-label="Room Category"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-md text-gray-700 bg-gray-100"
+                      value={formData.roomCategory}
+                      onChange={(e) => setFormData({ ...formData, roomCategory: e.target.value })}
+                      style={{ fontSize: '1.125rem' }}
+                    >
+                      {roomCategoryOptions.map(cat => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <Label htmlFor="roomType" className="text-gray-600" style={{ fontSize: '1.125rem' }}>Room Type</Label>
+                    <select
+                      id="roomType"
+                      aria-label="Room Type"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-md text-gray-700 bg-gray-100"
+                      value={formData.roomType}
+                      onChange={(e) => setFormData({ ...formData, roomType: e.target.value })}
+                      style={{ fontSize: '1.125rem' }}
+                    >
+                      {roomTypeOptions.map(type => (
+                        <option key={type} value={type}>{type}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
                 <div>
-                  <Label htmlFor="bedNo">Bed No</Label>
+                  <Label htmlFor="chargesPerDay" className="text-gray-600" style={{ fontSize: '1.125rem' }}>Charges Per Day (₹)</Label>
                   <Input
-                    id="bedNo"
-                    placeholder="e.g., B101"
-                    value={formData.bedNo}
-                    onChange={(e) => setFormData({ ...formData, bedNo: e.target.value })}
+                    id="chargesPerDay"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="e.g., 1500"
+                    value={formData.chargesPerDay}
+                    onChange={(e) => setFormData({ ...formData, chargesPerDay: parseFloat(e.target.value) || 0 })}
+                    className="text-gray-700 bg-gray-100"
+                    style={{ fontSize: '1.125rem' }}
                   />
                 </div>
-                <div>
-                  <Label htmlFor="roomNo">Room No</Label>
-                  <Input
-                    id="roomNo"
-                    placeholder="e.g., R101"
-                    value={formData.roomNo}
-                    onChange={(e) => setFormData({ ...formData, roomNo: e.target.value })}
-                  />
-                </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="roomCategory">Room Category</Label>
-                  <select
-                    id="roomCategory"
-                    aria-label="Room Category"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-md"
-                    value={formData.roomCategory}
-                    onChange={(e) => setFormData({ ...formData, roomCategory: e.target.value })}
-                  >
-                    {roomCategoryOptions.map(cat => (
-                      <option key={cat} value={cat}>{cat}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <Label htmlFor="roomType">Room Type</Label>
-                  <select
-                    id="roomType"
-                    aria-label="Room Type"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-md"
-                    value={formData.roomType}
-                    onChange={(e) => setFormData({ ...formData, roomType: e.target.value })}
-                  >
-                    {roomTypeOptions.map(type => (
-                      <option key={type} value={type}>{type}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              <div>
-                <Label htmlFor="chargesPerDay">Charges Per Day (₹)</Label>
-                <Input
-                  id="chargesPerDay"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  placeholder="e.g., 1500"
-                  value={formData.chargesPerDay}
-                  onChange={(e) => setFormData({ ...formData, chargesPerDay: parseFloat(e.target.value) || 0 })}
-                />
-              </div>
-              <div>
-                <Label htmlFor="status">Status</Label>
-                <select
-                  id="status"
-                  aria-label="Status"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-md"
-                  value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value as RoomBed['status'] })}
-                >
-                  {statusOptions.map(status => (
-                    <option key={status} value={status}>{status.charAt(0).toUpperCase() + status.slice(1)}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex justify-end gap-2 pt-4">
-                <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>Cancel</Button>
-                <Button onClick={handleAddSubmit}>Add Room Bed</Button>
-              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-4 border-t bg-white px-6 pb-4">
+              <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>Cancel</Button>
+              <Button onClick={handleAddSubmit}>Add Room Bed</Button>
             </div>
           </DialogContent>
         </Dialog>
+          </div>
         </div>
-      </div>
+        <div className="px-6 pt-4 pb-4 flex-1">
+          {/* Search */}
+          <Card className="mb-6 bg-white">
+            <CardContent className="p-6">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
+                <Input
+                  placeholder="Search by bed number, room number, category, type, status, or charges..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 bg-gray-50"
+                />
+              </div>
+            </CardContent>
+          </Card>
 
-      <div className="flex-1 flex flex-col overflow-hidden min-h-0">
-      <div className="overflow-y-auto overflow-x-hidden px-4 pb-0 room-beds-scrollable" style={{ maxHeight: 'calc(100vh - 100px)', minHeight: 0 }}>
-      {/* Room Beds Table */}
-      <Card className="mb-0">
+          {/* Room Beds Table */}
+          <Card className="bg-white border border-gray-200 shadow-sm rounded-lg mb-4">
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -408,7 +440,7 @@ function RoomBedsView({
                   <th className="text-left py-3 px-4 text-sm font-medium text-gray-700" colSpan={8}>
                     <div className="flex items-center gap-2">
                       <BedDouble className="size-5" />
-                      <span>Room Beds List ({roomBeds.length})</span>
+                      <span>Room Beds List ({filteredRoomBeds.length}{searchTerm ? ` of ${roomBeds.length}` : ''})</span>
                     </div>
                   </th>
                 </tr>
@@ -424,14 +456,14 @@ function RoomBedsView({
                 </tr>
               </thead>
               <tbody>
-                {roomBeds.length === 0 ? (
+                {filteredRoomBeds.length === 0 ? (
                   <tr>
                     <td colSpan={8} className="text-center py-8 text-gray-500">
-                      No room beds found. Add a new room bed to get started.
+                      {searchTerm ? 'No room beds found matching your search.' : 'No room beds found. Add a new room bed to get started.'}
                     </td>
                   </tr>
                 ) : (
-                  roomBeds.map((roomBed) => (
+                  filteredRoomBeds.map((roomBed) => (
                     <tr key={roomBed.id} className="border-b border-gray-100 hover:bg-gray-50">
                       <td className="py-3 px-4 text-sm text-gray-900 font-medium">{roomBed.bedNo || '-'}</td>
                       <td className="py-3 px-4 text-sm text-gray-700">{roomBed.roomNo || '-'}</td>
@@ -450,21 +482,14 @@ function RoomBedsView({
                       </td>
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="gap-1"
                             onClick={() => handleEdit(roomBed)}
-                            className="h-8 w-8 p-0"
                           >
-                            <Edit className="size-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => onDeleteRoomBed(roomBed.roomBedId)}
-                            className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                          >
-                            <Trash2 className="size-4" />
+                            <Edit className="size-3" />
+                            View & Edit
                           </Button>
                         </div>
                       </td>
@@ -476,115 +501,138 @@ function RoomBedsView({
           </div>
         </CardContent>
       </Card>
-      </div>
+        </div>
       </div>
 
       {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Edit Room Bed</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            {submitError && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
-                {submitError}
-              </div>
-            )}
-            {loadingEditData ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="text-center">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                  <p className="text-blue-600">Loading room bed data...</p>
-                </div>
-              </div>
-            ) : selectedRoomBed ? (
+        <DialogContent className="p-0 gap-0 large-dialog bg-white">
+          <div className="flex-1 overflow-y-auto dialog-content-scrollable min-h-0 bg-white">
+            {selectedRoomBed && (
               <>
-              <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="edit-bedNo">Bed No</Label>
-                <Input
-                  id="edit-bedNo"
-                  placeholder="e.g., B101"
-                  value={formData.bedNo}
-                  onChange={(e) => setFormData({ ...formData, bedNo: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label htmlFor="edit-roomNo">Room No</Label>
-                <Input
-                  id="edit-roomNo"
-                  placeholder="e.g., R101"
-                  value={formData.roomNo}
-                  onChange={(e) => setFormData({ ...formData, roomNo: e.target.value })}
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="edit-roomCategory">Room Category</Label>
-                <select
-                  id="edit-roomCategory"
-                  aria-label="Room Category"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-md"
-                  value={formData.roomCategory}
-                  onChange={(e) => setFormData({ ...formData, roomCategory: e.target.value })}
-                >
-                  {roomCategoryOptions.map(cat => (
-                    <option key={cat} value={cat}>{cat}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <Label htmlFor="edit-roomType">Room Type</Label>
-                <select
-                  id="edit-roomType"
-                  aria-label="Room Type"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-md"
-                  value={formData.roomType}
-                  onChange={(e) => setFormData({ ...formData, roomType: e.target.value })}
-                >
-                  {roomTypeOptions.map(type => (
-                    <option key={type} value={type}>{type}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-            <div>
-              <Label htmlFor="edit-chargesPerDay">Charges Per Day (₹)</Label>
-              <Input
-                id="edit-chargesPerDay"
-                type="number"
-                min="0"
-                step="0.01"
-                placeholder="e.g., 1500"
-                value={formData.chargesPerDay}
-                onChange={(e) => setFormData({ ...formData, chargesPerDay: parseFloat(e.target.value) || 0 })}
-              />
-            </div>
-            <div>
-              <Label htmlFor="edit-status">Status</Label>
-              <select
-                id="edit-status"
-                aria-label="Status"
-                className="w-full px-3 py-2 border border-gray-200 rounded-md"
-                value={formData.status}
-                onChange={(e) => setFormData({ ...formData, status: e.target.value as RoomBed['status'] })}
-              >
-                {statusOptions.map(status => (
-                  <option key={status} value={status}>{status.charAt(0).toUpperCase() + status.slice(1)}</option>
-                ))}
-              </select>
-            </div>
-            <div className="flex justify-end gap-2 pt-4">
-              <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancel</Button>
-              <Button onClick={handleEditSubmit}>Update Room Bed</Button>
-            </div>
-            </>
-            ) : (
-              <div className="text-center py-8 text-gray-500">
-                No room bed data available for editing
-              </div>
+                <DialogHeader className="px-6 pt-4 pb-3 bg-white">
+                  <DialogTitle className="text-gray-700" style={{ fontSize: '1.25rem' }}>Edit Room Bed</DialogTitle>
+                </DialogHeader>
+                <div className="px-6 pb-1">
+                  <div className="space-y-4 py-4">
+                    {submitError && (
+                      <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
+                        {submitError}
+                      </div>
+                    )}
+                    {loadingEditData ? (
+                      <div className="flex items-center justify-center py-12">
+                        <div className="text-center">
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                          <p className="text-blue-600">Loading room bed data...</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div>
+                          <Label className="text-gray-600" style={{ fontSize: '1.125rem' }}>Room Bed ID</Label>
+                          <Input
+                            value={selectedRoomBed.roomBedId || '-'}
+                            disabled
+                            className="bg-gray-50 text-gray-700"
+                            style={{ fontSize: '1.125rem' }}
+                          />
+                          <p className="text-xs text-gray-700 mt-1">Room Bed ID is auto-generated and cannot be changed</p>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <Label htmlFor="edit-bedNo" className="text-gray-600" style={{ fontSize: '1.125rem' }}>Bed No</Label>
+                            <Input
+                              id="edit-bedNo"
+                              placeholder="e.g., B101"
+                              value={formData.bedNo}
+                              onChange={(e) => setFormData({ ...formData, bedNo: e.target.value })}
+                              className="text-gray-700 bg-gray-100"
+                              style={{ fontSize: '1.125rem' }}
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="edit-roomNo" className="text-gray-600" style={{ fontSize: '1.125rem' }}>Room No</Label>
+                            <Input
+                              id="edit-roomNo"
+                              placeholder="e.g., R101"
+                              value={formData.roomNo}
+                              onChange={(e) => setFormData({ ...formData, roomNo: e.target.value })}
+                              className="text-gray-700 bg-gray-100"
+                              style={{ fontSize: '1.125rem' }}
+                            />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <Label htmlFor="edit-roomCategory" className="text-gray-600" style={{ fontSize: '1.125rem' }}>Room Category</Label>
+                            <select
+                              id="edit-roomCategory"
+                              aria-label="Room Category"
+                              className="w-full px-3 py-2 border border-gray-200 rounded-md text-gray-700 bg-gray-100"
+                              value={formData.roomCategory}
+                              onChange={(e) => setFormData({ ...formData, roomCategory: e.target.value })}
+                              style={{ fontSize: '1.125rem' }}
+                            >
+                              {roomCategoryOptions.map(cat => (
+                                <option key={cat} value={cat}>{cat}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <Label htmlFor="edit-roomType" className="text-gray-600" style={{ fontSize: '1.125rem' }}>Room Type</Label>
+                            <select
+                              id="edit-roomType"
+                              aria-label="Room Type"
+                              className="w-full px-3 py-2 border border-gray-200 rounded-md text-gray-700 bg-gray-100"
+                              value={formData.roomType}
+                              onChange={(e) => setFormData({ ...formData, roomType: e.target.value })}
+                              style={{ fontSize: '1.125rem' }}
+                            >
+                              {roomTypeOptions.map(type => (
+                                <option key={type} value={type}>{type}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                        <div>
+                          <Label htmlFor="edit-chargesPerDay" className="text-gray-600" style={{ fontSize: '1.125rem' }}>Charges Per Day (₹)</Label>
+                          <Input
+                            id="edit-chargesPerDay"
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            placeholder="e.g., 1500"
+                            value={formData.chargesPerDay}
+                            onChange={(e) => setFormData({ ...formData, chargesPerDay: parseFloat(e.target.value) || 0 })}
+                            className="text-gray-700 bg-gray-100"
+                            style={{ fontSize: '1.125rem' }}
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="edit-status" className="text-gray-600" style={{ fontSize: '1.125rem' }}>Status</Label>
+                          <select
+                            id="edit-status"
+                            aria-label="Status"
+                            className="w-full px-3 py-2 border border-gray-200 rounded-md text-gray-700 bg-gray-100"
+                            value={formData.status}
+                            onChange={(e) => setFormData({ ...formData, status: e.target.value as RoomBed['status'] })}
+                            style={{ fontSize: '1.125rem' }}
+                          >
+                            {statusOptions.map(status => (
+                              <option key={status} value={status}>{status.charAt(0).toUpperCase() + status.slice(1)}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="flex justify-end gap-2 pt-4">
+                          <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancel</Button>
+                          <Button onClick={handleEditSubmit}>Update Room Bed</Button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </>
             )}
           </div>
         </DialogContent>
