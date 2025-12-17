@@ -605,8 +605,8 @@ export function Emergency() {
                     Admit to IPD
                   </Button>
                 )}
-                <Button variant="outline">Update Vitals</Button>
-                <Button variant="outline">Discharge</Button>
+                {/*<Button variant="outline">Update Vitals</Button>
+                <Button variant="outline">Discharge</Button>  */}
               </div>
             </div>
           )}
