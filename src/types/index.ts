@@ -244,6 +244,7 @@ export interface PatientOTAllocation {
   anaesthetistId?: number;
   nurseId?: number;
   otAllocationDate: string;
+  dateOfOperation?: string | string[]; // Can be single date or array of dates (matches OTSlotIds)
   duration?: string; // Number in API, but kept as string for backward compatibility
   otStartTime?: string; // Now nullable
   otEndTime?: string; // Now nullable

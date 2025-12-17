@@ -430,13 +430,11 @@ function DepartmentsView({
                           <td className="dashboard-table-body-cell">
                             <div className="dashboard-actions-container">
                               <Button
-                                variant="outline"
                                 size="sm"
                                 onClick={() => handleEdit(dept)}
                                 className="dashboard-manage-button"
                                 title="Manage Department"
                               >
-                                <Edit className="size-4" />
                                 Manage
                               </Button>
                             </div>

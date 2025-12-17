@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Badge } from './ui/badge';
 import { Search, Clock, Stethoscope, CheckCircle2, Hospital, Users, Plus, Edit } from 'lucide-react';
+import { Switch } from './ui/switch';
 import { usePatientAppointments } from '../hooks/usePatientAppointments';
 import { useStaff } from '../hooks/useStaff';
 import { useRoles } from '../hooks/useRoles';
@@ -15,7 +16,7 @@ import { useDepartments } from '../hooks/useDepartments';
 import { patientsApi } from '../api/patients';
 import { apiRequest } from '../api/base';
 import { PatientAppointment, Patient, Doctor } from '../types';
-import { formatDateIST, formatTimeIST, formatDateToDDMMYYYY, formatDateTimeIST } from '../utils/timeUtils';
+import { formatDateIST, formatTimeIST, formatDateToDDMMYYYY, formatDateTimeIST, convertToIST } from '../utils/timeUtils';
 
 export function DoctorConsultation() {
   const { patientAppointments, loading, error, updatePatientAppointment, fetchPatientAppointments } = usePatientAppointments();
@@ -196,6 +197,57 @@ export function DoctorConsultation() {
       }
     }
     return defaultValue;
+  }, []);
+
+  // Helper function to format datetime to dd-mm-yyyy, hh:mm format in IST
+  const formatDateTimeForInput = useCallback((dateTime: string | Date | undefined): string => {
+    if (!dateTime) return '';
+    try {
+      // Use convertToIST to properly convert to IST
+      const istDate = convertToIST(dateTime);
+      
+      // Get date components in IST
+      const day = String(istDate.getUTCDate()).padStart(2, '0');
+      const month = String(istDate.getUTCMonth() + 1).padStart(2, '0');
+      const year = String(istDate.getUTCFullYear());
+      const hours = String(istDate.getUTCHours()).padStart(2, '0');
+      const minutes = String(istDate.getUTCMinutes()).padStart(2, '0');
+      
+      return `${day}-${month}-${year}, ${hours}:${minutes}`;
+    } catch {
+      return '';
+    }
+  }, []);
+
+  // Helper function to parse datetime from dd-mm-yyyy, hh:mm format (assumed to be in IST)
+  const parseDateTimeFromInput = useCallback((inputStr: string): string => {
+    if (!inputStr) return '';
+    try {
+      // Match dd-mm-yyyy, hh:mm format
+      const match = inputStr.match(/^(\d{1,2})-(\d{1,2})-(\d{4}),\s*(\d{1,2}):(\d{2})$/);
+      if (!match) return '';
+      
+      const day = parseInt(match[1], 10);
+      const month = parseInt(match[2], 10);
+      const year = parseInt(match[3], 10);
+      const hours = parseInt(match[4], 10);
+      const minutes = parseInt(match[5], 10);
+      
+      if (day < 1 || day > 31 || month < 1 || month > 12) return '';
+      if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return '';
+      
+      // Create date string in IST timezone (UTC+5:30)
+      // Format: YYYY-MM-DDTHH:mm:ss+05:30
+      const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00+05:30`;
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return '';
+      
+      // Return in ISO format (UTC) for API
+      // The date object will automatically convert from IST to UTC
+      return date.toISOString();
+    } catch {
+      return '';
+    }
   }, []);
 
   // Fetch lab tests for appointment
@@ -1300,14 +1352,13 @@ export function DoctorConsultation() {
                                             testStatus: testStatus,
                                             labTestDone: labTestDone,
                                             reportsUrl: reportsUrl || '',
-                                            testDoneDateTime: testDoneDateTime || '',
+                                            testDoneDateTime: testDoneDateTime ? formatDateTimeForInput(testDoneDateTime) : '',
                                             status: status,
                                           });
                                           setIsManageLabTestDialogOpen(true);
                                         }}
                                         title="View & Edit Lab Test"
                                       >
-                                        <Edit className="h-3 w-3" />
                                         Manage
                                       </Button>
                                     </td>
@@ -1456,6 +1507,7 @@ export function DoctorConsultation() {
                     <Label htmlFor="add-labtest-priority" className="dialog-label-standard">Priority</Label>
                     <select
                       id="add-labtest-priority"
+                      aria-label="Priority"
                       className="dialog-select-standard"
                       value={labTestFormData.priority || 'Normal'}
                       onChange={(e) => setLabTestFormData({ ...labTestFormData, priority: e.target.value as 'Normal' | 'Urgent' | null })}
@@ -1469,6 +1521,7 @@ export function DoctorConsultation() {
                     <Label htmlFor="add-labtest-testStatus" className="dialog-label-standard">Test Status</Label>
                     <select
                       id="add-labtest-testStatus"
+                      aria-label="Test Status"
                       className="dialog-select-standard"
                       value={labTestFormData.testStatus || 'Pending'}
                       onChange={(e) => setLabTestFormData({ ...labTestFormData, testStatus: e.target.value as 'Pending' | 'InProgress' | 'Completed' | null })}
@@ -1484,6 +1537,7 @@ export function DoctorConsultation() {
                   <Label htmlFor="add-labtest-labTestDone" className="dialog-label-standard">Lab Test Done</Label>
                   <select
                     id="add-labtest-labTestDone"
+                    aria-label="Lab Test Done"
                     className="dialog-select-standard"
                     value={labTestFormData.labTestDone}
                     onChange={(e) => setLabTestFormData({ ...labTestFormData, labTestDone: e.target.value as 'Yes' | 'No' })}
@@ -1590,6 +1644,7 @@ export function DoctorConsultation() {
                         <Label htmlFor="manage-priority" className="dialog-label-standard">Priority</Label>
                         <select
                           id="manage-priority"
+                          aria-label="Priority"
                           className="dialog-select-standard"
                           value={manageLabTestFormData.priority || 'Normal'}
                           onChange={(e) => setManageLabTestFormData({ ...manageLabTestFormData, priority: e.target.value })}
@@ -1603,6 +1658,7 @@ export function DoctorConsultation() {
                         <Label htmlFor="manage-testStatus" className="dialog-label-standard">Test Status</Label>
                         <select
                           id="manage-testStatus"
+                          aria-label="Test Status"
                           className="dialog-select-standard"
                           value={manageLabTestFormData.testStatus || 'Pending'}
                           onChange={(e) => setManageLabTestFormData({ ...manageLabTestFormData, testStatus: e.target.value })}
@@ -1614,31 +1670,40 @@ export function DoctorConsultation() {
                       </div>
                     </div>
                     
-                    <div className="dialog-form-field-grid">
-                      <div className="dialog-field-single-column">
-                        <Label htmlFor="manage-labTestDone" className="dialog-label-standard">Lab Test Done</Label>
-                        <select
-                          id="manage-labTestDone"
-                          className="dialog-select-standard"
-                          value={manageLabTestFormData.labTestDone || 'No'}
-                          onChange={(e) => setManageLabTestFormData({ ...manageLabTestFormData, labTestDone: e.target.value })}
-                        >
-                          <option value="No">No</option>
-                          <option value="Yes">Yes</option>
-                        </select>
-                      </div>
-                      
-                      <div className="dialog-field-single-column">
+                    <div className="dialog-form-field">
+                      <Label htmlFor="manage-labTestDone" className="dialog-label-standard">Lab Test Done</Label>
+                      <select
+                        id="manage-labTestDone"
+                        aria-label="Lab Test Done"
+                        className="dialog-select-standard"
+                        value={manageLabTestFormData.labTestDone || 'No'}
+                        onChange={(e) => setManageLabTestFormData({ ...manageLabTestFormData, labTestDone: e.target.value })}
+                      >
+                        <option value="No">No</option>
+                        <option value="Yes">Yes</option>
+                      </select>
+                    </div>
+                    
+                    <div className="dialog-form-field">
+                      <div className="flex items-center gap-3">
                         <Label htmlFor="manage-status" className="dialog-label-standard">Status</Label>
-                        <select
-                          id="manage-status"
-                          className="dialog-select-standard"
-                          value={manageLabTestFormData.status || 'Active'}
-                          onChange={(e) => setManageLabTestFormData({ ...manageLabTestFormData, status: e.target.value })}
-                        >
-                          <option value="Active">Active</option>
-                          <option value="Inactive">Inactive</option>
-                        </select>
+                        <div className="flex-shrink-0 relative" style={{ zIndex: 1 }}>
+                          <Switch
+                            id="manage-status"
+                            checked={manageLabTestFormData.status === 'Active' || manageLabTestFormData.status === undefined}
+                            onCheckedChange={(checked) => setManageLabTestFormData({ ...manageLabTestFormData, status: checked ? 'Active' : 'Inactive' })}
+                            className="data-[state=checked]:bg-blue-600 data-[state=unchecked]:bg-gray-300 [&_[data-slot=switch-thumb]]:!bg-white [&_[data-slot=switch-thumb]]:!border [&_[data-slot=switch-thumb]]:!border-gray-400 [&_[data-slot=switch-thumb]]:!shadow-sm"
+                            style={{
+                              width: '2.5rem',
+                              height: '1.5rem',
+                              minWidth: '2.5rem',
+                              minHeight: '1.5rem',
+                              display: 'inline-flex',
+                              position: 'relative',
+                              backgroundColor: (manageLabTestFormData.status === 'Active' || manageLabTestFormData.status === undefined) ? '#2563eb' : '#d1d5db',
+                            }}
+                          />
+                        </div>
                       </div>
                     </div>
                     
@@ -1657,11 +1722,29 @@ export function DoctorConsultation() {
                       <Label htmlFor="manage-testDoneDateTime" className="dialog-label-standard">Test Done Date Time</Label>
                       <Input
                         id="manage-testDoneDateTime"
-                        type="datetime-local"
+                        type="text"
+                        placeholder="dd-mm-yyyy, hh:mm"
                         className="dialog-input-standard"
-                        value={manageLabTestFormData.testDoneDateTime ? new Date(manageLabTestFormData.testDoneDateTime).toISOString().slice(0, 16) : ''}
-                        onChange={(e) => setManageLabTestFormData({ ...manageLabTestFormData, testDoneDateTime: e.target.value })}
+                        value={manageLabTestFormData.testDoneDateTime || ''}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setManageLabTestFormData({ ...manageLabTestFormData, testDoneDateTime: value });
+                        }}
+                        onBlur={(e) => {
+                          const parsed = parseDateTimeFromInput(e.target.value);
+                          if (parsed) {
+                            // Keep the display format in the input
+                            setManageLabTestFormData({ ...manageLabTestFormData, testDoneDateTime: e.target.value });
+                          } else if (e.target.value) {
+                            // If invalid, try to format it
+                            const formatted = formatDateTimeForInput(e.target.value);
+                            if (formatted) {
+                              setManageLabTestFormData({ ...manageLabTestFormData, testDoneDateTime: formatted });
+                            }
+                          }
+                        }}
                       />
+                      <p className="text-xs text-gray-500 mt-1">Format: dd-mm-yyyy, hh:mm (24-hour format, IST)</p>
                     </div>
                   </>
                 )}
@@ -1703,8 +1786,11 @@ export function DoctorConsultation() {
                     }
                     
                     if (manageLabTestFormData.testDoneDateTime) {
-                      const testDoneDateTime = new Date(manageLabTestFormData.testDoneDateTime);
-                      payload.TestDoneDateTime = testDoneDateTime.toISOString();
+                      // Convert datetime from dd-mm-yyyy, hh:mm format to ISO format for API
+                      const testDoneDateTimeISO = parseDateTimeFromInput(manageLabTestFormData.testDoneDateTime);
+                      if (testDoneDateTimeISO) {
+                        payload.TestDoneDateTime = testDoneDateTimeISO;
+                      }
                     }
                     
                     await apiRequest(`/patient-lab-tests/${patientLabTestsId}`, {

@@ -6,6 +6,8 @@ import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Badge } from './ui/badge';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
+import { Calendar as CalendarComponent } from './ui/calendar';
 import { Scissors, Plus, Edit, Trash2, Clock, CheckCircle2, XCircle, Calendar, CalendarX, Square, Copy, Search, ChevronDown, ChevronUp } from 'lucide-react';
 import { usePatientOTAllocations } from '../hooks/usePatientOTAllocations';
 import { useAdmissions } from '../hooks/useAdmissions';
@@ -58,6 +60,88 @@ export function PatientOTAllocationManagement() {
   const [tableSearchTerm, setTableSearchTerm] = useState('');
   const [isUnoccupiedSlotsExpanded, setIsUnoccupiedSlotsExpanded] = useState(false);
   
+  // Helper functions for date formatting (dd-mm-yyyy) in IST
+  const formatDateToDisplay = (dateStr: string): string => {
+    if (!dateStr) return '';
+    try {
+      // Use IST utilities to get date in IST timezone
+      const istDate = formatDateIST(dateStr);
+      if (!istDate) return '';
+      
+      // Parse the YYYY-MM-DD format and convert to dd-mm-yyyy
+      const [year, month, day] = istDate.split('-');
+      return `${day}-${month}-${year}`;
+    } catch {
+      return '';
+    }
+  };
+
+  const parseDateFromDisplay = (displayStr: string): string => {
+    if (!displayStr) return '';
+    // Remove any non-digit characters except dashes
+    const cleaned = displayStr.replace(/[^\d-]/g, '');
+    // Match dd-mm-yyyy or dd-mm-yy format
+    const match = cleaned.match(/^(\d{1,2})-(\d{1,2})-(\d{2,4})$/);
+    if (!match) return '';
+    
+    let day = parseInt(match[1], 10);
+    let month = parseInt(match[2], 10);
+    let year = parseInt(match[3], 10);
+    
+    // Handle 2-digit year (for backward compatibility)
+    if (year < 100) {
+      year += 2000;
+    }
+    
+    if (day < 1 || day > 31 || month < 1 || month > 12) return '';
+    
+    try {
+      // Create date in IST timezone (Asia/Kolkata)
+      // Use UTC methods with IST offset
+      const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      // Validate the date
+      const date = new Date(`${dateStr}T00:00:00+05:30`); // IST offset
+      if (date.getDate() !== day || date.getMonth() !== month - 1) return '';
+      return dateStr; // Return YYYY-MM-DD format
+    } catch {
+      return '';
+    }
+  };
+  
+  // Date state for OT Room Slot Status section
+  const [slotStatusDate, setSlotStatusDate] = useState<string>(getTodayIST());
+  const [slotStatusDatePickerOpen, setSlotStatusDatePickerOpen] = useState(false);
+  
+  // Convert string date (YYYY-MM-DD) to Date object
+  const getDateFromString = (dateStr: string): Date | undefined => {
+    if (!dateStr) return undefined;
+    try {
+      const date = new Date(dateStr + 'T00:00:00+05:30'); // IST timezone
+      if (isNaN(date.getTime())) return undefined;
+      return date;
+    } catch {
+      return undefined;
+    }
+  };
+  
+  // Convert Date object to string (YYYY-MM-DD)
+  const getStringFromDate = (date: Date | undefined): string => {
+    if (!date) return getTodayIST();
+    try {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    } catch {
+      return getTodayIST();
+    }
+  };
+  
+  // Display values for date fields (DD-MM-YYYY format)
+  const [addOtAllocationDateDisplay, setAddOtAllocationDateDisplay] = useState('');
+  const [editOtAllocationDateDisplay, setEditOtAllocationDateDisplay] = useState('');
+  const [addOtAllocationDatePickerOpen, setAddOtAllocationDatePickerOpen] = useState(false);
+  
   const [formData, setFormData] = useState({
     patientId: '',
     roomAdmissionId: '',
@@ -71,6 +155,7 @@ export function PatientOTAllocationManagement() {
     anaesthetistId: '',
     nurseId: '',
     otAllocationDate: new Date().toISOString().split('T')[0],
+    dateOfOperation: '',
     duration: '',
     otStartTime: '',
     otEndTime: '',
@@ -153,19 +238,29 @@ export function PatientOTAllocationManagement() {
     fetchData();
   }, []);
 
-  // Fetch OT slots when OT ID changes
+  // Initialize display value when Add dialog opens
+  useEffect(() => {
+    if (isAddDialogOpen) {
+      const dateToDisplay = formData.otAllocationDate || getTodayIST();
+      setAddOtAllocationDateDisplay(formatDateToDisplay(dateToDisplay));
+    }
+  }, [isAddDialogOpen, formData.otAllocationDate]);
+
+  // Fetch OT slots when OT ID or allocation date changes
   useEffect(() => {
     if (selectedOTId) {
       const fetchSlots = async () => {
         try {
           const { otSlotsApi } = await import('../api/otSlots');
-          const slots = await otSlotsApi.getByOTId(selectedOTId);
+          // Use formData.otAllocationDate if available, otherwise default to today's date
+          const dateToUse = formData.otAllocationDate || getTodayIST();
+          const slots = await otSlotsApi.getByOTId(selectedOTId, dateToUse);
           setOTSlots(slots || []);
           
           // Log slots with patient information (safely)
           if (slots && Array.isArray(slots)) {
             try {
-              console.log(`=== OT Slots for OT ID: ${selectedOTId} ===`);
+              console.log(`=== OT Slots for OT ID: ${selectedOTId}, Date: ${dateToUse} ===`);
               slots.forEach((slot: any) => {
                 try {
                   // Use isOccupied from the mapped slot (which is set based on IsAvailable=false or OccupiedByPatientId)
@@ -203,15 +298,15 @@ export function PatientOTAllocationManagement() {
     } else {
       setOTSlots([]);
     }
-  }, [selectedOTId]);
+  }, [selectedOTId, formData.otAllocationDate]);
 
-  // Fetch all OT slots for all rooms
+  // Fetch all OT slots for all rooms with date filter
   useEffect(() => {
     const fetchAllSlots = async () => {
       try {
         const { otSlotsApi } = await import('../api/otSlots');
         const slotPromises = otRooms.map(room => 
-          otSlotsApi.getAll(undefined, room.id).catch(err => {
+          otSlotsApi.getAll(undefined, room.id, slotStatusDate).catch(err => {
             console.error(`Failed to fetch slots for OT ${room.id}:`, err);
             return [];
           })
@@ -226,7 +321,7 @@ export function PatientOTAllocationManagement() {
     if (otRooms.length > 0) {
       fetchAllSlots();
     }
-  }, [otRooms]);
+  }, [otRooms, slotStatusDate]);
 
   // Fetch all emergency bed slots on component load
   useEffect(() => {
@@ -282,9 +377,14 @@ export function PatientOTAllocationManagement() {
     const today = getTodayIST();
     const slotDate = allocationDate || today;
     
-    // If slot date is not today, don't consider it passed
-    if (slotDate !== today) return false;
+    // Compare dates (YYYY-MM-DD format)
+    // If slot date is earlier than today, it's definitely passed
+    if (slotDate < today) return true;
     
+    // If slot date is in the future, it's not passed
+    if (slotDate > today) return false;
+    
+    // If slot date is today, check if the end time has passed
     // Get current time in IST
     const now = new Date();
     const istOffset = 5.5 * 60 * 60 * 1000;
@@ -404,6 +504,7 @@ export function PatientOTAllocationManagement() {
       anaesthetistId: allocation.anaesthetistId?.toString() || '',
       nurseId: allocation.nurseId?.toString() || '',
       otAllocationDate: formatDateIST(allocation.otAllocationDate),
+      dateOfOperation: allocation.dateOfOperation ? formatDateIST(allocation.dateOfOperation) : '',
       duration: allocation.duration || '',
       otStartTime: allocation.otStartTime || '',
       otEndTime: allocation.otEndTime || '',
@@ -417,6 +518,7 @@ export function PatientOTAllocationManagement() {
       billId: allocation.billId?.toString() || '',
       status: 'Active',
     });
+    setAddOtAllocationDateDisplay(formatDateToDisplay(formatDateIST(allocation.otAllocationDate)));
     setSelectedOTId(allocation.otId.toString());
     if (allocation.emergencyBedSlotId) {
       const bedSlot = emergencyBedSlots.find(s => s.id === allocation.emergencyBedSlotId);
@@ -477,9 +579,8 @@ export function PatientOTAllocationManagement() {
         anaesthetistId: formData.anaesthetistId ? Number(formData.anaesthetistId) : null,
         nurseId: formData.nurseId ? Number(formData.nurseId) : null,
         otAllocationDate: formData.otAllocationDate,
+        dateOfOperation: formData.dateOfOperation || null,
         duration: formData.duration ? Number(formData.duration) : null,
-        otStartTime: formData.otStartTime || null,
-        otEndTime: formData.otEndTime || null,
         otActualStartTime: formData.otActualStartTime || null,
         otActualEndTime: formData.otActualEndTime || null,
         operationDescription: formData.operationDescription || null,
@@ -507,6 +608,7 @@ export function PatientOTAllocationManagement() {
         anaesthetistId: '',
         nurseId: '',
         otAllocationDate: getTodayIST(),
+        dateOfOperation: '',
         duration: '',
         otStartTime: '',
         otEndTime: '',
@@ -618,9 +720,8 @@ export function PatientOTAllocationManagement() {
           anaesthetistId: formData.anaesthetistId ? Number(formData.anaesthetistId) : null,
           nurseId: formData.nurseId ? Number(formData.nurseId) : null,
           otAllocationDate: formData.otAllocationDate,
+          dateOfOperation: formData.dateOfOperation || null,
           duration: formData.duration ? Number(formData.duration) : null,
-          otStartTime: formData.otStartTime || null,
-          otEndTime: formData.otEndTime || null,
           otActualStartTime: formData.otActualStartTime || null,
           otActualEndTime: formData.otActualEndTime || null,
           operationDescription: formData.operationDescription || null,
@@ -653,6 +754,7 @@ export function PatientOTAllocationManagement() {
         anaesthetistId: '',
         nurseId: '',
         otAllocationDate: getTodayIST(),
+        dateOfOperation: '',
         duration: '',
         otStartTime: '',
         otEndTime: '',
@@ -756,14 +858,13 @@ export function PatientOTAllocationManagement() {
         assistantDoctorId: formData.assistantDoctorId ? Number(formData.assistantDoctorId) : null,
         anaesthetistId: formData.anaesthetistId ? Number(formData.anaesthetistId) : null,
         nurseId: formData.nurseId ? Number(formData.nurseId) : null,
-        otAllocationDate: formData.otAllocationDate,
-        duration: formData.duration ? Number(formData.duration) : null,
-        otStartTime: formData.otStartTime || null,
-        otEndTime: formData.otEndTime || null,
-        otActualStartTime: formData.otActualStartTime || null,
-        otActualEndTime: formData.otActualEndTime || null,
-        operationDescription: formData.operationDescription || null,
-        operationStatus: finalStatus === 'InProgress' ? 'In Progress' : finalStatus,
+          otAllocationDate: formData.otAllocationDate,
+          dateOfOperation: formData.dateOfOperation || null,
+          duration: formData.duration ? Number(formData.duration) : null,
+          otActualStartTime: formData.otActualStartTime || null,
+          otActualEndTime: formData.otActualEndTime || null,
+          operationDescription: formData.operationDescription || null,
+          operationStatus: finalStatus === 'InProgress' ? 'In Progress' : finalStatus,
         preOperationNotes: formData.preOperationNotes || null,
         postOperationNotes: formData.postOperationNotes || null,
         otDocuments: formData.otDocuments || null,
@@ -788,6 +889,7 @@ export function PatientOTAllocationManagement() {
         anaesthetistId: '',
         nurseId: '',
         otAllocationDate: getTodayIST(),
+        dateOfOperation: '',
         duration: '',
         otStartTime: '',
         otEndTime: '',
@@ -852,6 +954,7 @@ export function PatientOTAllocationManagement() {
       anaesthetistId: allocation.anaesthetistId?.toString() || '',
       nurseId: allocation.nurseId?.toString() || '',
       otAllocationDate: formatDateIST(allocation.otAllocationDate),
+      dateOfOperation: allocation.dateOfOperation ? formatDateIST(allocation.dateOfOperation) : '',
       duration: allocation.duration || '',
       otStartTime: allocation.otStartTime || '',
       otEndTime: allocation.otEndTime || '',
@@ -865,6 +968,7 @@ export function PatientOTAllocationManagement() {
       billId: allocation.billId?.toString() || '',
       status: allocation.status,
     });
+    setEditOtAllocationDateDisplay(formatDateToDisplay(formatDateIST(allocation.otAllocationDate)));
     setSelectedOTId(allocation.otId.toString());
     // Set emergency bed slot if available
     if (allocation.emergencyBedSlotId) {
@@ -1149,8 +1253,10 @@ export function PatientOTAllocationManagement() {
             patientNo = patient ? (patient.PatientNo || (patient as any).patientNo) : null;
           }
           
-          // Consider occupied if: isOccupied is true, or has allocation with status InProgress/Scheduled/Completed
-          const isActuallyOccupied = isOccupied || isInProgress || isScheduled || isCompleted || !!slotAllocation;
+          // Consider occupied if: isOccupied is true AND isAvailable is false (actually not available for the selected date)
+          // OR has allocation with status InProgress/Scheduled/Completed (these are definitely occupied)
+          // This ensures we don't show available slots as occupied even if they have allocations for other dates
+          const isActuallyOccupied = (isOccupied === true && slot.isAvailable === false) || isInProgress || isScheduled || isCompleted || (!!slotAllocation && slot.isAvailable === false);
           
           if (isActuallyOccupied) {
             occupied.push({ slot, roomData, slotIdx, slotAllocation, patientNo });
@@ -1282,6 +1388,36 @@ export function PatientOTAllocationManagement() {
                         );
                       })}
                       </select>
+                    </div>
+
+                    <div className="dialog-form-field">
+                      <Label htmlFor="add-otAllocationDate" className="dialog-label-standard">OT Allocation Date *</Label>
+                      <Popover open={addOtAllocationDatePickerOpen} onOpenChange={setAddOtAllocationDatePickerOpen}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className="w-full justify-start text-left font-normal"
+                          >
+                            <Calendar className="mr-2 size-4" />
+                            {formData.otAllocationDate ? formatDateToDisplay(formData.otAllocationDate) : 'Pick a date'}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0 bg-white" align="start" style={{ opacity: 1 }}>
+                          <CalendarComponent
+                            mode="single"
+                            selected={getDateFromString(formData.otAllocationDate)}
+                            onSelect={(date) => {
+                              if (date) {
+                                const dateStr = getStringFromDate(date);
+                                setFormData({ ...formData, otAllocationDate: dateStr });
+                                setAddOtAllocationDateDisplay(formatDateToDisplay(dateStr));
+                                setAddOtAllocationDatePickerOpen(false);
+                              }
+                            }}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
                     </div>
 
                   <div className="dialog-form-field border-t pt-4">
@@ -1484,16 +1620,6 @@ export function PatientOTAllocationManagement() {
                   </div>
 
                   <div className="dialog-form-field-grid">
-                    <div className="dialog-field-single-column">
-                      <Label htmlFor="add-otAllocationDate" className="dialog-label-standard">OT Allocation Date *</Label>
-                      <Input
-                        id="add-otAllocationDate"
-                        type="date"
-                        value={formData.otAllocationDate}
-                        onChange={(e) => setFormData({ ...formData, otAllocationDate: e.target.value })}
-                        className="dialog-input-standard"
-                      />
-                    </div>
                     <div className="dialog-field-single-column">
                       <Label htmlFor="add-duration" className="dialog-label-standard">Duration (Optional, in minutes)</Label>
                       <Input
@@ -1704,7 +1830,34 @@ export function PatientOTAllocationManagement() {
           {/* Slot Cards for Today */}
           <Card className="bg-white border border-gray-200 shadow-sm rounded-lg mb-4">
             <CardHeader>
-              <CardTitle>OT Room Slot Status</CardTitle>
+              <div className="flex items-center gap-4">
+                <CardTitle>OT Room Slot Status</CardTitle>
+                <Popover open={slotStatusDatePickerOpen} onOpenChange={setSlotStatusDatePickerOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="w-40 justify-start text-left font-normal"
+                    >
+                      <Calendar className="mr-2 size-4" />
+                      {slotStatusDate ? formatDateToDisplay(slotStatusDate) : 'Pick a date'}
+                    </Button>
+                  </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0 bg-white" align="start" style={{ opacity: 1 }}>
+                      <CalendarComponent
+                        mode="single"
+                        selected={getDateFromString(slotStatusDate)}
+                        onSelect={(date) => {
+                          if (date) {
+                            const dateStr = getStringFromDate(date);
+                            setSlotStatusDate(dateStr);
+                            setSlotStatusDatePickerOpen(false);
+                          }
+                        }}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                </Popover>
+              </div>
             </CardHeader>
             <CardContent>
               {/* Search Filter */}
@@ -1739,6 +1892,9 @@ export function PatientOTAllocationManagement() {
                     const isCompleted = operationStatus === 'Completed';
                     const isScheduled = operationStatus === 'Scheduled';
                     const isInProgress = operationStatus === 'InProgress';
+                    
+                    // Check if slot time has passed for the selected date
+                    const slotTimePassed = isSlotTimePassed(slot.slotEndTime || '', slotStatusDate);
                     
                     // Debug allocation lookup
                     if (slot.patientOTAllocationId || slot.otIdNumber) {
@@ -1778,9 +1934,12 @@ export function PatientOTAllocationManagement() {
                     const isClickable = !!slotAllocation;
                     
                     // Determine color scheme based on backend status (matching Emergency Admission Management)
-                    // Priority: Occupied/InProgress/Completed -> Red, Scheduled -> Yellow, Available -> Grey
+                    // Priority: Time Passed -> Grey, Occupied/InProgress/Completed -> Red, Scheduled -> Yellow, Available -> Grey
                     let cardClassName = '';
-                    if (isOccupied || isInProgress || isCompleted || !!slotAllocation) {
+                    if (slotTimePassed) {
+                      // Time Passed - Grey out
+                      cardClassName = '!border-2 !rounded-lg border-gray-300 !bg-gray-100 opacity-60 shadow-sm';
+                    } else if (isOccupied || isInProgress || isCompleted || !!slotAllocation) {
                       // Occupied/In Progress/Completed - Red (transparent)
                       cardClassName = '!border-2 !rounded-lg border-red-300 !bg-red-50/30 hover:!border-red-400 hover:!bg-red-50/50 shadow-sm';
                     } else if (isScheduled) {
@@ -1795,11 +1954,11 @@ export function PatientOTAllocationManagement() {
                     }
                     
                     // Add transition for hover effects
-                    if (isClickable && (isOccupied || isInProgress || isScheduled || isCompleted)) {
+                    if (isClickable && (isOccupied || isInProgress || isScheduled || isCompleted) && !slotTimePassed) {
                       cardClassName += ' transition-all cursor-pointer';
                     }
-                    const textClassName = 'text-gray-900';
-                    const subtitleClassName = 'text-gray-500';
+                    const textClassName = slotTimePassed ? 'text-gray-500' : 'text-gray-900';
+                    const subtitleClassName = slotTimePassed ? 'text-gray-400' : 'text-gray-500';
                     
                     // Debug: Log card rendering (only for slots with allocations or potential matches)
                     if (slotAllocation || slot.patientOTAllocationId || (slot.otIdNumber && slot.id)) {
@@ -1876,10 +2035,10 @@ export function PatientOTAllocationManagement() {
                           
                           {/* Slot Time */}
                           {slot.slotStartTime && slot.slotEndTime && (
-                            <div className="mb-3 p-2 rounded bg-gray-50">
+                            <div className={`mb-3 p-2 rounded ${slotTimePassed ? 'bg-gray-100' : 'bg-gray-50'}`}>
                               <div className="flex items-center gap-2 text-sm">
-                                <Clock className="size-4 text-gray-600" />
-                                <span className="font-medium text-gray-700">
+                                <Clock className={`size-4 ${slotTimePassed ? 'text-gray-400' : 'text-gray-600'}`} />
+                                <span className={`font-medium ${slotTimePassed ? 'text-gray-500' : 'text-gray-700'}`}>
                                   {slot.slotStartTime} - {slot.slotEndTime}
                                 </span>
                               </div>
@@ -1953,31 +2112,46 @@ export function PatientOTAllocationManagement() {
                 {isUnoccupiedSlotsExpanded && (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-4">
                   {unoccupiedSlots.map(({ slot, roomData, slotIdx }) => {
+                    // Check if slot time has passed for the selected date
+                    const slotTimePassed = isSlotTimePassed(slot.slotEndTime || '', slotStatusDate);
+                    
                     return (
                       <div
                         key={`${roomData.room.id}-${slot.id || slotIdx}`}
                         className="w-full"
                       >
                         <Card 
-                          className="!border-2 !rounded-lg border-gray-200 !bg-gray-50 shadow-sm h-full"
+                          className={`!border-2 !rounded-lg shadow-sm h-full ${
+                            slotTimePassed 
+                              ? 'border-gray-300 !bg-gray-100 opacity-60' 
+                              : 'border-gray-200 !bg-gray-50'
+                          }`}
                         >
                           <CardContent className="p-4">
                             <div className="flex items-center justify-between mb-2">
                               <div>
-                                <h3 className="text-base font-semibold text-gray-900">{roomData.room.otNo} - {slot.otSlotNo || `Slot ${slotIdx + 1}`}</h3>
-                                <p className="text-xs text-gray-500">{roomData.room.otName} ({roomData.room.otType})</p>
+                                <h3 className={`text-base font-semibold ${slotTimePassed ? 'text-gray-500' : 'text-gray-900'}`}>
+                                  {roomData.room.otNo} - {slot.otSlotNo || `Slot ${slotIdx + 1}`}
+                                </h3>
+                                <p className={`text-xs ${slotTimePassed ? 'text-gray-400' : 'text-gray-500'}`}>
+                                  {roomData.room.otName} ({roomData.room.otType})
+                                </p>
                               </div>
-                              <div className="px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-700">
+                              <div className={`px-2 py-1 rounded text-xs font-medium ${
+                                slotTimePassed 
+                                  ? 'bg-gray-200 text-gray-500' 
+                                  : 'bg-gray-100 text-gray-700'
+                              }`}>
                                 Available
                               </div>
                             </div>
                             
                             {/* Slot Time - minimal info for unoccupied */}
                             {slot.slotStartTime && slot.slotEndTime && (
-                              <div className="p-2 rounded bg-gray-50">
+                              <div className={`p-2 rounded ${slotTimePassed ? 'bg-gray-100' : 'bg-gray-50'}`}>
                                 <div className="flex items-center gap-2 text-sm">
-                                  <Clock className="size-4 text-gray-600" />
-                                  <span className="font-medium text-gray-700">
+                                  <Clock className={`size-4 ${slotTimePassed ? 'text-gray-400' : 'text-gray-600'}`} />
+                                  <span className={`font-medium ${slotTimePassed ? 'text-gray-500' : 'text-gray-700'}`}>
                                     {slot.slotStartTime} - {slot.slotEndTime}
                                   </span>
                                 </div>
@@ -2082,9 +2256,9 @@ export function PatientOTAllocationManagement() {
                             const allocationDate = allocation.otAllocationDate ? 
                               new Date(allocation.otAllocationDate).toLocaleDateString().toLowerCase() : '';
                             
-                            // Time
-                            const startTime = allocation.otStartTime ? String(allocation.otStartTime).toLowerCase() : '';
-                            const endTime = allocation.otEndTime ? String(allocation.otEndTime).toLowerCase() : '';
+                            // Time (only actual times)
+                            const startTime = allocation.otActualStartTime ? String(allocation.otActualStartTime).toLowerCase() : '';
+                            const endTime = allocation.otActualEndTime ? String(allocation.otActualEndTime).toLowerCase() : '';
                             
                             // Operation description
                             const operationDesc = allocation.operationDescription ? 
@@ -2120,7 +2294,7 @@ export function PatientOTAllocationManagement() {
                       if (filteredAllocations.length === 0) {
                         return (
                           <tr>
-                            <td colSpan={11} className="text-center py-8 text-gray-500 text-sm">
+                            <td colSpan={12} className="text-center py-8 text-gray-500 text-sm">
                               {tableSearchTerm.trim() 
                                 ? `No OT allocations found matching "${tableSearchTerm}"`
                                 : "No OT allocations found. Add a new allocation to get started."}
@@ -2178,38 +2352,19 @@ export function PatientOTAllocationManagement() {
                             </td>
                             <td className="py-3 md:py-4 px-3 md:px-6 text-gray-600 text-sm whitespace-nowrap min-w-[100px]">{leadSurgeon?.name || allocation.leadSurgeonId}</td>
                             <td className="py-3 md:py-4 px-3 md:px-6 text-gray-600 text-sm whitespace-nowrap hidden lg:table-cell">{formatDateDisplayIST(allocation.otAllocationDate, 'numeric')}</td>
-                            <td className="py-3 md:py-4 px-3 md:px-6 text-gray-600 text-sm whitespace-nowrap hidden xl:table-cell">{allocation.otStartTime || '-'}</td>
-                            <td className="py-3 md:py-4 px-3 md:px-6 text-gray-600 text-sm whitespace-nowrap hidden xl:table-cell">{allocation.otEndTime || '-'}</td>
+                            <td className="py-3 md:py-4 px-3 md:px-6 text-gray-600 text-sm whitespace-nowrap hidden xl:table-cell">{allocation.otActualStartTime || '-'}</td>
+                            <td className="py-3 md:py-4 px-3 md:px-6 text-gray-600 text-sm whitespace-nowrap hidden xl:table-cell">{allocation.otActualEndTime || '-'}</td>
                             <td className="py-3 md:py-4 px-3 md:px-6 text-gray-600 text-sm whitespace-nowrap min-w-[150px] hidden lg:table-cell">{allocation.operationDescription || '-'}</td>
                             <td className="py-3 md:py-4 px-3 md:px-6 whitespace-nowrap">{getStatusBadge(allocation.operationStatus)}</td>
                             <td className="py-3 md:py-4 px-3 md:px-6 whitespace-nowrap">
-                              <div className="flex items-center gap-1">
+                              <div className="dashboard-actions-container">
                                 <Button
-                                  variant="ghost"
                                   size="sm"
                                   onClick={() => handleEdit(allocation)}
-                                  className="h-7 w-7 p-0"
-                                  title="Edit Allocation"
+                                  className="dashboard-manage-button"
+                                  title="Manage Patient OT Allocation"
                                 >
-                                  <Edit className="size-3" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleDuplicate(allocation)}
-                                  className="h-7 w-7 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                                  title="Duplicate Allocation"
-                                >
-                                  <Copy className="size-3" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleDelete(allocation.id)}
-                                  className="h-7 w-7 p-0 text-red-600 hover:text-red-700"
-                                  title="Delete Allocation"
-                                >
-                                  <Trash2 className="size-3" />
+                                  Manage
                                 </Button>
                               </div>
                             </td>
@@ -2548,6 +2703,18 @@ export function PatientOTAllocationManagement() {
                   />
                 </div>
                 <div>
+                  <Label htmlFor="duplicate-dateOfOperation">Date of Operation</Label>
+                  <Input
+                    id="duplicate-dateOfOperation"
+                    type="date"
+                    value={formData.dateOfOperation}
+                    onChange={(e) => setFormData({ ...formData, dateOfOperation: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                <div>
                   <Label htmlFor="duplicate-duration">Duration (Optional, in minutes)</Label>
                   <Input
                     id="duplicate-duration"
@@ -2555,27 +2722,6 @@ export function PatientOTAllocationManagement() {
                     placeholder="e.g., 120"
                     value={formData.duration}
                     onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="duplicate-otStartTime">OT Start Time (Optional)</Label>
-                  <Input
-                    id="duplicate-otStartTime"
-                    type="time"
-                    value={formData.otStartTime}
-                    onChange={(e) => setFormData({ ...formData, otStartTime: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="duplicate-otEndTime">OT End Time (Optional)</Label>
-                  <Input
-                    id="duplicate-otEndTime"
-                    type="time"
-                    value={formData.otEndTime}
-                    onChange={(e) => setFormData({ ...formData, otEndTime: e.target.value })}
                   />
                 </div>
               </div>
@@ -2684,6 +2830,7 @@ export function PatientOTAllocationManagement() {
             </div>
           </div>
           </div>
+        </div>
         </DialogContent>
       </Dialog>
 
@@ -2811,6 +2958,32 @@ export function PatientOTAllocationManagement() {
                     );
                   })}
                   </select>
+                </div>
+
+                <div>
+                  <Label htmlFor="edit-otAllocationDate">OT Allocation Date *</Label>
+                  <Input
+                    id="edit-otAllocationDate"
+                    type="text"
+                    placeholder="dd-mm-yyyy"
+                    value={editOtAllocationDateDisplay}
+                    onChange={(e) => {
+                      setEditOtAllocationDateDisplay(e.target.value);
+                      const parsed = parseDateFromDisplay(e.target.value);
+                      if (parsed) {
+                        setFormData({ ...formData, otAllocationDate: parsed });
+                      }
+                    }}
+                    onBlur={(e) => {
+                      const parsed = parseDateFromDisplay(e.target.value);
+                      if (parsed) {
+                        setEditOtAllocationDateDisplay(formatDateToDisplay(parsed));
+                        setFormData({ ...formData, otAllocationDate: parsed });
+                      } else if (e.target.value) {
+                        setEditOtAllocationDateDisplay('');
+                      }
+                    }}
+                  />
                 </div>
 
               <div className="border-t pt-4">
@@ -3016,15 +3189,6 @@ export function PatientOTAllocationManagement() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="edit-otAllocationDate">OT Allocation Date *</Label>
-                  <Input
-                    id="edit-otAllocationDate"
-                    type="date"
-                    value={formData.otAllocationDate}
-                    onChange={(e) => setFormData({ ...formData, otAllocationDate: e.target.value })}
-                  />
-                </div>
-                <div>
                   <Label htmlFor="edit-duration">Duration (Optional, in minutes)</Label>
                   <Input
                     id="edit-duration"
@@ -3032,27 +3196,6 @@ export function PatientOTAllocationManagement() {
                     placeholder="e.g., 120"
                     value={formData.duration}
                     onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="edit-otStartTime">OT Start Time (Optional)</Label>
-                  <Input
-                    id="edit-otStartTime"
-                    type="time"
-                    value={formData.otStartTime}
-                    onChange={(e) => setFormData({ ...formData, otStartTime: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="edit-otEndTime">OT End Time (Optional)</Label>
-                  <Input
-                    id="edit-otEndTime"
-                    type="time"
-                    value={formData.otEndTime}
-                    onChange={(e) => setFormData({ ...formData, otEndTime: e.target.value })}
                   />
                 </div>
               </div>

@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Badge } from './ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Siren, Plus, Edit, Trash2, Eye, Search, Activity, Users, AlertCircle, Heart, BedDouble, ChevronDown, ChevronUp } from 'lucide-react';
+import { Switch } from './ui/switch';
 import { useEmergencyAdmissions } from '../hooks/useEmergencyAdmissions';
 import { useEmergencyBedSlots } from '../hooks/useEmergencyBedSlots';
 import { useEmergencyBeds } from '../hooks/useEmergencyBeds';
@@ -888,19 +889,6 @@ export function EmergencyAdmissionManagement() {
                         </>
                       )}
 
-                      <div className="dialog-form-field">
-                        <Label htmlFor="add-status" className="dialog-label-standard">Status</Label>
-                        <select
-                          id="add-status"
-                          aria-label="Status"
-                          className="dialog-select-standard"
-                          value={formData.status}
-                          onChange={(e) => setFormData({ ...formData, status: e.target.value as EmergencyAdmission['status'] })}
-                        >
-                          <option value="Active">Active</option>
-                          <option value="Inactive">Inactive</option>
-                        </select>
-                      </div>
                     </div>
                   </div>
                   <div className="dialog-footer-standard">
@@ -1130,22 +1118,6 @@ export function EmergencyAdmissionManagement() {
                           >
                             Manage
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEdit(admission)}
-                            className="h-7 w-7 p-0"
-                          >
-                            <Edit className="size-3" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDelete(admission.emergencyAdmissionId)}
-                            className="h-7 w-7 p-0 text-red-600 hover:text-red-700"
-                          >
-                            <Trash2 className="size-3" />
-                          </Button>
                         </div>
                       </td>
                     </tr>
@@ -1351,17 +1323,26 @@ export function EmergencyAdmissionManagement() {
                   )}
 
                   <div className="dialog-form-field">
-                    <Label htmlFor="edit-status" className="dialog-label-standard">Status</Label>
-                    <select
-                      id="edit-status"
-                      aria-label="Status"
-                      className="dialog-select-standard"
-                      value={formData.status}
-                      onChange={(e) => setFormData({ ...formData, status: e.target.value as EmergencyAdmission['status'] })}
-                    >
-                      <option value="Active">Active</option>
-                      <option value="Inactive">Inactive</option>
-                    </select>
+                    <div className="flex items-center gap-3">
+                      <Label htmlFor="edit-status" className="dialog-label-standard">Status</Label>
+                      <div className="flex-shrink-0 relative" style={{ zIndex: 1 }}>
+                        <Switch
+                          id="edit-status"
+                          checked={formData.status === 'Active'}
+                          onCheckedChange={(checked) => setFormData({ ...formData, status: checked ? 'Active' : 'Inactive' })}
+                          className="data-[state=checked]:bg-blue-600 data-[state=unchecked]:bg-gray-300 [&_[data-slot=switch-thumb]]:!bg-white [&_[data-slot=switch-thumb]]:!border [&_[data-slot=switch-thumb]]:!border-gray-400 [&_[data-slot=switch-thumb]]:!shadow-sm"
+                          style={{
+                            width: '2.5rem',
+                            height: '1.5rem',
+                            minWidth: '2.5rem',
+                            minHeight: '1.5rem',
+                            display: 'inline-flex',
+                            position: 'relative',
+                            backgroundColor: formData.status === 'Active' ? '#2563eb' : '#d1d5db',
+                          }}
+                        />
+                      </div>
+                    </div>
                   </div>
                 </TabsContent>
                 

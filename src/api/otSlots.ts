@@ -95,7 +95,7 @@ export interface UpdateOTSlotDto extends Partial<CreateOTSlotDto> {
 }
 
 export const otSlotsApi = {
-  async getAll(status?: string, otId?: number): Promise<OTSlot[]> {
+  async getAll(status?: string, otId?: number, date?: string): Promise<OTSlot[]> {
     // Build query parameters
     const params = new URLSearchParams();
     if (status) {
@@ -103,6 +103,17 @@ export const otSlotsApi = {
     }
     if (otId !== undefined) {
       params.append('otId', otId.toString());
+    }
+    if (date) {
+      // Convert YYYY-MM-DD to DD-MM-YYYY format
+      const dateParts = date.split('-');
+      if (dateParts.length === 3) {
+        const formattedDate = `${dateParts[2]}-${dateParts[1]}-${dateParts[0]}`;
+        params.append('date', formattedDate);
+      } else {
+        // If already in DD-MM-YYYY format, use as is
+        params.append('date', date);
+      }
     }
 
     const queryString = params.toString();
@@ -117,7 +128,7 @@ export const otSlotsApi = {
     return [];
   },
 
-  async getByOTId(otId: string): Promise<OTSlot[]> {
+  async getByOTId(otId: string, date?: string): Promise<OTSlot[]> {
     try {
       // Extract numeric ID from string format (e.g., "OT-01" -> 1)
       const numericOtId = parseInt(otId.replace('OT-', ''), 10);
@@ -125,7 +136,7 @@ export const otSlotsApi = {
         throw new Error(`Invalid OT ID format: ${otId}`);
       }
       
-      return this.getAll(undefined, numericOtId);
+      return this.getAll(undefined, numericOtId, date);
     } catch (error) {
       console.error('Error fetching OT slots by OT ID:', error);
       throw error;

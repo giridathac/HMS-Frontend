@@ -7,6 +7,7 @@ import { Textarea } from './ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Badge } from './ui/badge';
 import { BedDouble, Plus, Edit, Trash2, CheckCircle2, XCircle, ArrowLeft, Clock, Search, Users } from 'lucide-react';
+import { Switch } from './ui/switch';
 import { useEmergencyBeds } from '../hooks/useEmergencyBeds';
 import { useEmergencyBedSlots } from '../hooks/useEmergencyBedSlots';
 import { EmergencyBed, EmergencyBedSlot } from '../types';
@@ -278,32 +279,17 @@ export function EmergencyBedManagement() {
                       className="dialog-input-standard"
                     />
                   </div>
-                  <div className="dialog-form-field-grid">
-                    <div className="dialog-form-field">
-                      <Label htmlFor="createdBy" className="dialog-label-standard">Created By (User ID) *</Label>
-                      <Input
-                        id="createdBy"
-                        type="text"
-                        placeholder="e.g., 1"
-                        value={formData.createdBy}
-                        onChange={(e) => setFormData({ ...formData, createdBy: e.target.value })}
-                        className="dialog-input-standard"
-                      />
-                      <p className="text-xs text-gray-500 mt-1">Foreign Key to UserId</p>
-                    </div>
-                    <div className="dialog-form-field">
-                      <Label htmlFor="status" className="dialog-label-standard">Status</Label>
-                      <select
-                        id="status"
-                        aria-label="Status"
-                        className="dialog-select-standard"
-                        value={formData.status}
-                        onChange={(e) => setFormData({ ...formData, status: e.target.value as EmergencyBed['status'] })}
-                      >
-                        <option value="active">Active</option>
-                        <option value="inactive">Inactive</option>
-                      </select>
-                    </div>
+                  <div className="dialog-form-field">
+                    <Label htmlFor="createdBy" className="dialog-label-standard">Created By (User ID) *</Label>
+                    <Input
+                      id="createdBy"
+                      type="text"
+                      placeholder="e.g., 1"
+                      value={formData.createdBy}
+                      onChange={(e) => setFormData({ ...formData, createdBy: e.target.value })}
+                      className="dialog-input-standard"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Foreign Key to UserId</p>
                   </div>
                 </div>
               </div>
@@ -414,23 +400,14 @@ export function EmergencyBedManagement() {
                           <td className="py-4 px-6 text-gray-600 whitespace-nowrap">{emergencyBed.emergencyRoomDescription || '-'}</td>
                           <td className="py-4 px-6 whitespace-nowrap">{getStatusBadge(emergencyBed.status)}</td>
                           <td className="py-4 px-6 whitespace-nowrap">
-                            <div className="flex items-center gap-2">
+                            <div className="dashboard-actions-container">
                               <Button
-                                variant="ghost"
                                 size="sm"
                                 onClick={() => handleEdit(emergencyBed)}
-                                className="h-8 w-8 p-0"
+                                className="dashboard-manage-button"
+                                title="Manage Emergency Bed"
                               >
-                                <Edit className="size-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDelete(emergencyBed.id)}
-                                className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                                title={`Delete Emergency Bed ID: ${emergencyBed.emergencyBedId}`}
-                              >
-                                <Trash2 className="size-4" />
+                                Manage
                               </Button>
                             </div>
                           </td>
@@ -514,31 +491,38 @@ export function EmergencyBedManagement() {
                     className="dialog-input-standard"
                   />
                 </div>
-                <div className="dialog-form-field-grid">
-                  <div className="dialog-form-field">
-                    <Label htmlFor="edit-createdBy" className="dialog-label-standard">Created By (User ID) *</Label>
-                    <Input
-                      id="edit-createdBy"
-                      type="text"
-                      placeholder="e.g., 1"
-                      value={formData.createdBy}
-                      onChange={(e) => setFormData({ ...formData, createdBy: e.target.value })}
-                      className="dialog-input-standard"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">Foreign Key to UserId</p>
-                  </div>
-                  <div className="dialog-form-field">
+                <div className="dialog-form-field">
+                  <Label htmlFor="edit-createdBy" className="dialog-label-standard">Created By (User ID) *</Label>
+                  <Input
+                    id="edit-createdBy"
+                    type="text"
+                    placeholder="e.g., 1"
+                    value={formData.createdBy}
+                    onChange={(e) => setFormData({ ...formData, createdBy: e.target.value })}
+                    className="dialog-input-standard"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Foreign Key to UserId</p>
+                </div>
+                <div className="dialog-form-field">
+                  <div className="flex items-center gap-3">
                     <Label htmlFor="edit-status" className="dialog-label-standard">Status</Label>
-                    <select
-                      id="edit-status"
-                      aria-label="Status"
-                      className="dialog-select-standard"
-                      value={formData.status}
-                      onChange={(e) => setFormData({ ...formData, status: e.target.value as EmergencyBed['status'] })}
-                    >
-                      <option value="active">Active</option>
-                      <option value="inactive">Inactive</option>
-                    </select>
+                    <div className="flex-shrink-0 relative" style={{ zIndex: 1 }}>
+                      <Switch
+                        id="edit-status"
+                        checked={formData.status === 'active'}
+                        onCheckedChange={(checked) => setFormData({ ...formData, status: checked ? 'active' : 'inactive' })}
+                        className="data-[state=checked]:bg-blue-600 data-[state=unchecked]:bg-gray-300 [&_[data-slot=switch-thumb]]:!bg-white [&_[data-slot=switch-thumb]]:!border [&_[data-slot=switch-thumb]]:!border-gray-400 [&_[data-slot=switch-thumb]]:!shadow-sm"
+                        style={{
+                          width: '2.5rem',
+                          height: '1.5rem',
+                          minWidth: '2.5rem',
+                          minHeight: '1.5rem',
+                          display: 'inline-flex',
+                          position: 'relative',
+                          backgroundColor: formData.status === 'active' ? '#2563eb' : '#d1d5db',
+                        }}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>

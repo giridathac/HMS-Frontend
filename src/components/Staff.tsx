@@ -686,13 +686,11 @@ function StaffView({
                   <td className="py-4 px-6">
                     <div className="dashboard-actions-container">
                       <Button
-                        variant="outline"
                         size="sm"
                         onClick={() => handleEdit(member)}
                         className="dashboard-manage-button"
                         title="Manage Staff"
                       >
-                        <Edit className="size-4" />
                         Manage
                       </Button>
                     </div>

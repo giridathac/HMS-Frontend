@@ -7,7 +7,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Badge } from './ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Textarea } from './ui/textarea';
-import { Scissors, Plus, Clock, CheckCircle, AlertCircle, Edit, Trash2, CheckCircle2, XCircle, ArrowLeft } from 'lucide-react';
+import { Scissors, Plus, Clock, CheckCircle, AlertCircle, Edit, Trash2, CheckCircle2, XCircle, ArrowLeft, Calendar } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
+import { Calendar as CalendarComponent } from './ui/calendar';
+import { otRoomsApi } from '../api/otRooms';
+import { otSlotsApi } from '../api/otSlots';
+import { OTRoom, OTSlot } from '../types';
+import { getTodayIST, formatDateIST } from '../utils/timeUtils';
 
 interface Surgery {
   id: number;
@@ -89,16 +95,122 @@ const mockSurgeries: Surgery[] = [
   },
 ];
 
-const otRooms = [
-  { number: 'OT-1', status: 'Occupied', currentSurgery: 'Knee Replacement' },
-  { number: 'OT-2', status: 'Available', currentSurgery: null },
-  { number: 'OT-3', status: 'Scheduled', currentSurgery: 'Appendectomy at 11:00 AM' },
-  { number: 'OT-4', status: 'Cleaning', currentSurgery: null },
-];
+// Helper function to convert YYYY-MM-DD to DD-MM-YYYY
+const formatDateToDDMMYYYY = (dateStr: string): string => {
+  if (!dateStr) return '';
+  const [year, month, day] = dateStr.split('-');
+  return `${day}-${month}-${year}`;
+};
+
+// Helper function to convert DD-MM-YYYY to YYYY-MM-DD
+const parseDateFromDDMMYYYY = (dateStr: string): string => {
+  if (!dateStr) return '';
+  const [day, month, year] = dateStr.split('-');
+  return `${year}-${month}-${day}`;
+};
 
 export function OTManagement() {
   const [surgeries, setSurgeries] = useState<Surgery[]>(mockSurgeries);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [otRooms, setOTRooms] = useState<OTRoom[]>([]);
+  const [otSlotsByRoom, setOTSlotsByRoom] = useState<Map<number, OTSlot[]>>(new Map());
+  const [selectedDate, setSelectedDate] = useState<string>(getTodayIST());
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadingSlots, setLoadingSlots] = useState(false);
+  
+  // Convert string date (YYYY-MM-DD) to Date object
+  const getDateFromString = (dateStr: string): Date | undefined => {
+    if (!dateStr) return undefined;
+    try {
+      const date = new Date(dateStr + 'T00:00:00+05:30'); // IST timezone
+      if (isNaN(date.getTime())) return undefined;
+      return date;
+    } catch {
+      return undefined;
+    }
+  };
+  
+  // Convert Date object to string (YYYY-MM-DD)
+  const getStringFromDate = (date: Date | undefined): string => {
+    if (!date) return getTodayIST();
+    try {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    } catch {
+      return getTodayIST();
+    }
+  };
+  
+  // Format date to DD-MM-YYYY for display
+  const formatDateToDDMMYYYY = (dateStr: string): string => {
+    if (!dateStr) return '';
+    try {
+      const istDate = formatDateIST(dateStr);
+      if (!istDate) return '';
+      const [year, month, day] = istDate.split('-');
+      return `${day}-${month}-${year}`;
+    } catch {
+      return '';
+    }
+  };
+
+  // Fetch OT rooms on component mount
+  useEffect(() => {
+    const fetchOTRooms = async () => {
+      try {
+        setLoading(true);
+        const allOTRooms = await otRoomsApi.getAllLegacy();
+        setOTRooms(allOTRooms);
+      } catch (err) {
+        console.error('Failed to fetch OT rooms:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchOTRooms();
+  }, []);
+
+  // Fetch OT slots for all rooms when date changes
+  useEffect(() => {
+    const fetchOTSlots = async () => {
+      if (otRooms.length === 0) return;
+      
+      try {
+        setLoadingSlots(true);
+        const slotsMap = new Map<number, OTSlot[]>();
+        
+        // Fetch slots for each OT room
+        const slotPromises = otRooms.map(async (room) => {
+          try {
+            const numericOtId = typeof room.otId === 'string' 
+              ? parseInt(room.otId.replace('OT-', ''), 10)
+              : room.id;
+            
+            if (isNaN(numericOtId)) return;
+            
+            // Pass selectedDate (YYYY-MM-DD) - API will convert to DD-MM-YYYY internally
+            const slots = await otSlotsApi.getAll(undefined, numericOtId, selectedDate);
+            slotsMap.set(numericOtId, slots);
+          } catch (err) {
+            console.error(`Failed to fetch slots for OT ${room.otId}:`, err);
+          }
+        });
+        
+        await Promise.all(slotPromises);
+        setOTSlotsByRoom(slotsMap);
+      } catch (err) {
+        console.error('Failed to fetch OT slots:', err);
+      } finally {
+        setLoadingSlots(false);
+      }
+    };
+    
+    fetchOTSlots();
+  }, [selectedDate, otRooms]);
+
 
   const todaySurgeries = surgeries.filter(s => s.scheduledDate === '2025-11-14');
   const inProgress = surgeries.filter(s => s.status === 'In Progress');
@@ -113,7 +225,7 @@ export function OTManagement() {
             <h1 className="text-gray-900 mb-0 text-xl">Operation Theater Management</h1>
             <p className="text-gray-500 text-sm">Schedule and monitor surgical procedures</p>
           </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button className="gap-2">
               <Plus className="size-4" />
@@ -239,43 +351,113 @@ export function OTManagement() {
       {/* OT Room Status */}
       <Card className="mb-6">
         <CardHeader>
-          <CardTitle>OT Room Status - Live</CardTitle>
+          <div className="flex items-center gap-4">
+            <CardTitle>OT Room Slot Status</CardTitle>
+            <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="w-40 justify-start text-left font-normal"
+                >
+                  <Calendar className="mr-2 size-4" />
+                  {selectedDate ? formatDateToDDMMYYYY(selectedDate) : 'Pick a date'}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0 bg-white" align="start" style={{ opacity: 1 }}>
+                <CalendarComponent
+                  mode="single"
+                  selected={getDateFromString(selectedDate)}
+                  onSelect={(date) => {
+                    if (date) {
+                      const dateStr = getStringFromDate(date);
+                      setSelectedDate(dateStr);
+                      setDatePickerOpen(false);
+                    }
+                  }}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            {otRooms.map((ot) => (
-              <div
-                key={ot.number}
-                className={`p-4 border-2 rounded-lg ${
-                  ot.status === 'Occupied' ? 'border-red-300 bg-red-50' :
-                  ot.status === 'Scheduled' ? 'border-orange-300 bg-orange-50' :
-                  ot.status === 'Available' ? 'border-green-300 bg-green-50' :
-                  'border-gray-300 bg-gray-50'
-                }`}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="text-gray-900">{ot.number}</h4>
-                  <span className={`size-3 rounded-full ${
-                    ot.status === 'Occupied' ? 'bg-red-500' :
-                    ot.status === 'Scheduled' ? 'bg-orange-500' :
-                    ot.status === 'Available' ? 'bg-green-500' :
-                    'bg-gray-500'
-                  }`} />
-                </div>
-                <p className={`text-sm mb-1 ${
-                  ot.status === 'Occupied' ? 'text-red-700' :
-                  ot.status === 'Scheduled' ? 'text-orange-700' :
-                  ot.status === 'Available' ? 'text-green-700' :
-                  'text-gray-700'
-                }`}>
-                  {ot.status}
-                </p>
-                {ot.currentSurgery && (
-                  <p className="text-xs text-gray-600">{ot.currentSurgery}</p>
-                )}
-              </div>
-            ))}
-          </div>
+          {loading ? (
+            <div className="text-center py-8 text-gray-500">Loading OT rooms...</div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              {otRooms.map((ot) => {
+                const numericOtId = typeof ot.otId === 'string' 
+                  ? parseInt(ot.otId.replace('OT-', ''), 10)
+                  : ot.id;
+                const slots = otSlotsByRoom.get(numericOtId) || [];
+                // Only consider a slot as occupied if it's actually not available for the selected date
+                // A slot is occupied if: isOccupied is true AND isAvailable is false
+                // This ensures we don't show available slots as occupied even if they have allocations for other dates
+                const occupiedSlots = slots.filter(s => s.isOccupied === true && s.isAvailable === false);
+                const availableSlots = slots.filter(s => s.isAvailable === true || (s.isOccupied !== true && s.isAvailable !== false));
+                
+                let status = 'Available';
+                let statusColor = 'green';
+                let currentSurgery = null;
+                
+                if (loadingSlots) {
+                  status = 'Loading...';
+                  statusColor = 'gray';
+                } else if (occupiedSlots.length > 0) {
+                  status = 'Occupied';
+                  statusColor = 'red';
+                  const firstOccupied = occupiedSlots[0];
+                  currentSurgery = firstOccupied.patientName 
+                    ? `${firstOccupied.patientName} - ${firstOccupied.slotStartTime} to ${firstOccupied.slotEndTime}`
+                    : `Slot ${firstOccupied.otSlotNo} - ${firstOccupied.slotStartTime} to ${firstOccupied.slotEndTime}`;
+                } else if (slots.length > 0 && availableSlots.length === 0) {
+                  status = 'Fully Booked';
+                  statusColor = 'orange';
+                } else if (slots.length === 0) {
+                  status = 'No Slots';
+                  statusColor = 'gray';
+                }
+                
+                return (
+                  <div
+                    key={ot.id}
+                    className={`p-4 border-2 rounded-lg ${
+                      statusColor === 'red' ? 'border-red-300 bg-red-50' :
+                      statusColor === 'orange' ? 'border-orange-300 bg-orange-50' :
+                      statusColor === 'green' ? 'border-green-300 bg-green-50' :
+                      'border-gray-300 bg-gray-50'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-gray-900">{ot.otNo || ot.otId}</h4>
+                      <span className={`size-3 rounded-full ${
+                        statusColor === 'red' ? 'bg-red-500' :
+                        statusColor === 'orange' ? 'bg-orange-500' :
+                        statusColor === 'green' ? 'bg-green-500' :
+                        'bg-gray-500'
+                      }`} />
+                    </div>
+                    <p className={`text-sm mb-1 ${
+                      statusColor === 'red' ? 'text-red-700' :
+                      statusColor === 'orange' ? 'text-orange-700' :
+                      statusColor === 'green' ? 'text-green-700' :
+                      'text-gray-700'
+                    }`}>
+                      {status}
+                    </p>
+                    {currentSurgery && (
+                      <p className="text-xs text-gray-600">{currentSurgery}</p>
+                    )}
+                    {slots.length > 0 && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        {occupiedSlots.length} occupied, {availableSlots.length} available
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </CardContent>
       </Card>
 

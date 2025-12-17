@@ -16,6 +16,7 @@ interface PatientOTAllocationResponseItem {
   AnaesthetistId?: number | null;
   NurseId?: number | null;
   OTAllocationDate: string | Date;
+  DateOfOperation?: string | string[] | Date | Date[] | null;
   Duration?: number | null;
   OTStartTime?: string | null;
   OTEndTime?: string | null;
@@ -97,6 +98,20 @@ function mapPatientOTAllocationFromBackend(backendData: PatientOTAllocationRespo
       anaesthetistId: backendData.AnaesthetistId,
       nurseId: backendData.NurseId,
       otAllocationDate: formatDateIST(backendData.OTAllocationDate),
+      dateOfOperation: (() => {
+        // Handle DateOfOperation: can be string, array of strings, Date, array of Dates, or null
+        if (!backendData.DateOfOperation) {
+          return undefined;
+        }
+        if (Array.isArray(backendData.DateOfOperation)) {
+          // Map array of dates
+          return backendData.DateOfOperation.map(date => 
+            typeof date === 'string' ? formatDateIST(date) : formatDateIST(date as Date)
+          );
+        }
+        // Single date
+        return formatDateIST(backendData.DateOfOperation);
+      })(),
       duration: backendData.Duration?.toString(),
       otStartTime: backendData.OTStartTime || '',
       otEndTime: backendData.OTEndTime || '',
@@ -137,6 +152,7 @@ export interface CreatePatientOTAllocationDto {
   anaesthetistId?: number | null;
   nurseId?: number | null;
   otAllocationDate: string; // Required (YYYY-MM-DD)
+  dateOfOperation?: string | string[] | null; // Optional: single date (applies to all slots), array of dates (must match OTSlotIds length), or null
   duration?: number | null;
   otStartTime?: string | null; // HH:MM or HH:MM:SS
   otEndTime?: string | null; // HH:MM or HH:MM:SS
@@ -165,6 +181,7 @@ export interface UpdatePatientOTAllocationDto {
   anaesthetistId?: number | null;
   nurseId?: number | null;
   otAllocationDate?: string;
+  dateOfOperation?: string | string[] | null; // Optional: single date (applies to all slots), array of dates (must match OTSlotIds length), or null
   duration?: number | null;
   otStartTime?: string | null;
   otEndTime?: string | null;
@@ -231,6 +248,22 @@ export const patientOTAllocationsApi = {
         AnaesthetistId: data.anaesthetistId ?? null,
         NurseId: data.nurseId ?? null,
         OTAllocationDate: data.otAllocationDate, // Required (YYYY-MM-DD)
+        DateOfOperation: (() => {
+          // Handle DateOfOperation: single string, array of strings, or null
+          if (data.dateOfOperation === null || data.dateOfOperation === undefined) {
+            return null;
+          }
+          if (Array.isArray(data.dateOfOperation)) {
+            // Validate array length matches OTSlotIds length
+            const slotIds = data.otSlotIds ?? [];
+            if (data.dateOfOperation.length !== slotIds.length) {
+              throw new Error(`DateOfOperation array length (${data.dateOfOperation.length}) must match OTSlotIds length (${slotIds.length})`);
+            }
+            return data.dateOfOperation;
+          }
+          // Single date string - applies to all slots
+          return data.dateOfOperation;
+        })(),
         Duration: data.duration ?? null,
         OTStartTime: data.otStartTime ?? null,
         OTEndTime: data.otEndTime ?? null,
@@ -309,6 +342,22 @@ export const patientOTAllocationsApi = {
       if (data.anaesthetistId !== undefined) backendRequest.AnaesthetistId = data.anaesthetistId ?? null;
       if (data.nurseId !== undefined) backendRequest.NurseId = data.nurseId ?? null;
       if (data.otAllocationDate !== undefined) backendRequest.OTAllocationDate = data.otAllocationDate;
+      if (data.dateOfOperation !== undefined) {
+        // Handle DateOfOperation: single string, array of strings, or null
+        if (data.dateOfOperation === null) {
+          backendRequest.DateOfOperation = null;
+        } else if (Array.isArray(data.dateOfOperation)) {
+          // Validate array length matches OTSlotIds length
+          const slotIds = data.otSlotIds ?? [];
+          if (data.dateOfOperation.length !== slotIds.length) {
+            throw new Error(`DateOfOperation array length (${data.dateOfOperation.length}) must match OTSlotIds length (${slotIds.length})`);
+          }
+          backendRequest.DateOfOperation = data.dateOfOperation;
+        } else {
+          // Single date string - applies to all slots
+          backendRequest.DateOfOperation = data.dateOfOperation;
+        }
+      }
       if (data.duration !== undefined) backendRequest.Duration = data.duration ?? null;
       if (data.otStartTime !== undefined) backendRequest.OTStartTime = data.otStartTime ?? null;
       if (data.otEndTime !== undefined) backendRequest.OTEndTime = data.otEndTime ?? null;

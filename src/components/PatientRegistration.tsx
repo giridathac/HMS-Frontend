@@ -1217,57 +1217,57 @@ export function PatientRegistration() {
                     />
                   </div>
 
-                  {/* Row 8: Registered Date and Status */}
-                  <div className="dialog-form-field-grid">
-                    <div className="dialog-form-field">
-                      <Label htmlFor="editRegisteredDate" className="dialog-label-standard">Registered Date</Label>
-                      <Input
-                        id="editRegisteredDate"
-                        type="text"
-                        placeholder="dd-mm-yyyy"
-                        value={editRegisteredDateDisplay}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          setEditRegisteredDateDisplay(value);
-                          const parsed = parseDateFromDisplay(value);
-                          if (parsed) {
-                            setEditFormData({ ...editFormData, registeredDate: parsed });
-                          }
-                        }}
-                        onBlur={(e) => {
-                          const parsed = parseDateFromDisplay(e.target.value);
-                          if (parsed) {
-                            setEditRegisteredDateDisplay(formatDateToDisplay(parsed));
-                            setEditFormData({ ...editFormData, registeredDate: parsed });
-                          } else if (e.target.value) {
-                            setEditRegisteredDateDisplay('');
-                          }
-                        }}
-                        className="dialog-input-standard"
-                      />
-                    </div>
-                    <div className="dialog-form-field">
-                      <div className="flex items-center gap-3">
-                        <Label htmlFor="edit-status" className="dialog-label-standard">Status</Label>
-                        <div className="flex-shrink-0 relative" style={{ zIndex: 1 }}>
-                          <Switch
-                            id="edit-status"
-                            checked={editFormData.status !== undefined ? editFormData.status : true}
-                            onCheckedChange={(checked) => setEditFormData({ ...editFormData, status: checked })}
-                            className="data-[state=checked]:bg-blue-600 data-[state=unchecked]:bg-gray-300 [&_[data-slot=switch-thumb]]:!bg-white [&_[data-slot=switch-thumb]]:!border [&_[data-slot=switch-thumb]]:!border-gray-400 [&_[data-slot=switch-thumb]]:!shadow-sm"
-                            style={{
-                              width: '2.5rem',
-                              height: '1.5rem',
-                              minWidth: '2.5rem',
-                              minHeight: '1.5rem',
-                              display: 'inline-flex',
-                              position: 'relative',
-                              backgroundColor: editFormData.status !== undefined && editFormData.status ? '#2563eb' : '#d1d5db',
-                            }}
-                          />
-                        </div>
+                  {/* Row 8: Status */}
+                  <div className="dialog-form-field">
+                    <div className="flex items-center gap-3">
+                      <Label htmlFor="edit-status" className="dialog-label-standard">Status</Label>
+                      <div className="flex-shrink-0 relative" style={{ zIndex: 1 }}>
+                        <Switch
+                          id="edit-status"
+                          checked={editFormData.status !== undefined ? editFormData.status : true}
+                          onCheckedChange={(checked) => setEditFormData({ ...editFormData, status: checked })}
+                          className="data-[state=checked]:bg-blue-600 data-[state=unchecked]:bg-gray-300 [&_[data-slot=switch-thumb]]:!bg-white [&_[data-slot=switch-thumb]]:!border [&_[data-slot=switch-thumb]]:!border-gray-400 [&_[data-slot=switch-thumb]]:!shadow-sm"
+                          style={{
+                            width: '2.5rem',
+                            height: '1.5rem',
+                            minWidth: '2.5rem',
+                            minHeight: '1.5rem',
+                            display: 'inline-flex',
+                            position: 'relative',
+                            backgroundColor: editFormData.status !== undefined && editFormData.status ? '#2563eb' : '#d1d5db',
+                          }}
+                        />
                       </div>
                     </div>
+                  </div>
+
+                  {/* Row 9: Registered Date */}
+                  <div className="dialog-form-field">
+                    <Label htmlFor="editRegisteredDate" className="dialog-label-standard">Registered Date</Label>
+                    <Input
+                      id="editRegisteredDate"
+                      type="text"
+                      placeholder="dd-mm-yyyy"
+                      value={editRegisteredDateDisplay}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setEditRegisteredDateDisplay(value);
+                        const parsed = parseDateFromDisplay(value);
+                        if (parsed) {
+                          setEditFormData({ ...editFormData, registeredDate: parsed });
+                        }
+                      }}
+                      onBlur={(e) => {
+                        const parsed = parseDateFromDisplay(e.target.value);
+                        if (parsed) {
+                          setEditRegisteredDateDisplay(formatDateToDisplay(parsed));
+                          setEditFormData({ ...editFormData, registeredDate: parsed });
+                        } else if (e.target.value) {
+                          setEditRegisteredDateDisplay('');
+                        }
+                      }}
+                      className="dialog-input-standard"
+                    />
                   </div>
 
                   <div className="dialog-footer-standard">
