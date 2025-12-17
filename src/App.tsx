@@ -132,21 +132,28 @@ export default function App() {
     { id: 'consultation' as View, label: 'Doctor Consultation', icon: Stethoscope },
     { id: 'laboratory' as View, label: 'Laboratory Tests Management', icon: TestTube },    
     { id: 'admissions' as View, label: 'Admissions (IPD)', icon: BedDouble },
+    { id: 'ot' as View, label: 'OT Management', icon: Scissors },
     // { id: 'ot' as View, label: 'OT Management', icon: Scissors },
     { id: 'otrooms' as View, label: 'OT Rooms Management', icon: Scissors },
-    //{ id: 'surgerymanagement' as View, label: 'Surgery Procedures Mgmt', icon: Activity },
-    { id: 'ot' as View, label: 'OT Management', icon: Scissors },
     { id: 'icu' as View, label: 'ICU Admissions', icon: HeartPulse },
-    { id: 'icubeds' as View, label: 'ICU Bed Management', icon: HeartPulse },
-    { id: 'emergencybeds' as View, label: 'Emergency Bed Management', icon: BedDouble },
     { id: 'emergencyadmission' as View, label: 'Emergency Admission', icon: Siren },
-    { id: 'bills' as View, label: 'Bill Management', icon: Receipt },   
-    
+
+
+    //{ id: 'surgerymanagement' as View, label: 'Surgery Procedures Mgmt', icon: Activity },
+    //{ id: 'ot' as View, label: 'OT Management', icon: Scissors },
     { id: 'roles' as View, label: 'Roles', icon: Shield },
     { id: 'departments' as View, label: 'Departments', icon: Building2 },  
     { id: 'staff' as View, label: 'Staff', icon: UserCog },   
-    { id: 'roombeds' as View, label: 'IPD Rooms&Beds Management', icon: BedDouble },
-    { id: 'labtests' as View, label: 'Laboratory Management', icon: FlaskConical },    
+    { id: 'roombeds' as View, label: 'IPD Beds & Room Management', icon: BedDouble },
+    { id: 'labtests' as View, label: 'Laboratory Management', icon: FlaskConical }, 
+    
+    { id: 'icubeds' as View, label: 'ICU Bed Management', icon: HeartPulse },
+    { id: 'emergencybeds' as View, label: 'Emergency Bed Management', icon: BedDouble },
+   
+    //{ id: 'bills' as View, label: 'Bill Management', icon: Receipt },   
+    
+   
+       
     // { id: 'emergency' as View, label: 'Emergency', icon: Siren },
      
     { id: 'reports' as View, label: 'Reports', icon: FileBarChart, color: 'text-blue-700' },
@@ -177,11 +184,11 @@ export default function App() {
                   <div className="px-6 py-8 border-b border-gray-200 bg-white">
                     <div className="flex items-center gap-3">
                       <div className="flex-shrink-0">
-                        <Activity className="size-10 text-blue-600" strokeWidth={2.5} />
+                        <Activity className="size-5 text-blue-600" strokeWidth={2.5} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h1 className="text-lg font-normal text-gray-900 leading-tight">MediCare HMS</h1>
-                        <p className="text-base text-gray-600 leading-tight mt-0.5">Hospital Management</p>
+                        <h1 className="text-xs font-normal text-gray-900 leading-tight">MediCare HMS</h1>
+                        <p className="text-xs text-gray-600 leading-tight mt-0.5">Hospital Management</p>
                       </div>
                     </div>
                   </div>
@@ -212,10 +219,10 @@ export default function App() {
                                       : 'text-gray-900 hover:bg-gray-50'
                                   }`}
                                 >
-                                  <Icon className={`size-6 flex-shrink-0 ${
+                                  <Icon className={`size-4 flex-shrink-0 ${
                                     isActive ? 'text-blue-600' : item.color || 'text-gray-500'
                                   }`} strokeWidth={isActive ? 2.5 : 2} />
-                                  <span className={`text-lg font-normal truncate ${
+                                  <span className={`text-xs font-normal truncate ${
                                     isActive ? 'text-blue-600' : 'text-gray-900'
                                   }`}>{item.label}</span>
                                 </a>
@@ -234,11 +241,11 @@ export default function App() {
                   <div className="px-6 py-8 border-t border-gray-200 bg-white">
                     <div className="flex items-center gap-3">
                       <div className="size-12 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                        <span className="text-lg font-bold text-blue-600">AD</span>
+                        <span className="text-sm font-bold text-blue-600">AD</span>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-lg font-normal text-gray-900 truncate leading-tight">Admin User</p>
-                        <p className="text-base text-gray-600 truncate leading-tight mt-0.5">Administrator</p>
+                        <p className="text-sm font-normal text-gray-900 truncate leading-tight">Admin User</p>
+                        <p className="text-xs text-gray-600 truncate leading-tight mt-0.5">Administrator</p>
                       </div>
                     </div>
                   </div>

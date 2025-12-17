@@ -156,7 +156,7 @@ export function ICUBedsManagement() {
 
   if (loading) {
     return (
-      <div className="px-4 pt-4 pb-0 bg-blue-100 h-full flex flex-col overflow-hidden">
+      <div className="px-4 pt-4 pb-0 bg-white h-full flex flex-col overflow-hidden">
         <div className="flex items-center justify-between mb-4 flex-shrink-0">
           <div>
             <h1 className="text-gray-900 mb-0 text-xl">ICU Bed Management</h1>
@@ -172,7 +172,7 @@ export function ICUBedsManagement() {
 
   if (error) {
     return (
-      <div className="px-4 pt-4 pb-0 bg-blue-100 h-full flex flex-col overflow-hidden">
+      <div className="px-4 pt-4 pb-0 bg-white h-full flex flex-col overflow-hidden">
         <div className="flex items-center justify-between mb-4 flex-shrink-0">
           <div>
             <h1 className="text-gray-900 mb-0 text-xl">ICU Bed Management</h1>
@@ -187,7 +187,7 @@ export function ICUBedsManagement() {
   }
 
   return (
-    <div className="px-4 pt-4 pb-4 bg-blue-100 h-screen flex flex-col overflow-hidden">
+    <div className="px-4 pt-4 pb-4 bg-white h-screen flex flex-col overflow-hidden">
       <div className="flex-shrink-0">
         <div className="flex items-center justify-between mb-4 flex-shrink-0">
           <div>
@@ -293,13 +293,13 @@ export function ICUBedsManagement() {
 
       <div className="flex-1 flex flex-col overflow-hidden min-h-0">
         {/* ICU Beds Table */}
-        <Card className="flex-1 flex flex-col overflow-hidden min-h-0 mb-4">
-          <CardContent className="p-0 flex-1 overflow-hidden flex flex-col min-h-0">
-            <div className="overflow-x-auto overflow-y-scroll border border-gray-200 rounded flex-1 min-h-0 icu-beds-scrollable doctors-scrollable" style={{ maxHeight: 'calc(100vh - 160px)' }}>
-              <table className="w-full">
+        <Card className="flex-1 flex flex-col overflow-hidden min-h-0 mb-4 bg-white">
+          <CardContent className="p-0 flex-1 overflow-hidden flex flex-col min-h-0 bg-white">
+            <div className="overflow-x-auto overflow-y-scroll border border-gray-200 rounded flex-1 min-h-0 icu-beds-scrollable doctors-scrollable bg-white" style={{ maxHeight: 'calc(100vh - 160px)' }}>
+              <table className="w-full bg-white">
                 <thead>
-                  <tr className="border-b border-gray-200 bg-gray-50">
-                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-700" colSpan={9}>
+                  <tr className="border-b border-gray-200 bg-white">
+                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-700" colSpan={8}>
                       <div className="flex items-center gap-2">
                         <HeartPulse className="size-5" />
                         <span>ICU Beds List ({icuBeds.length})</span>
@@ -307,7 +307,6 @@ export function ICUBedsManagement() {
                     </th>
                   </tr>
                   <tr className="border-b border-gray-200">
-                    <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">ICU ID</th>
                     <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">ICU Bed No</th>
                     <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">ICU Type</th>
                     <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">ICU Room Name/No</th>
@@ -321,14 +320,13 @@ export function ICUBedsManagement() {
                 <tbody>
                   {icuBeds.length === 0 ? (
                     <tr>
-                      <td colSpan={9} className="text-center py-8 text-gray-500">
+                      <td colSpan={8} className="text-center py-8 text-gray-500">
                         No ICU beds found. Add a new ICU bed to get started.
                       </td>
                     </tr>
                   ) : (
                     icuBeds.map((icuBed) => (
                       <tr key={icuBed.id} className="border-b border-gray-100 hover:bg-gray-50">
-                        <td className="py-3 px-4 text-sm text-gray-900 font-mono font-medium whitespace-nowrap">{icuBed.icuId}</td>
                         <td className="py-3 px-4 text-sm text-gray-900 font-medium">{icuBed.icuBedNo}</td>
                         <td className="py-3 px-4 text-sm text-gray-700">{icuBed.icuType}</td>
                         <td className="py-3 px-4 text-sm text-gray-700">{icuBed.icuRoomNameNo}</td>
@@ -337,16 +335,15 @@ export function ICUBedsManagement() {
                         <td className="py-3 px-4 text-sm">{getStatusBadge(icuBed.status)}</td>
                         <td className="py-3 px-4 text-sm text-gray-500">{new Date(icuBed.createdAt).toLocaleDateString()}</td>
                         <td className="py-3 px-4">
-                          <div className="flex items-center gap-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleEdit(icuBed)}
-                              className="h-8 w-8 p-0"
-                            >
-                              <Edit className="size-4" />
-                            </Button>
-                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleEdit(icuBed)}
+                            className="gap-1"
+                          >
+                            <Edit className="size-3" />
+                            View & Edit
+                          </Button>
                         </td>
                       </tr>
                     ))

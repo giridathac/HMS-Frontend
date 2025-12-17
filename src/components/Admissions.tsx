@@ -700,13 +700,14 @@ export function Admissions() {
   };
 
   return (
-    <div className="flex-1 bg-white flex flex-col overflow-hidden min-h-0">
-      <div className="px-4 pt-4 pb-0 flex-shrink-0">
-        <div className="flex items-center justify-between mb-4 flex-shrink-0">
-          <div>
-            <h1 className="text-gray-900 mb-0 text-xl">IPD Admissions Management</h1>
-            <p className="text-gray-500 text-sm">Manage in-patient admissions and bed allocation</p>
-          </div>
+    <div className="dashboard-container">
+      <div className="dashboard-scrollable-container">
+        <div className="dashboard-header-section">
+          <div className="dashboard-header-content">
+            <div>
+              <h1 className="dashboard-header">IPD Admissions Management</h1>
+              <p className="dashboard-subheader">Manage in-patient admissions and bed allocation</p>
+            </div>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button className="gap-2">
@@ -1515,12 +1516,12 @@ export function Admissions() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+          </div>
         </div>
-      </div>
 
-      <div className="overflow-y-auto overflow-x-hidden px-4 pb-4 admissions-scrollable" style={{ maxHeight: 'calc(100vh - 60px)', minHeight: 0 }}>
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div className="dashboard-main-content">
+          {/* Stats Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-2">
@@ -1564,14 +1565,14 @@ export function Admissions() {
             <p className="text-xs text-gray-500">Average duration</p>
           </CardContent>
         </Card>
-      </div>
+          </div>
 
-      {/* Room Capacity */}
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>Room Capacity Overview</CardTitle>
-        </CardHeader>
-        <CardContent>
+          {/* Room Capacity */}
+          <Card className="dashboard-table-card">
+            <CardHeader>
+              <CardTitle>Room Capacity Overview</CardTitle>
+            </CardHeader>
+            <CardContent className="dashboard-table-card-content">
           {capacityLoading ? (
             <div className="text-center py-8 text-gray-500">Loading room capacity...</div>
           ) : (
@@ -1614,30 +1615,30 @@ export function Admissions() {
         </CardContent>
       </Card>
 
-      {/* Search */}
-      <Card className="mb-6">
-        <CardContent className="p-6">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
-            <Input
-              placeholder="Search by patient name or bed number..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-        </CardContent>
-      </Card>
+          {/* Search */}
+          <Card className="dashboard-search-card">
+            <CardContent className="dashboard-search-card-content">
+              <div className="dashboard-search-input-wrapper">
+                <Search className="dashboard-search-icon" />
+                <Input
+                  placeholder="Search by patient name or bed number..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="dashboard-search-input"
+                />
+              </div>
+            </CardContent>
+          </Card>
 
-      {/* Admissions List */}
-      {loading ? (
-        <Card className="mb-4">
-          <CardContent className="p-6">
-            <div className="text-center py-12 text-gray-500">Loading admissions...</div>
-          </CardContent>
-        </Card>
-      ) : (
-        <Tabs defaultValue="all" className="space-y-6">
+          {/* Admissions List */}
+          {loading ? (
+            <Card className="dashboard-table-card">
+              <CardContent className="dashboard-table-card-content">
+                <div className="dashboard-table-empty-cell">Loading admissions...</div>
+              </CardContent>
+            </Card>
+          ) : (
+            <Tabs defaultValue="all" className="dashboard-tabs">
           <TabsList>
             <TabsTrigger value="all">All Admissions ({filteredAdmissions.length})</TabsTrigger>
             {/*<TabsTrigger value="active">Active ({getAdmissionsByStatus('Active').length})</TabsTrigger>
@@ -1988,6 +1989,7 @@ export function Admissions() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+        </div>
       </div>
     </div>
   );
@@ -2009,37 +2011,44 @@ function AdmissionsList({
   schedulingOT: number | null;
 }) {
   return (
-    <Card className="mb-4">
-      <CardContent className="p-6">
-        <div className="overflow-x-auto">
-          <table className="w-full">
+    <Card className="dashboard-table-card">
+      <CardContent className="dashboard-table-card-content">
+        <div className="dashboard-table-wrapper">
+          <table className="dashboard-table">
             <thead>
-              <tr className="border-b border-gray-200">
-                <th className="text-left py-3 px-4 text-gray-700">Bed #</th>
-                <th className="text-left py-3 px-4 text-gray-700">Patient</th>
-                <th className="text-left py-3 px-4 text-gray-700">Age/Gender</th>
-                <th className="text-left py-3 px-4 text-gray-700">Room Type</th>
-                <th className="text-left py-3 px-4 text-gray-700">Admission Date</th>
-                <th className="text-left py-3 px-4 text-gray-700">AdmittingDoctorName</th>
-                <th className="text-left py-3 px-4 text-gray-700">Admission Status</th>
-                <th className="text-left py-3 px-4 text-gray-700">Schedule OT</th>
-                <th className="text-left py-3 px-4 text-gray-700">Actions</th>
+              <tr className="dashboard-table-header-row">
+                <th className="dashboard-table-header-cell">Bed #</th>
+                <th className="dashboard-table-header-cell">Patient</th>
+                <th className="dashboard-table-header-cell">Age/Gender</th>
+                <th className="dashboard-table-header-cell">Room Type</th>
+                <th className="dashboard-table-header-cell">Admission Date</th>
+                <th className="dashboard-table-header-cell">AdmittingDoctorName</th>
+                <th className="dashboard-table-header-cell">Admission Status</th>
+                <th className="dashboard-table-header-cell">Schedule OT</th>
+                <th className="dashboard-table-header-cell">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {admissions.map((admission) => (
-                <tr key={admission.id} className="border-b border-gray-100 hover:bg-gray-50">
-                  <td className="py-3 px-4">
-                    <Badge>{admission.bedNumber}</Badge>
+              {admissions.length === 0 ? (
+                <tr>
+                  <td colSpan={9} className="dashboard-table-empty-cell">
+                    No admissions found
                   </td>
-                  <td className="py-3 px-4 text-gray-900">{admission.patientName}</td>
-                  <td className="py-3 px-4 text-gray-600">{admission.age}Y / {admission.gender}</td>
-                  <td className="py-3 px-4 text-gray-600">{admission.roomType}</td>
-                  <td className="py-3 px-4 text-gray-600">{admission.admissionDate}</td>
-                  <td className="py-3 px-4 text-gray-600">
-                    {admission.admittingDoctorName || admission.admittedBy || 'N/A'}
-                  </td>
-                  <td className="py-3 px-4">
+                </tr>
+              ) : (
+                admissions.map((admission) => (
+                  <tr key={admission.id} className="dashboard-table-body-row">
+                    <td className="dashboard-table-body-cell">
+                      <Badge>{admission.bedNumber}</Badge>
+                    </td>
+                    <td className="dashboard-table-body-cell dashboard-table-body-cell-primary">{admission.patientName}</td>
+                    <td className="dashboard-table-body-cell dashboard-table-body-cell-secondary">{admission.age}Y / {admission.gender}</td>
+                    <td className="dashboard-table-body-cell dashboard-table-body-cell-secondary">{admission.roomType}</td>
+                    <td className="dashboard-table-body-cell dashboard-table-body-cell-secondary">{admission.admissionDate}</td>
+                    <td className="dashboard-table-body-cell dashboard-table-body-cell-secondary">
+                      {admission.admittingDoctorName || admission.admittedBy || 'N/A'}
+                    </td>
+                    <td className="dashboard-table-body-cell">
                     <span className={`px-3 py-1 rounded-full text-xs ${
                       admission.status === 'Active' ? 'bg-green-100 text-green-700' :
                       admission.status === 'Surgery Scheduled' ? 'bg-orange-100 text-orange-700' :
@@ -2049,7 +2058,7 @@ function AdmissionsList({
                       {admission.admissionStatus || admission.status || 'N/A'}
                     </span>
                   </td>
-                  <td className="py-3 px-4">
+                  <td className="dashboard-table-body-cell">
                     {(() => {
                       const scheduleOTValue = admission.scheduleOT;
                       if (!scheduleOTValue) {
@@ -2063,8 +2072,8 @@ function AdmissionsList({
                       );
                     })()}
                   </td>
-                  <td className="py-3 px-4">
-                    <div className="flex gap-2">
+                  <td className="dashboard-table-body-cell">
+                    <div className="dashboard-actions-container">
                       {admission.status === 'Active' && (
                         <>
                           <Button 
@@ -2103,15 +2112,11 @@ function AdmissionsList({
                     </div>
                   </td>
                 </tr>
-              ))}
+                ))
+              )}
             </tbody>
           </table>
         </div>
-        {admissions.length === 0 && (
-          <div className="text-center py-12 text-gray-500">
-            No admissions found
-          </div>
-        )}
       </CardContent>
     </Card>
   );

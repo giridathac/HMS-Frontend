@@ -2439,11 +2439,12 @@ export function Laboratory() {
 
       {/* Reports Dialog */}
       <Dialog open={showReportsDialog} onOpenChange={setShowReportsDialog}>
-        <DialogContent className="p-0 gap-0 large-dialog max-w-6xl max-h-[90vh]">
-          <DialogHeader className="px-6 pt-4 pb-3 flex-shrink-0">
-            <DialogTitle>Laboratory Reports</DialogTitle>
-          </DialogHeader>
-          <div className="flex-1 overflow-y-auto px-6 pb-1 patient-list-scrollable min-h-0">
+        <DialogContent className="dialog-content-standard large-dialog max-w-6xl max-h-[90vh]">
+          <div className="dialog-scrollable-wrapper dialog-content-scrollable">
+            <DialogHeader className="dialog-header-standard">
+              <DialogTitle className="dialog-title-standard-view">Laboratory Reports</DialogTitle>
+            </DialogHeader>
+            <div className="dialog-body-content-wrapper">
             <div className="space-y-6 py-4">
               <Tabs value={activeReportTab} onValueChange={(value) => setActiveReportTab(value as 'daily' | 'weekly')}>
                 <TabsList>
@@ -2471,21 +2472,21 @@ export function Laboratory() {
                           <CardTitle>Doctor-wise Lab Tests - Today</CardTitle>
                         </CardHeader>
                         <CardContent>
-                          <div className="overflow-x-auto">
-                            <table className="w-full">
+                          <div className="dialog-table-container">
+                            <table className="dialog-table">
                               <thead>
-                                <tr className="border-b border-gray-200">
-                                  <th className="text-left py-3 px-4 text-gray-700">Doctor</th>
-                                  <th className="text-left py-3 px-4 text-gray-700">Total Tests</th>
-                                  <th className="text-left py-3 px-4 text-gray-700">Pending</th>
-                                  <th className="text-left py-3 px-4 text-gray-700">Completed</th>
-                                  <th className="text-left py-3 px-4 text-gray-700">Completion Rate</th>
+                                <tr className="dialog-table-header-row">
+                                  <th className="dialog-table-header-cell">Doctor</th>
+                                  <th className="dialog-table-header-cell">Total Tests</th>
+                                  <th className="dialog-table-header-cell">Pending</th>
+                                  <th className="dialog-table-header-cell">Completed</th>
+                                  <th className="dialog-table-header-cell">Completion Rate</th>
                                 </tr>
                               </thead>
-                              <tbody>
+                              <tbody className="dialog-table-body">
                                 {doctorWiseDailyTests.length === 0 ? (
                                   <tr>
-                                    <td colSpan={5} className="text-center py-8 text-gray-500">
+                                    <td colSpan={5} className="dialog-table-body-cell text-center">
                                       No data available for today
                                     </td>
                                   </tr>
@@ -2493,16 +2494,16 @@ export function Laboratory() {
                                   doctorWiseDailyTests.map((doc, index) => {
                                     const completionRate = doc.total > 0 ? Math.round((doc.completed / doc.total) * 100) : 0;
                                     return (
-                                      <tr key={index} className="border-b border-gray-100 hover:bg-gray-50">
-                                        <td className="py-3 px-4 text-gray-900">{doc.doctor}</td>
-                                        <td className="py-3 px-4 text-gray-900">{doc.total}</td>
-                                        <td className="py-3 px-4">
+                                      <tr key={index} className="dialog-table-body-row">
+                                        <td className="dialog-table-body-cell dialog-table-body-cell-primary">{doc.doctor}</td>
+                                        <td className="dialog-table-body-cell dialog-table-body-cell-primary">{doc.total}</td>
+                                        <td className="dialog-table-body-cell">
                                           <Badge variant="outline">{doc.pending}</Badge>
                                         </td>
-                                        <td className="py-3 px-4">
+                                        <td className="dialog-table-body-cell">
                                           <Badge variant="default">{doc.completed}</Badge>
                                         </td>
-                                        <td className="py-3 px-4">
+                                        <td className="dialog-table-body-cell">
                                           <span className={completionRate >= 80 ? 'text-green-600' : 'text-orange-600'}>
                                             {completionRate}%
                                           </span>
@@ -2634,13 +2635,14 @@ export function Laboratory() {
                 </TabsContent>
               </Tabs>
             </div>
-          </div>
-          <div className="flex justify-end gap-2 pt-4 border-t bg-white px-6 pb-4">
-            <Button variant="outline" onClick={() => setShowReportsDialog(false)}>Close</Button>
-            <Button className="gap-2" onClick={handleExportReport}>
-              <Download className="size-4" />
-              Export Report
-            </Button>
+            </div>
+            <DialogFooter className="dialog-footer-standard">
+              <Button variant="outline" className="dialog-footer-button" onClick={() => setShowReportsDialog(false)}>Close</Button>
+              <Button className="dialog-footer-button gap-2" onClick={handleExportReport}>
+                <Download className="size-4" />
+                Export Report
+              </Button>
+            </DialogFooter>
           </div>
         </DialogContent>
       </Dialog>
