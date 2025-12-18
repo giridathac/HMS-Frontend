@@ -25,6 +25,15 @@ export interface Admission {
   caseSheetDetails?: string; // CaseSheetDetails field from API
   caseSheet?: string; // CaseSheet field from API (separate from caseSheetDetails)
   isLinkedToICU?: boolean | string; // IsLinkedToICU field from API
+  patientType?: string; // PatientType field from API (OPD/Emergency/Direct)
+  patientAppointmentId?: string | number; // PatientAppointmentId field from API
+  appointmentId?: string | number; // AppointmentId field from API (alias for patientAppointmentId)
+  appointmentTokenNo?: string; // AppointmentTokenNo field from API
+  appointmentDate?: string; // AppointmentDate field from API
+  emergencyBedSlotId?: string | number; // EmergencyBedSlotId field from API (kept for backward compatibility)
+  emergencyBedNo?: string; // EmergencyBedNo field from API
+  eBedSlotNo?: string; // EBedSlotNo field from API
+  emergencyAdmissionDate?: string; // EmergencyAdmissionDate field from API
 }
 
 export interface CreateAdmissionDto {
@@ -496,6 +505,59 @@ export const admissionsApi = {
               'scheduleOt', 'ScheduleOt', 'scheduledOT', 'ScheduledOT',
               'scheduled_ot', 'Scheduled_OT', 'isScheduledOT', 'IsScheduledOT'
             ], undefined),
+            patientType: extractField(admission, [
+              'patientType', 'PatientType', 'patient_type', 'Patient_Type',
+              'type', 'Type', 'admissionType', 'AdmissionType', 'admission_type', 'Admission_Type'
+            ], undefined),
+            patientAppointmentId: extractField(admission, [
+              'patientAppointmentId', 'PatientAppointmentId', 'patient_appointment_id', 'Patient_Appointment_Id',
+              'appointmentId', 'AppointmentId', 'appointment_id', 'Appointment_Id',
+              'PatientAppointmentID', 'patientAppointmentID', 'Patient_Appointment_ID',
+              'AppointmentID', 'appointmentID', 'Appointment_ID'
+            ], undefined),
+            appointmentId: extractField(admission, [
+              'appointmentId', 'AppointmentId', 'appointment_id', 'Appointment_Id',
+              'patientAppointmentId', 'PatientAppointmentId', 'patient_appointment_id', 'Patient_Appointment_Id',
+              'AppointmentID', 'appointmentID', 'Appointment_ID',
+              'PatientAppointmentID', 'patientAppointmentID', 'Patient_Appointment_ID'
+            ], undefined),
+            appointmentTokenNo: extractField(admission, [
+              'appointmentTokenNo', 'AppointmentTokenNo', 'appointment_token_no', 'Appointment_Token_No',
+              'tokenNo', 'TokenNo', 'token_no', 'Token_No',
+              'tokenNumber', 'TokenNumber', 'token_number', 'Token_Number',
+              'appointmentToken', 'AppointmentToken', 'appointment_token', 'Appointment_Token'
+            ], undefined),
+            appointmentDate: extractField(admission, [
+              'appointmentDate', 'AppointmentDate', 'appointment_date', 'Appointment_Date',
+              'appointmentDateTime', 'AppointmentDateTime', 'appointment_date_time', 'Appointment_Date_Time',
+              'apptDate', 'ApptDate', 'appt_date', 'Appt_Date'
+            ], undefined),
+            emergencyBedSlotId: extractField(admission, [
+              'emergencyBedSlotId', 'EmergencyBedSlotId', 'emergency_bed_slot_id', 'Emergency_Bed_Slot_Id',
+              'emergencyBedId', 'EmergencyBedId', 'emergency_bed_id', 'Emergency_Bed_Id',
+              'bedSlotId', 'BedSlotId', 'bed_slot_id', 'Bed_Slot_Id',
+              'EmergencyBedSlotID', 'emergencyBedSlotID', 'Emergency_Bed_Slot_ID',
+              'EmergencyBedID', 'emergencyBedID', 'Emergency_Bed_ID',
+              'EmergencyAdmissionId', 'emergencyAdmissionId', 'emergency_admission_id', 'Emergency_Admission_Id',
+              'EmergencyAdmissionID', 'emergencyAdmissionID', 'Emergency_Admission_ID'
+            ], undefined),
+            emergencyBedNo: extractField(admission, [
+              'emergencyBedNo', 'EmergencyBedNo', 'emergency_bed_no', 'Emergency_Bed_No',
+              'emergencyBedNumber', 'EmergencyBedNumber', 'emergency_bed_number', 'Emergency_Bed_Number',
+              'bedNo', 'BedNo', 'bed_no', 'Bed_No', 'bedNumber', 'BedNumber', 'bed_number', 'Bed_Number'
+            ], undefined),
+            eBedSlotNo: extractField(admission, [
+              'eBedSlotNo', 'EBedSlotNo', 'e_bed_slot_no', 'E_Bed_Slot_No',
+              'bedSlotNo', 'BedSlotNo', 'bed_slot_no', 'Bed_Slot_No',
+              'slotNo', 'SlotNo', 'slot_no', 'Slot_No',
+              'emergencyBedSlotNo', 'EmergencyBedSlotNo', 'emergency_bed_slot_no', 'Emergency_Bed_Slot_No'
+            ], undefined),
+            emergencyAdmissionDate: extractField(admission, [
+              'emergencyAdmissionDate', 'EmergencyAdmissionDate', 'emergency_admission_date', 'Emergency_Admission_Date',
+              'emergencyAdmissionDateTime', 'EmergencyAdmissionDateTime', 'emergency_admission_date_time', 'Emergency_Admission_Date_Time',
+              'emergencyAdmitDate', 'EmergencyAdmitDate', 'emergency_admit_date', 'Emergency_Admit_Date',
+              'emergencyDate', 'EmergencyDate', 'emergency_date', 'Emergency_Date'
+            ], undefined),
             estimatedStay: extractField(admission, [
               'estimatedStay', 'EstimatedStay', 'estimated_stay', 'Estimated_Stay',
               'estimatedDuration', 'EstimatedDuration', 'estimated_duration', 'Estimated_Duration'
@@ -519,6 +581,15 @@ export const admissionsApi = {
               raw: extractField(admission, ['roomType', 'RoomType', 'room_type', 'Room_Type', 'roomCategory', 'RoomCategory', 'room_category', 'Room_Category', 'roomTypeName', 'RoomTypeName', 'room_type_name', 'Room_Type_Name', 'type', 'Type', 'category', 'Category'], null),
               normalized: mappedAdmission.roomType
             },
+            patientType: mappedAdmission.patientType,
+            patientAppointmentId: mappedAdmission.patientAppointmentId,
+            appointmentId: mappedAdmission.appointmentId,
+            appointmentTokenNo: mappedAdmission.appointmentTokenNo,
+            appointmentDate: mappedAdmission.appointmentDate,
+            emergencyBedSlotId: mappedAdmission.emergencyBedSlotId,
+            emergencyBedNo: mappedAdmission.emergencyBedNo,
+            eBedSlotNo: mappedAdmission.eBedSlotNo,
+            emergencyAdmissionDate: mappedAdmission.emergencyAdmissionDate,
             admissionStatus: mappedAdmission.admissionStatus,
             status: mappedAdmission.status,
             full: mappedAdmission

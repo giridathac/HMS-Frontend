@@ -54,7 +54,7 @@
 .dashboard-header {
   color: rgb(17, 24, 39); /* text-gray-900 */
   margin-bottom: 0.5rem; /* mb-2 */
-  font-size: 1.125rem; /* text-3xl - 30px */
+  font-size: 1.875rem; /* text-3xl - 30px */
   line-height: 1.2;
   font-weight: 500;
 }
@@ -62,7 +62,7 @@
 /* Dashboard Page Subheader */
 .dashboard-subheader {
   color: rgb(107, 114, 128); /* text-gray-500 */
-  font-size: 0.875rem; /* text-xl - 20px */
+  font-size: 1.25rem; /* text-xl - 20px */
   line-height: 1.5;
   font-weight: 400;
 }
@@ -202,7 +202,7 @@
   padding-right: 1.5rem;
   color: rgb(55, 65, 81); /* text-gray-700 */
   font-size: 1.125rem; /* 18px */
-  font-weight: 700; /* font-bold */
+  font-weight: 500;
 }
 
 /* Table body row */
@@ -585,27 +585,4 @@
 
 .dialog-content-scrollable::-webkit-scrollbar-thumb:hover {
   background: #d1d5db;
-}
-
-/* ============================================
-   Manage Button Styling
-   ============================================ */
-
-/* Manage button - light grey with dark text */
-.dashboard-manage-button {
-  height: 2rem; /* h-8 */
-  padding-left: 0.75rem; /* px-3 */
-  padding-right: 0.75rem;
-  font-size: 0.875rem; /* text-sm */
-  display: flex;
-  align-items: center;
-  gap: 0.5rem; /* gap-2 */
-  background-color: rgb(243, 244, 246); /* bg-gray-100 */
-  color: rgb(55, 65, 81); /* text-gray-700 */
-  border: 1px solid rgb(209, 213, 219); /* border-gray-300 */
-}
-
-.dashboard-manage-button:hover {
-  background-color: rgb(229, 231, 235); /* hover:bg-gray-200 */
-  color: rgb(31, 41, 55); /* hover:text-gray-800 */
 }

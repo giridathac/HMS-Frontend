@@ -68,8 +68,13 @@ export function Admissions() {
   const [patientOptions, setPatientOptions] = useState<any[]>([]);
   const [roomBedOptions, setRoomBedOptions] = useState<any[]>([]);
   const [doctorOptions, setDoctorOptions] = useState<any[]>([]);
+  const [availableAppointments, setAvailableAppointments] = useState<any[]>([]);
+  const [availableEmergencyBedSlots, setAvailableEmergencyBedSlots] = useState<any[]>([]);
   const [addAdmissionForm, setAddAdmissionForm] = useState({
     patientId: '',
+    patientType: '',
+    patientAppointmentId: '',
+    emergencyBedSlotId: '',
     roomBedId: '',
     roomBedsId: '',
     roomType: '',
@@ -342,6 +347,9 @@ export function Admissions() {
     
     setAddAdmissionForm({
       patientId: admission.patientId || '',
+      patientType: admission.patientType || '',
+      patientAppointmentId: admission.patientAppointmentId || admission.appointmentId || '',
+      emergencyBedSlotId: admission.emergencyBedSlotId || '',
       roomBedId: '',
       roomBedsId: '',
       roomType: admission.roomType || '',
@@ -359,7 +367,123 @@ export function Admissions() {
     setRoomBedSearchTerm(`${admission.bedNumber} (${admission.roomType})`);
     setDoctorSearchTerm(admission.admittedBy || '');
     
+    // Fetch conditional data based on patient type
+    if (admission.patientType === 'OPD' && admission.patientId) {
+      await fetchPatientAppointments(admission.patientId);
+    } else if (admission.patientType === 'Emergency' && admission.patientId) {
+      await fetchPatientEmergencyBedSlots(admission.patientId);
+    }
+    
     setIsViewEditDialogOpen(true);
+  };
+
+  // Fetch appointments for a specific patient
+  const fetchPatientAppointments = async (patientId: string) => {
+    if (!patientId) {
+      setAvailableAppointments([]);
+      return;
+    }
+    
+    try {
+      console.log('Fetching appointments for patient:', patientId);
+      const response = await apiRequest<any>(`/patient-appointments/patient/${patientId}`);
+      console.log('Patient appointments API response:', response);
+      
+      // Handle different response structures
+      let appointments: any[] = [];
+      
+      if (Array.isArray(response)) {
+        appointments = response;
+      } else if (response?.data && Array.isArray(response.data)) {
+        appointments = response.data;
+      } else if (response?.appointments && Array.isArray(response.appointments)) {
+        appointments = response.appointments;
+      } else if (response?.patientAppointments && Array.isArray(response.patientAppointments)) {
+        appointments = response.patientAppointments;
+      }
+      
+      console.log('Mapped appointments:', appointments);
+      setAvailableAppointments(appointments);
+    } catch (err) {
+      console.error('Error fetching patient appointments:', err);
+      setAvailableAppointments([]);
+    }
+  };
+
+  // Fetch emergency bed slots for a specific patient
+  const fetchPatientEmergencyBedSlots = async (patientId: string) => {
+    if (!patientId) {
+      setAvailableEmergencyBedSlots([]);
+      return;
+    }
+    
+    try {
+      console.log('Fetching emergency bed slots for patient:', patientId);
+      const response = await apiRequest<any>(`/emergency-admissions/patient/${patientId}`);
+      console.log('Emergency bed slots API response:', response);
+      
+      // Handle different response structures
+      let emergencyBedSlots: any[] = [];
+      
+      if (Array.isArray(response)) {
+        emergencyBedSlots = response;
+      } else if (response?.data && Array.isArray(response.data)) {
+        emergencyBedSlots = response.data;
+      } else if (response?.admissions && Array.isArray(response.admissions)) {
+        emergencyBedSlots = response.admissions;
+      } else if (response?.emergencyAdmissions && Array.isArray(response.emergencyAdmissions)) {
+        emergencyBedSlots = response.emergencyAdmissions;
+      } else if (response?.emergencyBedSlots && Array.isArray(response.emergencyBedSlots)) {
+        emergencyBedSlots = response.emergencyBedSlots;
+      }
+      
+      console.log('Mapped emergency bed slots:', emergencyBedSlots);
+      setAvailableEmergencyBedSlots(emergencyBedSlots);
+    } catch (err) {
+      console.error('Error fetching emergency bed slots:', err);
+      setAvailableEmergencyBedSlots([]);
+    }
+  };
+
+  // Handle Patient Type change - fetch conditional data
+  const handlePatientTypeChange = async (patientType: string) => {
+    setAddAdmissionForm({
+      ...addAdmissionForm,
+      patientType: patientType,
+      patientAppointmentId: '',
+      emergencyBedSlotId: ''
+    });
+
+    // Clear conditional data if no patient type selected
+    if (!patientType) {
+      setAvailableAppointments([]);
+      setAvailableEmergencyBedSlots([]);
+      return;
+    }
+
+    try {
+      if (patientType === 'OPD') {
+        // If patient is already selected, fetch their appointments
+        if (addAdmissionForm.patientId) {
+          await fetchPatientAppointments(addAdmissionForm.patientId);
+        } else {
+          setAvailableAppointments([]);
+        }
+      } else if (patientType === 'Emergency') {
+        // If patient is already selected, fetch their emergency bed slots
+        if (addAdmissionForm.patientId) {
+          await fetchPatientEmergencyBedSlots(addAdmissionForm.patientId);
+        } else {
+          setAvailableEmergencyBedSlots([]);
+        }
+      } else if (patientType === 'Direct') {
+        // Direct type doesn't need conditional fields, clear all
+        setAvailableAppointments([]);
+        setAvailableEmergencyBedSlots([]);
+      }
+    } catch (err) {
+      console.error(`Error fetching ${patientType} data:`, err);
+    }
   };
 
   // Handler to save new admission
@@ -371,6 +495,15 @@ export function Admissions() {
       // Validate required fields
       if (!addAdmissionForm.patientId) {
         throw new Error('Please select a patient');
+      }
+      if (!addAdmissionForm.patientType) {
+        throw new Error('Please select a patient type');
+      }
+      if (addAdmissionForm.patientType === 'OPD' && !addAdmissionForm.patientAppointmentId) {
+        throw new Error('Patient Appointment ID is required for OPD patients');
+      }
+      if (addAdmissionForm.patientType === 'Emergency' && !addAdmissionForm.emergencyBedSlotId) {
+        throw new Error('Emergency Bed Slot ID is required for Emergency patients');
       }
       if (!addAdmissionForm.roomBedId) {
         throw new Error('Please select a room/bed');
@@ -439,7 +572,7 @@ export function Admissions() {
           console.log('Checking room bed availability, RoomBedsId:', roomBedsId, 'AllocationDate:', addAdmissionForm.roomAllocationDate);
           
           // Call the room admissions availability check API
-          const checkResponse = await apiRequest<any>(`/room-admissions/check-availability?RoomBedsId=${roomBedsId}&AllocationDate=${addAdmissionForm.roomAllocationDate}`, {
+          const checkResponse = await apiRequest<any>(`/Emergency Admission DatemBedsId=${roomBedsId}&AllocationDate=${addAdmissionForm.roomAllocationDate}`, {
             method: 'GET',
           });
           
@@ -497,6 +630,7 @@ export function Admissions() {
         diagnosis: addAdmissionForm.diagnosis || '',
         status: addAdmissionForm.status || 'Active' as const,
         admissionStatus: addAdmissionForm.admissionStatus || 'Active' || 'Discharged' || 'Moved to ICU' || 'Surgery Scheduled',
+        patientType: addAdmissionForm.patientType || '',
         roomBedsId: String(roomBedsId),
         doctorId: String(doctorId),
         admittedByDoctorId: String(doctorId), // Also include as admittedByDoctorId for API
@@ -505,6 +639,15 @@ export function Admissions() {
         caseSheetDetails: addAdmissionForm.caseDetails || '',
         isLinkedToICU: addAdmissionForm.isLinkedToICU === 'Yes',
       };
+
+      // Add conditional fields based on PatientType
+      if (addAdmissionForm.patientType === 'OPD' && addAdmissionForm.patientAppointmentId) {
+        admissionData.patientAppointmentId = String(addAdmissionForm.patientAppointmentId);
+        admissionData.appointmentId = String(addAdmissionForm.patientAppointmentId);
+      }
+      if (addAdmissionForm.patientType === 'Emergency' && addAdmissionForm.emergencyBedSlotId) {
+        admissionData.emergencyBedSlotId = String(addAdmissionForm.emergencyBedSlotId);
+      }
 
       console.log('Saving admission with data:', admissionData);
 
@@ -545,6 +688,9 @@ export function Admissions() {
         patientId: '',
         roomBedId: '',
         roomBedsId: '',
+        patientType: '',
+        patientAppointmentId: '',
+        emergencyBedSlotId: '',
         roomType: '',
         admittedBy: '',
         admittedByDoctorId: '',
@@ -556,6 +702,8 @@ export function Admissions() {
         caseDetails: '',
         isLinkedToICU: 'No',
       });
+      setAvailableAppointments([]);
+      setAvailableEmergencyBedSlots([]);
       setAdmissionError(null);
     } catch (error: any) {
       console.error('Error saving admission:', error);
@@ -606,12 +754,24 @@ export function Admissions() {
       setSavingAdmission(false);
       setAddAdmissionForm({
         patientId: '',
+        patientType: '',
+        patientAppointmentId: '',
+        emergencyBedSlotId: '',
         roomBedId: '',
+        roomBedsId: '',
         roomType: '',
         admittedBy: '',
         admittedByDoctorId: '',
+        doctorId: '',
         diagnosis: '',
+        roomAllocationDate: '',
+        admissionStatus: 'Active',
+        caseSheet: '',
+        caseDetails: '',
+        isLinkedToICU: 'No',
       });
+      setAvailableAppointments([]);
+      setAvailableEmergencyBedSlots([]);
     }
   }, [isDialogOpen]);
 
@@ -704,10 +864,10 @@ export function Admissions() {
       <div className="dashboard-scrollable-container">
         <div className="dashboard-header-section">
           <div className="dashboard-header-content">
-            <div>
+          <div>
               <h1 className="dashboard-header">IPD Admissions Management</h1>
               <p className="dashboard-subheader">Manage in-patient admissions and bed allocation</p>
-            </div>
+          </div>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button className="gap-2">
@@ -720,7 +880,7 @@ export function Admissions() {
               <DialogTitle>{editingAdmission ? 'Edit Admission' : 'Register New Admission'}</DialogTitle>
             </DialogHeader>
             <div className="flex-1 overflow-y-auto px-6 pb-1 patient-list-scrollable min-h-0 bg-white">
-              <div className="space-y-4 py-4">
+            <div className="space-y-4 py-4">
                 {/* Patient Selection - Same pattern as Front Desk */}
                 <div>
                   <Label htmlFor="patient-search">Patient *</Label>
@@ -733,7 +893,7 @@ export function Admissions() {
                       onChange={(e) => setPatientSearchTerm(e.target.value)}
                       className="pl-10"
                     />
-                  </div>
+                </div>
                   {patientSearchTerm && (
                     <div className="border border-gray-200 rounded-md max-h-60 overflow-y-auto">
                       <table className="w-full">
@@ -773,9 +933,17 @@ export function Admissions() {
                               return (
                                 <tr
                                   key={patientId}
-                                  onClick={() => {
-                                    setAddAdmissionForm({ ...addAdmissionForm, patientId });
+                                  onClick={async () => {
+                                    const updatedForm = { ...addAdmissionForm, patientId };
+                                    setAddAdmissionForm(updatedForm);
                                     setPatientSearchTerm(`${patientNo ? `${patientNo} - ` : ''}${fullName || 'Unknown'}`);
+                                    
+                                    // If PatientType is already set, fetch conditional data
+                                    if (updatedForm.patientType === 'OPD' && patientId) {
+                                      await fetchPatientAppointments(patientId);
+                                    } else if (updatedForm.patientType === 'Emergency' && patientId) {
+                                      await fetchPatientEmergencyBedSlots(patientId);
+                                    }
                                   }}
                                   className={`border-b border-gray-100 cursor-pointer hover:bg-blue-50 ${isSelected ? 'bg-blue-100' : ''}`}
                                 >
@@ -829,6 +997,88 @@ export function Admissions() {
                   )}
                 </div>
 
+                {/* Patient Type */}
+                <div>
+                  <Label htmlFor="patientType">Patient Type *</Label>
+                  <select
+                    id="patientType"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                    value={addAdmissionForm.patientType}
+                    onChange={(e) => handlePatientTypeChange(e.target.value)}
+                    required
+                  >
+                    <option value="">Select Patient Type</option>
+                    <option value="OPD">OPD</option>
+                    <option value="Emergency">Emergency</option>
+                    <option value="Direct">Direct</option>
+                  </select>
+                </div>
+
+                {/* Conditional Fields based on PatientType */}
+                {addAdmissionForm.patientType === 'OPD' && (
+                  <div>
+                    <Label htmlFor="patientAppointmentId">Patient Appointment ID *</Label>
+                    <select
+                      id="patientAppointmentId"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                      value={addAdmissionForm.patientAppointmentId}
+                      onChange={(e) => setAddAdmissionForm({ ...addAdmissionForm, patientAppointmentId: e.target.value })}
+                      required
+                    >
+                      <option value="">Select Appointment</option>
+                      {availableAppointments.map((appointment: any) => {
+                        const appointmentId = appointment.id || appointment.patientAppointmentId || appointment.PatientAppointmentId || '';
+                        const tokenNo = appointment.tokenNo || appointment.TokenNo || '';
+                        const appointmentDate = appointment.appointmentDate || appointment.AppointmentDate || '';
+                        let formattedDate = '';
+                        if (appointmentDate) {
+                          try {
+                            if (typeof appointmentDate === 'string') {
+                              formattedDate = appointmentDate.split('T')[0];
+                            } else {
+                              formattedDate = new Date(appointmentDate).toISOString().split('T')[0];
+                            }
+                          } catch {
+                            formattedDate = String(appointmentDate).split('T')[0] || 'N/A';
+                          }
+                        } else {
+                          formattedDate = 'N/A';
+                        }
+                        return (
+                          <option key={appointmentId} value={appointmentId}>
+                            {tokenNo ? `Token: ${tokenNo} - ${formattedDate}` : `Appointment ID: ${appointmentId} - ${formattedDate}`}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+                )}
+
+                {addAdmissionForm.patientType === 'Emergency' && (
+                  <div>
+                    <Label htmlFor="emergencyBedSlotId">Emergency Bed Slot ID *</Label>
+                    <select
+                      id="emergencyBedSlotId"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                      value={addAdmissionForm.emergencyBedSlotId}
+                      onChange={(e) => setAddAdmissionForm({ ...addAdmissionForm, emergencyBedSlotId: e.target.value })}
+                      required
+                    >
+                      <option value="">Select Emergency Bed Slot</option>
+                      {availableEmergencyBedSlots.map((slot: any) => {
+                        const slotId = slot.id || slot.emergencyBedSlotId || slot.EmergencyBedSlotId || '';
+                        const bedNo = slot.bedNo || slot.BedNo || '';
+                        const status = slot.status || slot.Status || '';
+                        return (
+                          <option key={slotId} value={slotId}>
+                            {bedNo ? `Bed: ${bedNo} - ${status}` : `Slot ID: ${slotId} - ${status}`}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+                )}
+
                 {/* Room/Bed Selection - Same pattern as Patient selection */}
                 <div>
                   <Label htmlFor="room-bed-search">Room/Bed *</Label>
@@ -841,7 +1091,7 @@ export function Admissions() {
                       onChange={(e) => setRoomBedSearchTerm(e.target.value)}
                       className="pl-10"
                     />
-                  </div>
+                </div>
                   {roomBedSearchTerm && (
                     <div className="border border-gray-200 rounded-md max-h-60 overflow-y-auto">
                       <table className="w-full">
@@ -923,7 +1173,7 @@ export function Admissions() {
                       }).length === 0 && (
                         <div className="text-center py-8 text-sm text-gray-700">
                           No room beds found. Try a different search term.
-                        </div>
+              </div>
                       )}
                     </div>
                   )}
@@ -947,7 +1197,7 @@ export function Admissions() {
                 </div>
 
                 {/* Doctor Selection - Same pattern as Patient selection */}
-                <div>
+              <div>
                   <Label htmlFor="doctor-search">Admitted By (Doctor) *</Label>
                   <div className="relative mb-2">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
@@ -1051,8 +1301,8 @@ export function Admissions() {
                       })()}
                     </div>
                   )}
-                </div>
-                <div>
+              </div>
+              <div>
                   <Label htmlFor="roomAllocationDate">Room Allocation Date *</Label>
                   <Input 
                     id="roomAllocationDate" 
@@ -1061,8 +1311,8 @@ export function Admissions() {
                     onChange={(e) => setAddAdmissionForm({ ...addAdmissionForm, roomAllocationDate: e.target.value })}
                     required
                   />
-                </div>
-                <div>
+              </div>
+              <div>
                   <Label htmlFor="admissionStatus">Admission Status *</Label>
                   <select
                     id="admissionStatus"
@@ -1086,7 +1336,7 @@ export function Admissions() {
                     value={addAdmissionForm.caseSheet}
                     onChange={(e) => setAddAdmissionForm({ ...addAdmissionForm, caseSheet: e.target.value })}
                   />
-                </div>
+              </div>
 
                 <div className="col-span-2">
                   <Label htmlFor="caseDetails">Case Details</Label>
@@ -1097,7 +1347,7 @@ export function Admissions() {
                     onChange={(e) => setAddAdmissionForm({ ...addAdmissionForm, caseDetails: e.target.value })}
                     rows={4}
                   />
-                </div>
+            </div>
 
                 <div>
                   <Label htmlFor="isLinkedToICU">Is Linked To ICU *</Label>
@@ -1111,7 +1361,7 @@ export function Admissions() {
                     <option value="No">No</option>
                     <option value="Yes">Yes</option>
                   </select>
-                </div>
+            </div>
               </div>
             </div>
             {admissionError && (
@@ -1143,7 +1393,7 @@ export function Admissions() {
                 {admissionError && (
                   <div className="p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">
                     {admissionError}
-                  </div>
+        </div>
                 )}
 
                 {/* Edit Mode - Show form fields (always editable) */}
@@ -1200,9 +1450,17 @@ export function Admissions() {
                                   return (
                                     <tr
                                       key={patientId}
-                                      onClick={() => {
-                                        setAddAdmissionForm({ ...addAdmissionForm, patientId });
+                                      onClick={async () => {
+                                        const updatedForm = { ...addAdmissionForm, patientId };
+                                        setAddAdmissionForm(updatedForm);
                                         setPatientSearchTerm(`${patientNo ? `${patientNo} - ` : ''}${fullName || 'Unknown'}`);
+                                        
+                                        // If PatientType is already set, fetch conditional data
+                                        if (updatedForm.patientType === 'OPD' && patientId) {
+                                          await fetchPatientAppointments(patientId);
+                                        } else if (updatedForm.patientType === 'Emergency' && patientId) {
+                                          await fetchPatientEmergencyBedSlots(patientId);
+                                        }
                                       }}
                                       className={`border-b border-gray-100 cursor-pointer hover:bg-blue-50 ${isSelected ? 'bg-blue-100' : ''}`}
                                     >
@@ -1234,7 +1492,89 @@ export function Admissions() {
                           })()}
                         </div>
                       )}
+      </div>
+
+                    {/* Patient Type */}
+                    <div>
+                      <Label htmlFor="patientType-edit">Patient Type *</Label>
+                      <select
+                        id="patientType-edit"
+                        className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                        value={addAdmissionForm.patientType}
+                        onChange={(e) => handlePatientTypeChange(e.target.value)}
+                        required
+                      >
+                        <option value="">Select Patient Type</option>
+                        <option value="OPD">OPD</option>
+                        <option value="Emergency">Emergency</option>
+                        <option value="Direct">Direct</option>
+                      </select>
                     </div>
+
+                    {/* Conditional Fields based on PatientType */}
+                    {addAdmissionForm.patientType === 'OPD' && (
+                      <div>
+                        <Label htmlFor="patientAppointmentId-edit">Patient Appointment ID *</Label>
+                        <select
+                          id="patientAppointmentId-edit"
+                          className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                          value={addAdmissionForm.patientAppointmentId}
+                          onChange={(e) => setAddAdmissionForm({ ...addAdmissionForm, patientAppointmentId: e.target.value })}
+                          required
+                        >
+                          <option value="">Select Appointment</option>
+                          {availableAppointments.map((appointment: any) => {
+                            const appointmentId = appointment.id || appointment.patientAppointmentId || appointment.PatientAppointmentId || '';
+                            const tokenNo = appointment.tokenNo || appointment.TokenNo || '';
+                            const appointmentDate = appointment.appointmentDate || appointment.AppointmentDate || '';
+                            let formattedDate = '';
+                            if (appointmentDate) {
+                              try {
+                                if (typeof appointmentDate === 'string') {
+                                  formattedDate = appointmentDate.split('T')[0];
+                                } else {
+                                  formattedDate = new Date(appointmentDate).toISOString().split('T')[0];
+                                }
+                              } catch {
+                                formattedDate = String(appointmentDate).split('T')[0] || 'N/A';
+                              }
+                            } else {
+                              formattedDate = 'N/A';
+                            }
+                            return (
+                              <option key={appointmentId} value={appointmentId}>
+                                {tokenNo ? `Token: ${tokenNo} - ${formattedDate}` : `Appointment ID: ${appointmentId} - ${formattedDate}`}
+                              </option>
+                            );
+                          })}
+                        </select>
+                      </div>
+                    )}
+
+                    {addAdmissionForm.patientType === 'Emergency' && (
+                      <div>
+                        <Label htmlFor="emergencyBedSlotId-edit">Emergency Bed Slot ID *</Label>
+                        <select
+                          id="emergencyBedSlotId-edit"
+                          className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                          value={addAdmissionForm.emergencyBedSlotId}
+                          onChange={(e) => setAddAdmissionForm({ ...addAdmissionForm, emergencyBedSlotId: e.target.value })}
+                          required
+                        >
+                          <option value="">Select Emergency Bed Slot</option>
+                          {availableEmergencyBedSlots.map((slot: any) => {
+                            const slotId = slot.id || slot.emergencyBedSlotId || slot.EmergencyBedSlotId || '';
+                            const bedNo = slot.bedNo || slot.BedNo || '';
+                            const status = slot.status || slot.Status || '';
+                            return (
+                              <option key={slotId} value={slotId}>
+                                {bedNo ? `Bed: ${bedNo} - ${status}` : `Slot ID: ${slotId} - ${status}`}
+                              </option>
+                            );
+                          })}
+                        </select>
+                      </div>
+                    )}
 
                     {/* Room/Bed Selection */}
                     <div>
@@ -1520,8 +1860,8 @@ export function Admissions() {
         </div>
 
         <div className="dashboard-main-content">
-          {/* Stats Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-2">
@@ -1565,13 +1905,13 @@ export function Admissions() {
             <p className="text-xs text-gray-500">Average duration</p>
           </CardContent>
         </Card>
-          </div>
+      </div>
 
-          {/* Room Capacity */}
+      {/* Room Capacity */}
           <Card className="dashboard-table-card">
-            <CardHeader>
-              <CardTitle>Room Capacity Overview</CardTitle>
-            </CardHeader>
+        <CardHeader>
+          <CardTitle>Room Capacity Overview</CardTitle>
+        </CardHeader>
             <CardContent className="dashboard-table-card-content">
           {capacityLoading ? (
             <div className="text-center py-8 text-gray-500">Loading room capacity...</div>
@@ -1615,34 +1955,34 @@ export function Admissions() {
         </CardContent>
       </Card>
 
-          {/* Search */}
+      {/* Search */}
           <Card className="dashboard-search-card">
             <CardContent className="dashboard-search-card-content">
               <div className="dashboard-search-input-wrapper">
                 <Search className="dashboard-search-icon" />
-                <Input
-                  placeholder="Search by patient name or bed number..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+            <Input
+              placeholder="Search by patient name or bed number..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
                   className="dashboard-search-input"
-                />
-              </div>
-            </CardContent>
-          </Card>
+            />
+          </div>
+        </CardContent>
+      </Card>
 
-          {/* Admissions List */}
-          {loading ? (
+      {/* Admissions List */}
+      {loading ? (
             <Card className="dashboard-table-card">
               <CardContent className="dashboard-table-card-content">
                 <div className="dashboard-table-empty-cell">Loading admissions...</div>
-              </CardContent>
-            </Card>
-          ) : (
+          </CardContent>
+        </Card>
+      ) : (
             <Tabs defaultValue="all" className="dashboard-tabs">
           <TabsList>
             <TabsTrigger value="all">All Admissions ({filteredAdmissions.length})</TabsTrigger>
             {/*<TabsTrigger value="active">Active ({getAdmissionsByStatus('Active').length})</TabsTrigger>
-            <TabsTrigger value="surgery">Surgery Scheduled ({getAdmissionsByStatus('Surgery Scheduled').length})</TabsTrigger> 
+            <TabsTrigger value="surgery">Surgery Scheduled ({getAdmissionsByStatus('Surgery Scheduled').length})</TabsTrigger>
             <TabsTrigger value="icu">Moved to ICU ({getAdmissionsByStatus('Moved to ICU').length})</TabsTrigger> */}
            {/*<TabsTrigger value="icu">Discharged ({getAdmissionsByStatus('Discharged').length})</TabsTrigger> */}
           </TabsList>
@@ -1730,7 +2070,7 @@ export function Admissions() {
               {labOrderSubmitError && (
                 <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
                   {labOrderSubmitError}
-                </div>
+      </div>
               )}
 
               <div className="grid grid-cols-2 gap-4">
@@ -2023,6 +2363,12 @@ function AdmissionsList({
                 <th className="dashboard-table-header-cell">Room Type</th>
                 <th className="dashboard-table-header-cell">Admission Date</th>
                 <th className="dashboard-table-header-cell">AdmittingDoctorName</th>
+                <th className="dashboard-table-header-cell">Patient Type</th>
+                <th className="dashboard-table-header-cell">Appointment Token No</th>
+                <th className="dashboard-table-header-cell">Appointment Date</th>
+                <th className="dashboard-table-header-cell">Emergency Bed No</th>
+                <th className="dashboard-table-header-cell">EBedSlotNo</th>
+                <th className="dashboard-table-header-cell">Emergency Admission Date</th>
                 <th className="dashboard-table-header-cell">Admission Status</th>
                 <th className="dashboard-table-header-cell">Schedule OT</th>
                 <th className="dashboard-table-header-cell">Actions</th>
@@ -2031,7 +2377,7 @@ function AdmissionsList({
             <tbody>
               {admissions.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="dashboard-table-empty-cell">
+                  <td colSpan={15} className="dashboard-table-empty-cell">
                     No admissions found
                   </td>
                 </tr>
@@ -2039,14 +2385,70 @@ function AdmissionsList({
                 admissions.map((admission) => (
                   <tr key={admission.id} className="dashboard-table-body-row">
                     <td className="dashboard-table-body-cell">
-                      <Badge>{admission.bedNumber}</Badge>
-                    </td>
+                    <Badge>{admission.bedNumber}</Badge>
+                  </td>
                     <td className="dashboard-table-body-cell dashboard-table-body-cell-primary">{admission.patientName}</td>
                     <td className="dashboard-table-body-cell dashboard-table-body-cell-secondary">{admission.age}Y / {admission.gender}</td>
                     <td className="dashboard-table-body-cell dashboard-table-body-cell-secondary">{admission.roomType}</td>
                     <td className="dashboard-table-body-cell dashboard-table-body-cell-secondary">{admission.admissionDate}</td>
                     <td className="dashboard-table-body-cell dashboard-table-body-cell-secondary">
                       {admission.admittingDoctorName || admission.admittedBy || 'N/A'}
+                    </td>
+                    <td className="dashboard-table-body-cell dashboard-table-body-cell-secondary">
+                      <Badge variant="outline">
+                        {admission.patientType || 'N/A'}
+                      </Badge>
+                    </td>
+                    <td className="dashboard-table-body-cell dashboard-table-body-cell-secondary">
+                      {admission.appointmentTokenNo || '-'}
+                    </td>
+                    <td className="dashboard-table-body-cell dashboard-table-body-cell-secondary">
+                      {admission.appointmentDate ? (() => {
+                        try {
+                          // Format date to display format (DD-MM-YYYY or keep as is if already formatted)
+                          const dateStr = String(admission.appointmentDate);
+                          if (dateStr.includes('T')) {
+                            // ISO format - extract date part
+                            const datePart = dateStr.split('T')[0];
+                            const [year, month, day] = datePart.split('-');
+                            return `${day}-${month}-${year}`;
+                          } else if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                            // YYYY-MM-DD format
+                            const [year, month, day] = dateStr.split('-');
+                            return `${day}-${month}-${year}`;
+                          }
+                          return dateStr;
+                        } catch {
+                          return admission.appointmentDate;
+                        }
+                      })() : '-'}
+                    </td>
+                    <td className="dashboard-table-body-cell dashboard-table-body-cell-secondary">
+                      {admission.emergencyBedNo || '-'}
+                    </td>
+                    <td className="dashboard-table-body-cell dashboard-table-body-cell-secondary">
+                      {admission.eBedSlotNo || '-'}
+                    </td>
+                    <td className="dashboard-table-body-cell dashboard-table-body-cell-secondary">
+                      {admission.emergencyAdmissionDate ? (() => {
+                        try {
+                          // Format date to display format (DD-MM-YYYY or keep as is if already formatted)
+                          const dateStr = String(admission.emergencyAdmissionDate);
+                          if (dateStr.includes('T')) {
+                            // ISO format - extract date part
+                            const datePart = dateStr.split('T')[0];
+                            const [year, month, day] = datePart.split('-');
+                            return `${day}-${month}-${year}`;
+                          } else if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                            // YYYY-MM-DD format
+                            const [year, month, day] = dateStr.split('-');
+                            return `${day}-${month}-${year}`;
+                          }
+                          return dateStr;
+                        } catch {
+                          return admission.emergencyAdmissionDate;
+                        }
+                      })() : '-'}
                     </td>
                     <td className="dashboard-table-body-cell">
                     <span className={`px-3 py-1 rounded-full text-xs ${
@@ -2208,6 +2610,30 @@ function PatientAdmissionManagement({ admission }: { admission: Admission }) {
                   </p>
                 </div>
               )}
+              {admissionDetails.patientType && (
+                <div>
+                  <Label className="text-sm text-gray-500">Patient Type</Label>
+                  <p className="mt-1">
+                    <Badge variant="outline">{admissionDetails.patientType}</Badge>
+                  </p>
+                </div>
+              )}
+              {admissionDetails.patientAppointmentId || admissionDetails.appointmentId ? (
+                <div>
+                  <Label className="text-sm text-gray-500">Patient Appointment ID</Label>
+                  <p className="text-gray-900 font-medium mt-1">
+                    {admissionDetails.patientAppointmentId || admissionDetails.appointmentId || 'N/A'}
+                  </p>
+                </div>
+              ) : null}
+              {admissionDetails.emergencyBedSlotId ? (
+                <div>
+                  <Label className="text-sm text-gray-500">Emergency Bed Slot ID</Label>
+                  <p className="text-gray-900 font-medium mt-1">
+                    {admissionDetails.emergencyBedSlotId || 'N/A'}
+                  </p>
+                </div>
+              ) : null}
             </div>
           ) : (
             <div className="text-center py-8 text-gray-500">No admission details available</div>

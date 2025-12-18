@@ -135,7 +135,7 @@ export function Laboratory() {
   const [newLabOrderFormData, setNewLabOrderFormData] = useState({
     patientId: '',
     labTestId: '',
-    patientType: '' as 'IPD' | 'OPD' | 'Emergency' | '',
+    patientType: '' as 'IPD' | 'OPD' | 'Emergency' | 'Direct' | '',
     roomAdmissionId: '',
     appointmentId: '',
     emergencyBedSlotId: '',
@@ -148,6 +148,11 @@ export function Laboratory() {
   });
   const [newLabOrderSubmitting, setNewLabOrderSubmitting] = useState(false);
   const [newLabOrderSubmitError, setNewLabOrderSubmitError] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedPatientNo, setSelectedPatientNo] = useState<string>('');
+  const [selectedPatientName, setSelectedPatientName] = useState<string>('');
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   
   // Searchable dropdowns state
   const [availablePatients, setAvailablePatients] = useState<any[]>([]);
@@ -1365,6 +1370,10 @@ export function Laboratory() {
       setShowLabTestList(false);
       setShowDoctorList(false);
       setNewLabOrderSubmitError(null);
+      setSelectedFile(null);
+      setSelectedPatientNo('');
+      setSelectedPatientName('');
+      setUploadError(null);
     } catch (err) {
       console.error('Error fetching data for new lab order:', err);
     }
@@ -1472,10 +1481,10 @@ export function Laboratory() {
   };
 
   // Handle PatientType change - fetch conditional data
-  const handlePatientTypeChange = async (patientType: 'IPD' | 'OPD' | 'Emergency' | '') => {
+  const handlePatientTypeChange = async (patientType: 'IPD' | 'OPD' | 'Emergency' | 'Direct' | '') => {
     setNewLabOrderFormData({
       ...newLabOrderFormData,
-      patientType: patientType as 'IPD' | 'OPD' | 'Emergency',
+      patientType: patientType as 'IPD' | 'OPD' | 'Emergency' | 'Direct',
       roomAdmissionId: '',
       appointmentId: '',
       emergencyBedSlotId: ''
@@ -1511,9 +1520,74 @@ export function Laboratory() {
         } else {
           setAvailableEmergencyBedSlots([]);
         }
+      } else if (patientType === 'Direct') {
+        // Direct type doesn't need conditional fields, clear all
+        setAvailableAdmissions([]);
+        setAvailableAppointments([]);
+        setAvailableEmergencyBedSlots([]);
       }
     } catch (err) {
       console.error(`Error fetching ${patientType} data:`, err);
+    }
+  };
+
+  // Handle file upload
+  const handleFileUpload = async () => {
+    if (!selectedFile) {
+      setUploadError('Please select a file first');
+      return;
+    }
+    if (!selectedPatientNo) {
+      setUploadError('Please select a patient first');
+      return;
+    }
+
+    try {
+      setUploadingFile(true);
+      setUploadError(null);
+
+      // Construct PatientNo_PatientName parameter
+      const patientNo_PatientName = `${selectedPatientNo}_${selectedPatientName || 'Unknown'}`;
+
+      // Create FormData to send file
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+      formData.append('PatientNo_PatientName', patientNo_PatientName);
+
+      // Upload file to backend
+      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api';
+      const response = await fetch(`${API_BASE_URL}/patient-lab-tests/upload-files`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `Upload failed: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      const fileUrl = result.url || result.fileUrl || result.path || '';
+
+      // Update reportsUrl with the uploaded file URL
+      setNewLabOrderFormData({
+        ...newLabOrderFormData,
+        reportsUrl: fileUrl
+      });
+
+      // Clear selected file
+      setSelectedFile(null);
+      
+      // Reset file input
+      const fileInput = document.getElementById('reportFileInput') as HTMLInputElement;
+      if (fileInput) {
+        fileInput.value = '';
+      }
+    } catch (err) {
+      console.error('Error uploading file:', err);
+      setUploadError(err instanceof Error ? err.message : 'Failed to upload file');
+    } finally {
+      setUploadingFile(false);
     }
   };
 
@@ -1547,12 +1621,13 @@ export function Laboratory() {
       if (newLabOrderFormData.patientType === 'Emergency' && !newLabOrderFormData.emergencyBedSlotId) {
         throw new Error('Emergency Bed Slot ID is required for Emergency');
       }
+      // Direct type doesn't require conditional fields
 
       // Construct payload
       const payload: any = {
         PatientId: newLabOrderFormData.patientId,
         LabTestId: Number(newLabOrderFormData.labTestId),
-        PatientType: newLabOrderFormData.patientType as 'IPD' | 'OPD' | 'Emergency',
+        PatientType: newLabOrderFormData.patientType as 'IPD' | 'OPD' | 'Emergency' | 'Direct',
         Priority: newLabOrderFormData.priority,
         TestStatus: newLabOrderFormData.testStatus,
         LabTestDone: newLabOrderFormData.labTestDone,
@@ -1610,6 +1685,10 @@ export function Laboratory() {
       setShowPatientList(false);
       setShowLabTestList(false);
       setShowDoctorList(false);
+      setSelectedFile(null);
+      setSelectedPatientNo('');
+      setSelectedPatientName('');
+      setUploadError(null);
       
       // Refresh the tests list by calling the fetch function
       window.location.reload(); // Simple refresh for now - could be optimized to refetch only
@@ -1707,6 +1786,8 @@ export function Laboratory() {
                                     onClick={async () => {
                                       const updatedFormData = { ...newLabOrderFormData, patientId };
                                       setNewLabOrderFormData(updatedFormData);
+                                      setSelectedPatientNo(patientNo || '');
+                                      setSelectedPatientName(fullName || 'Unknown');
                                       setPatientSearchTerm(`${patientNo ? `${patientNo} - ` : ''}${fullName || 'Unknown'}`);
                                       setShowPatientList(false);
                                       
@@ -1809,12 +1890,13 @@ export function Laboratory() {
                       id="patientType"
                       className="w-full px-3 py-2 border border-gray-200 rounded-md"
                       value={newLabOrderFormData.patientType}
-                      onChange={(e) => handlePatientTypeChange(e.target.value as 'IPD' | 'OPD' | 'Emergency' | '')}
+                      onChange={(e) => handlePatientTypeChange(e.target.value as 'IPD' | 'OPD' | 'Emergency' | 'Direct' | '')}
                     >
                       <option value="">Select Patient Type</option>
                       <option value="OPD">OPD</option>
                       <option value="IPD">IPD</option>
                       <option value="Emergency">Emergency</option>
+                      <option value="Direct">Direct</option>
                     </select>
                   </div>
 
@@ -2059,16 +2141,7 @@ export function Laboratory() {
                     />
                   </div>
 
-                  {/* Report URL */}
-                  <div>
-                    <Label htmlFor="reportsUrl">Report URL</Label>
-                    <Input
-                      id="reportsUrl"
-                      placeholder="Enter report URL (optional)"
-                      value={newLabOrderFormData.reportsUrl}
-                      onChange={(e) => setNewLabOrderFormData({ ...newLabOrderFormData, reportsUrl: e.target.value })}
-                    />
-                  </div>
+                  
 
                   {/* Ordered By Doctor - Searchable */}
                   <div>
@@ -2126,6 +2199,67 @@ export function Laboratory() {
                             </tbody>
                           </table>
                         </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Report URL - File Upload */}
+                  <div>
+                    <Label htmlFor="reportsUrl">Report URL</Label>
+                    <div className="space-y-2">
+                      {/* Reports URL Input Field */}
+                      <Input
+                        id="reportsUrl"
+                        placeholder="Enter report URL or upload a file below"
+                        value={newLabOrderFormData.reportsUrl}
+                        onChange={(e) => setNewLabOrderFormData({ ...newLabOrderFormData, reportsUrl: e.target.value })}
+                        className="w-full"
+                      />
+                      
+                      {/* File Upload Section */}
+                      <div className="flex gap-1.5">
+                        <Input
+                          id="reportFileInput"
+                          type="file"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0] || null;
+                            setSelectedFile(file);
+                            setUploadError(null);
+                          }}
+                          accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            const fileInput = document.getElementById('reportFileInput') as HTMLInputElement;
+                            fileInput?.click();
+                          }}
+                          className="flex-1 px-2 py-1 text-xs"
+                        >
+                          Browse
+                        </Button>
+                        <Button
+                          type="button"
+                          onClick={handleFileUpload}
+                          disabled={!selectedFile || !selectedPatientNo || uploadingFile}
+                          className="flex-1 px-2 py-1 text-xs"
+                        >
+                          {uploadingFile ? 'Uploading...' : 'Upload'}
+                        </Button>
+                      </div>
+                      
+                      {/* Status Messages */}
+                      {selectedFile && (
+                        <p className="text-xs text-gray-600 truncate">
+                          Selected: {selectedFile.name}
+                        </p>
+                      )}
+                      {uploadError && (
+                        <p className="text-xs text-red-600">
+                          {uploadError}
+                        </p>
                       )}
                     </div>
                   </div>

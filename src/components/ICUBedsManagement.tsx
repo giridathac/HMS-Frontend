@@ -5,7 +5,7 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
-import { HeartPulse, Plus, Edit, CheckCircle2, XCircle } from 'lucide-react';
+import { HeartPulse, Plus, Edit, CheckCircle2, XCircle, Search } from 'lucide-react';
 import { useICUBeds } from '../hooks/useICUBeds';
 import { ICUBed } from '../types';
 
@@ -17,6 +17,7 @@ export function ICUBedsManagement() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedICUBed, setSelectedICUBed] = useState<ICUBed | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState({
     icuBedNo: '',
     icuType: 'Medical',
@@ -64,12 +65,15 @@ export function ICUBedsManagement() {
       return;
     }
     try {
+      // Explicitly ensure boolean value is correctly set
+      const isVentilatorAttached = formData.isVentilatorAttached === true;
+      console.log('Add ICU Bed - isVentilatorAttached value:', isVentilatorAttached, 'from formData:', formData.isVentilatorAttached);
       await handleCreateICUBed({
         icuBedNo: formData.icuBedNo,
         icuType: formData.icuType,
         icuRoomNameNo: formData.icuRoomNameNo,
         icuDescription: formData.icuDescription || undefined,
-        isVentilatorAttached: Boolean(formData.isVentilatorAttached),
+        isVentilatorAttached: isVentilatorAttached,
         status: formData.status,
       });
       setIsAddDialogOpen(false);
@@ -99,7 +103,9 @@ export function ICUBedsManagement() {
       return;
     }
     try {
-      const isVentilatorAttachedValue = Boolean(formData.isVentilatorAttached);
+      // Explicitly ensure boolean value is correctly set
+      const isVentilatorAttachedValue = formData.isVentilatorAttached === true;
+      console.log('Update ICU Bed - isVentilatorAttached value:', isVentilatorAttachedValue, 'from formData:', formData.isVentilatorAttached);
       await handleUpdateICUBed(selectedICUBed.icuId, {
         icuBedNo: formData.icuBedNo,
         icuType: formData.icuType,
@@ -292,17 +298,45 @@ export function ICUBedsManagement() {
       </div>
 
       <div className="flex-1 flex flex-col overflow-hidden min-h-0">
+        {/* Search Bar */}
+        <Card className="mb-4 bg-white">
+          <CardContent className="p-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
+              <Input
+                type="text"
+                placeholder="Search by ICU Bed No, ICU Type, Room Name/No, or Description..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+          </CardContent>
+        </Card>
+
         {/* ICU Beds Table */}
         <Card className="flex-1 flex flex-col overflow-hidden min-h-0 mb-4 bg-white">
           <CardContent className="p-0 flex-1 overflow-hidden flex flex-col min-h-0 bg-white">
-            <div className="overflow-x-auto overflow-y-scroll border border-gray-200 rounded flex-1 min-h-0 icu-beds-scrollable doctors-scrollable bg-white" style={{ maxHeight: 'calc(100vh - 160px)' }}>
+            <div className="overflow-x-auto overflow-y-scroll border border-gray-200 rounded flex-1 min-h-0 icu-beds-scrollable doctors-scrollable bg-white" style={{ maxHeight: 'calc(100vh - 240px)' }}>
               <table className="w-full bg-white">
                 <thead>
                   <tr className="border-b border-gray-200 bg-white">
                     <th className="text-left py-3 px-4 text-sm font-medium text-gray-700" colSpan={8}>
                       <div className="flex items-center gap-2">
                         <HeartPulse className="size-5" />
-                        <span>ICU Beds List ({icuBeds.length})</span>
+                        <span>ICU Beds List ({(() => {
+                          if (!searchTerm) return icuBeds.length;
+                          const filtered = icuBeds.filter(bed => {
+                            const searchLower = searchTerm.toLowerCase();
+                            return (
+                              bed.icuBedNo?.toLowerCase().includes(searchLower) ||
+                              bed.icuType?.toLowerCase().includes(searchLower) ||
+                              bed.icuRoomNameNo?.toLowerCase().includes(searchLower) ||
+                              bed.icuDescription?.toLowerCase().includes(searchLower)
+                            );
+                          });
+                          return filtered.length;
+                        })()})</span>
                       </div>
                     </th>
                   </tr>
@@ -318,14 +352,30 @@ export function ICUBedsManagement() {
                   </tr>
                 </thead>
                 <tbody>
-                  {icuBeds.length === 0 ? (
-                    <tr>
-                      <td colSpan={8} className="text-center py-8 text-gray-500">
-                        No ICU beds found. Add a new ICU bed to get started.
-                      </td>
-                    </tr>
-                  ) : (
-                    icuBeds.map((icuBed) => (
+                  {(() => {
+                    const filteredBeds = searchTerm
+                      ? icuBeds.filter(bed => {
+                          const searchLower = searchTerm.toLowerCase();
+                          return (
+                            bed.icuBedNo?.toLowerCase().includes(searchLower) ||
+                            bed.icuType?.toLowerCase().includes(searchLower) ||
+                            bed.icuRoomNameNo?.toLowerCase().includes(searchLower) ||
+                            bed.icuDescription?.toLowerCase().includes(searchLower)
+                          );
+                        })
+                      : icuBeds;
+
+                    if (filteredBeds.length === 0) {
+                      return (
+                        <tr>
+                          <td colSpan={8} className="text-center py-8 text-gray-500">
+                            {searchTerm ? 'No ICU beds found matching your search.' : 'No ICU beds found. Add a new ICU bed to get started.'}
+                          </td>
+                        </tr>
+                      );
+                    }
+
+                    return filteredBeds.map((icuBed) => (
                       <tr key={icuBed.id} className="border-b border-gray-100 hover:bg-gray-50">
                         <td className="py-3 px-4 text-sm text-gray-900 font-medium">{icuBed.icuBedNo}</td>
                         <td className="py-3 px-4 text-sm text-gray-700">{icuBed.icuType}</td>
@@ -335,19 +385,19 @@ export function ICUBedsManagement() {
                         <td className="py-3 px-4 text-sm">{getStatusBadge(icuBed.status)}</td>
                         <td className="py-3 px-4 text-sm text-gray-500">{new Date(icuBed.createdAt).toLocaleDateString()}</td>
                         <td className="py-3 px-4">
-                          <Button
+                            <Button
                             variant="outline"
-                            size="sm"
-                            onClick={() => handleEdit(icuBed)}
+                              size="sm"
+                              onClick={() => handleEdit(icuBed)}
                             className="gap-1"
-                          >
+                            >
                             <Edit className="size-3" />
                             View & Edit
-                          </Button>
+                            </Button>
                         </td>
                       </tr>
-                    ))
-                  )}
+                    ));
+                  })()}
                 </tbody>
               </table>
             </div>
