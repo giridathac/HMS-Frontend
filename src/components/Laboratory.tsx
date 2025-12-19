@@ -153,6 +153,7 @@ export function Laboratory() {
   const [selectedPatientName, setSelectedPatientName] = useState<string>('');
   const [uploadingFile, setUploadingFile] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
   
   // Searchable dropdowns state
   const [availablePatients, setAvailablePatients] = useState<any[]>([]);
@@ -1545,6 +1546,7 @@ export function Laboratory() {
     try {
       setUploadingFile(true);
       setUploadError(null);
+      setUploadSuccess(null);
 
       // Construct PatientNo_PatientName parameter
       const patientNo_PatientName = `${selectedPatientNo}_${selectedPatientName || 'Unknown'}`;
@@ -1554,9 +1556,11 @@ export function Laboratory() {
       formData.append('file', selectedFile);
       formData.append('PatientNo_PatientName', patientNo_PatientName);
 
-      // Upload file to backend
+      // Upload file to backend with PatientNo_PatientName as query parameter
       const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api';
-      const response = await fetch(`${API_BASE_URL}/patient-lab-tests/upload-files`, {
+      const uploadUrl = `${API_BASE_URL}/patient-lab-tests/upload-files?PatientNo_PatientName=${encodeURIComponent(patientNo_PatientName)}`;
+      
+      const response = await fetch(uploadUrl, {
         method: 'POST',
         body: formData,
       });
@@ -1566,23 +1570,140 @@ export function Laboratory() {
         throw new Error(errorData.message || `Upload failed: ${response.statusText}`);
       }
 
-      const result = await response.json();
-      const fileUrl = result.url || result.fileUrl || result.path || '';
+      // Try to parse as JSON first, if that fails, try as text
+      let result: any;
+      const contentType = response.headers.get('content-type');
+      console.log('Response content-type:', contentType);
+      
+      if (contentType && contentType.includes('application/json')) {
+        result = await response.json();
+      } else {
+        // Try to parse as JSON anyway
+        const text = await response.text();
+        console.log('Response text:', text);
+        try {
+          result = JSON.parse(text);
+        } catch (e) {
+          // If it's not JSON, treat the text itself as the file path
+          result = text.trim();
+        }
+      }
+      
+      console.log('Upload response (full):', JSON.stringify(result, null, 2));
+      console.log('Upload response type:', typeof result);
+      
+      // Extract file path from various possible response formats
+      let fileUrl = '';
+      
+      // If result is a string, use it directly
+      if (typeof result === 'string' && result.trim()) {
+        fileUrl = result.trim();
+      }
+      // If result is an object, check various properties
+      else if (typeof result === 'object' && result !== null) {
+        fileUrl = result.url || 
+                 result.fileUrl || 
+                 result.URL ||
+                 result.FileUrl ||
+                 result.path || 
+                 result.Path ||
+                 result.filePath || 
+                 result.FilePath ||
+                 result.file_path ||
+                 result.file_path ||
+                 result.fileName ||
+                 result.filename ||
+                 result.FileName ||
+                 result.Filename ||
+                 result.location ||
+                 result.Location ||
+                 result.fileLocation ||
+                 result.FileLocation ||
+                 result.data?.url ||
+                 result.data?.fileUrl ||
+                 result.data?.URL ||
+                 result.data?.FileUrl ||
+                 result.data?.path ||
+                 result.data?.Path ||
+                 result.data?.filePath ||
+                 result.data?.FilePath ||
+                 result.data?.file_path ||
+                 result.data?.fileName ||
+                 result.data?.filename ||
+                 result.data?.location ||
+                 result.data?.fileLocation ||
+                 result.message?.url ||
+                 result.message?.fileUrl ||
+                 result.message?.path ||
+                 result.message?.filePath ||
+                 result.message ||
+                 result.success?.url ||
+                 result.success?.fileUrl ||
+                 result.success?.path ||
+                 result.success?.filePath ||
+                 result.result?.url ||
+                 result.result?.fileUrl ||
+                 result.result?.path ||
+                 result.result?.filePath ||
+                 '';
+      }
+      const folderPathFromResposne = result.folderPath || result.FolderPath || result.folder_path || result.folder_path || result.folderPathFromResponse || result.FolderPathFromResponse || result.folder_path_from_response || result.folder_path_from_response;
+     if (folderPathFromResposne) {
+        fileUrl = `${API_BASE_URL}/${folderPathFromResposne}`;
+      }
+
+      // Also check response headers for location
+      const locationHeader = response.headers.get('location') || response.headers.get('Location');
+      if (!fileUrl && locationHeader) {
+        fileUrl = locationHeader;
+        console.log('Using location header:', fileUrl);
+      }
+
+      // If we got a relative path, construct the full URL
+      if (fileUrl && !fileUrl.startsWith('http://') && !fileUrl.startsWith('https://') && !fileUrl.startsWith('/')) {
+        // If it's a relative path, prepend the API base URL
+        fileUrl = `${API_BASE_URL}/${fileUrl}`;
+      } else if (fileUrl && fileUrl.startsWith('/')) {
+        // If it starts with /, prepend the base URL without /api
+        const baseUrlWithoutApi = API_BASE_URL.replace('/api', '');
+        fileUrl = `${baseUrlWithoutApi}${fileUrl}`;
+      }
+
+      console.log('Extracted file URL:', fileUrl);
+      console.log('All response keys:', result && typeof result === 'object' ? Object.keys(result) : 'N/A');
+
+      if (!fileUrl) {
+        console.error('No file URL found in upload response. Full response:', result);
+        console.error('Response headers:', Object.fromEntries(response.headers.entries()));
+        setUploadError(`Upload completed but file path not returned. Response: ${JSON.stringify(result)}. Please check the console for details.`);
+        return;
+      }
 
       // Update reportsUrl with the uploaded file URL
-      setNewLabOrderFormData({
-        ...newLabOrderFormData,
-        reportsUrl: fileUrl
-      });
+      setNewLabOrderFormData(prev => ({
+        ...prev,
+        reportsUrl: folderPathFromResposne
+      }));
+      
+      console.log('Updated reportsUrl field with:', fileUrl);
 
       // Clear selected file
       setSelectedFile(null);
+      setUploadError(null);
+      setUploadSuccess(`File uploaded successfully! Report URL updated.`);
       
       // Reset file input
       const fileInput = document.getElementById('reportFileInput') as HTMLInputElement;
       if (fileInput) {
         fileInput.value = '';
       }
+      
+      // Clear success message after 5 seconds
+      setTimeout(() => {
+        setUploadSuccess(null);
+      }, 5000);
+      
+      console.log('File uploaded successfully. Report URL updated:', fileUrl);
     } catch (err) {
       console.error('Error uploading file:', err);
       setUploadError(err instanceof Error ? err.message : 'Failed to upload file');
@@ -2222,6 +2343,7 @@ export function Laboratory() {
                           id="reportFileInput"
                           type="file"
                           className="hidden"
+                          disabled={!selectedPatientNo}
                           onChange={(e) => {
                             const file = e.target.files?.[0] || null;
                             setSelectedFile(file);
@@ -2236,6 +2358,7 @@ export function Laboratory() {
                             const fileInput = document.getElementById('reportFileInput') as HTMLInputElement;
                             fileInput?.click();
                           }}
+                          disabled={!selectedPatientNo}
                           className="flex-1 px-2 py-1 text-xs"
                         >
                           Browse
@@ -2251,9 +2374,14 @@ export function Laboratory() {
                       </div>
                       
                       {/* Status Messages */}
-                      {selectedFile && (
+                      {selectedFile && !uploadSuccess && (
                         <p className="text-xs text-gray-600 truncate">
                           Selected: {selectedFile.name}
+                        </p>
+                      )}
+                      {uploadSuccess && (
+                        <p className="text-xs text-green-600">
+                          {uploadSuccess}
                         </p>
                       )}
                       {uploadError && (
