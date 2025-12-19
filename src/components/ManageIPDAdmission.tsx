@@ -2731,12 +2731,16 @@ export function ManageIPDAdmission() {
                 </div>
                 <div>
                   <Label htmlFor="visitVitalsPatientStatus">Patient Status</Label>
-                  <Input
+                  <select
                     id="visitVitalsPatientStatus"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-md"
                     value={visitVitalsFormData.patientStatus}
                     onChange={(e) => setVisitVitalsFormData({ ...visitVitalsFormData, patientStatus: e.target.value })}
-                    placeholder="Enter patient status (optional)"
-                  />
+                  >
+                    <option value="">Select Patient Status</option>
+                    <option value="Stable">Stable</option>
+                    <option value="Notstable">Notstable</option>
+                  </select>
                 </div>
                 <div>
                   <Label htmlFor="visitVitalsHeartRate">Heart Rate</Label>

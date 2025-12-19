@@ -66,6 +66,8 @@ export function ICUManagement() {
   const [icuBedOptions, setIcuBedOptions] = useState<any[]>([]);
   const [patientSearchTerm, setPatientSearchTerm] = useState('');
   const [icuBedSearchTerm, setIcuBedSearchTerm] = useState('');
+  const [vitalsData, setVitalsData] = useState<any | null>(null);
+  const [loadingVitals, setLoadingVitals] = useState(false);
   const [addICUAdmissionForm, setAddICUAdmissionForm] = useState<{
     patientId: string;
     icuId: string;
@@ -1093,10 +1095,51 @@ export function ICUManagement() {
     return patient;
   };
 
+  // Function to fetch latest vitals for an ICU admission
+  const fetchLatestVitals = async (icuAdmissionId: string | number | null | undefined) => {
+    if (!icuAdmissionId) {
+      setVitalsData(null);
+      return;
+    }
+
+    try {
+      setLoadingVitals(true);
+      console.log('Fetching latest vitals for ICU admission:', icuAdmissionId);
+      const response = await apiRequest<any>(`/icu-visit-vitals/icu-admission/${icuAdmissionId}/latest`);
+      console.log('Latest vitals API response:', response);
+      
+      // Handle different response structures: { data: {...} } or direct object
+      const vitals = response?.data || response || null;
+      
+      if (vitals) {
+        console.log('Latest vitals data extracted:', vitals);
+        setVitalsData(vitals);
+      } else {
+        console.warn('No vitals data found in API response');
+        setVitalsData(null);
+      }
+    } catch (error) {
+      console.error('Error fetching latest vitals:', error);
+      setVitalsData(null);
+    } finally {
+      setLoadingVitals(false);
+    }
+  };
+
   // Use API bed details if available, otherwise fall back to bed layout data
   const selectedPatient = selectedBedDetails 
     ? mapBedDetailsToPatient(selectedBedDetails)
     : icuBeds.find(bed => bed.icuBedId === selectedICUBedId)?.patient;
+
+  // Fetch vitals when selectedPatient changes
+  useEffect(() => {
+    if (selectedPatient?.patientICUAdmissionId) {
+      fetchLatestVitals(selectedPatient.patientICUAdmissionId);
+    } else {
+      setVitalsData(null);
+    }
+  }, [selectedPatient?.patientICUAdmissionId]);
+
   return (
     <div className="dashboard-container">
       <div className="dashboard-scrollable-container">
@@ -1543,6 +1586,9 @@ export function ICUManagement() {
                       }
                     };
                     
+                    // Check if bed has admission details (patient exists)
+                    const hasAdmission = bed.patient !== undefined && bed.patient !== null;
+                    
                     return (
                     <div
                       key={bed.bedNumber}
@@ -1550,7 +1596,7 @@ export function ICUManagement() {
                       className={`p-4 border-2 rounded-lg text-center transition-all cursor-pointer ${
                         selectedICUBedId === bedId
                           ? 'border-blue-500 bg-blue-50 scale-105'
-                          : (bed as any).icuPatientStatus === 'Critical'
+                          : hasAdmission
                             ? 'border-red-300 bg-red-50 hover:border-red-400'
                           : 'border-green-300 bg-green-50 hover:border-green-400'
                       }`}
@@ -1573,12 +1619,12 @@ export function ICUManagement() {
                       <p className="text-gray-900 mb-1">{bed.bedNumber}</p>
                       <div className="flex items-center justify-center gap-1">
                         <span className={`size-2 rounded-full ${
-                          (bed as any).icuPatientStatus === 'Critical'
+                          hasAdmission
                               ? 'bg-red-500'
                             : 'bg-green-500'
                         }`} />
                         <span className="text-xs text-gray-600">
-                          {(bed as any).icuAdmissionStatus || 'Occupied'}
+                          {hasAdmission ? (bed as any).icuAdmissionStatus || 'Occupied' : 'Available'}
                         </span>
                       </div>
                       {bed.patient?.ventilatorSupport && (
@@ -1592,20 +1638,20 @@ export function ICUManagement() {
                       {!bedId && (
                         <div className="mt-1">
                           <span className="text-xs text-red-500">No ID</span>
-                        </div>
+                </div>
                       )}
-                    </div>
+                  </div>
                     );
                   })}
-                </div>
+                  </div>
                 <div className="mt-6 flex items-center justify-center gap-6 text-sm">
                   <div className="flex items-center gap-2">
-                    <span className="size-3 rounded-full bg-red-500" />
-                    <span className="text-gray-600">Critical</span>
+                    <span className="size-3 rounded-full bg-green-500" />
+                    <span className="text-gray-600">Available</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="size-3 rounded-full bg-green-500" />
-                    <span className="text-gray-600">Other Status</span>
+                    <span className="size-3 rounded-full bg-red-500" />
+                    <span className="text-gray-600">Occupied</span>
                   </div>
                 </div>
               </CardContent>
@@ -1739,10 +1785,11 @@ export function ICUManagement() {
                       </div>
                     </div>
 
-                    <div className="flex gap-2">
+                    
+                    {/*<div className="flex gap-2">
                       <Button variant="outline" className="flex-1">Update Vitals</Button>
                       <Button variant="outline" className="flex-1">View History</Button>
-                    </div>
+                    </div> */}
                   </div>
                 ) : (
                   <div className="text-center py-12 text-gray-500">

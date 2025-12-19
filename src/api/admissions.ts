@@ -34,6 +34,13 @@ export interface Admission {
   emergencyBedNo?: string; // EmergencyBedNo field from API
   eBedSlotNo?: string; // EBedSlotNo field from API
   emergencyAdmissionDate?: string; // EmergencyAdmissionDate field from API
+  roomVacantDate?: string; // RoomVacantDate field from API
+  shiftToAnotherRoom?: string | boolean; // ShiftToAnotherRoom field from API
+  shiftedTo?: string; // ShiftedTo field from API
+  shiftedToDetails?: string; // ShiftedToDetails field from API
+  otAdmissionId?: string | number; // OTAdmissionId field from API
+  icuAdmissionId?: string | number; // ICUAdmissionId field from API
+  billId?: string | number; // BillId field from API
 }
 
 export interface CreateAdmissionDto {
@@ -48,6 +55,24 @@ export interface CreateAdmissionDto {
   diagnosis: string;
   status?: 'Active' | 'Discharged' | 'Moved to ICU' | 'Surgery Scheduled';
   estimatedStay?: string;
+  patientType?: 'Direct' | 'OPD' | 'Emergency';
+  patientAppointmentId?: string;
+  emergencyAdmissionId?: string;
+  emergencyBedNo?: string;
+ 
+  roomBedsId?: string;
+  doctorId?: string;
+  admittedByDoctorId?: string;
+  roomAllocationDate?: string;
+  caseSheet?: string;
+  caseSheetDetails?: string;
+  isLinkedToICU?: boolean;
+  scheduleOT?: boolean | string;
+  otAdmissionId?: string;
+  icuAdmissionId?: string;
+  billId?: string;
+  allocatedBy?: string;
+  allocatedAt?: string;  
 }
 
 export interface UpdateAdmissionDto extends Partial<CreateAdmissionDto> {
@@ -873,6 +898,88 @@ export const admissionsApi = {
           }
           return Boolean(value);
         })(),
+        patientType: extractField(admissionData, [
+          'patientType', 'PatientType', 'patient_type', 'Patient_Type',
+          'type', 'Type', 'admissionType', 'AdmissionType', 'admission_type', 'Admission_Type'
+        ], undefined),
+        patientAppointmentId: extractField(admissionData, [
+          'patientAppointmentId', 'PatientAppointmentId', 'patient_appointment_id', 'Patient_Appointment_Id',
+          'appointmentId', 'AppointmentId', 'appointment_id', 'Appointment_Id',
+          'PatientAppointmentID', 'patientAppointmentID', 'Patient_Appointment_ID',
+          'AppointmentID', 'appointmentID', 'Appointment_ID'
+        ], undefined),
+        appointmentTokenNo: extractField(admissionData, [
+          'appointmentTokenNo', 'AppointmentTokenNo', 'appointment_token_no', 'Appointment_Token_No',
+          'tokenNo', 'TokenNo', 'token_no', 'Token_No',
+          'tokenNumber', 'TokenNumber', 'token_number', 'Token_Number',
+          'appointmentToken', 'AppointmentToken', 'appointment_token', 'Appointment_Token'
+        ], undefined),
+        appointmentDate: extractField(admissionData, [
+          'appointmentDate', 'AppointmentDate', 'appointment_date', 'Appointment_Date',
+          'appointmentDateTime', 'AppointmentDateTime', 'appointment_date_time', 'Appointment_Date_Time',
+          'apptDate', 'ApptDate', 'appt_date', 'Appt_Date'
+        ], undefined),
+        emergencyBedSlotId: extractField(admissionData, [
+          'emergencyBedSlotId', 'EmergencyBedSlotId', 'emergency_bed_slot_id', 'Emergency_Bed_Slot_Id',
+          'emergencyBedId', 'EmergencyBedId', 'emergency_bed_id', 'Emergency_Bed_Id',
+          'bedSlotId', 'BedSlotId', 'bed_slot_id', 'Bed_Slot_Id',
+          'EmergencyBedSlotID', 'emergencyBedSlotID', 'Emergency_Bed_Slot_ID',
+          'EmergencyBedID', 'emergencyBedID', 'Emergency_Bed_ID'
+        ], undefined),
+        emergencyBedNo: extractField(admissionData, [
+          'emergencyBedNo', 'EmergencyBedNo', 'emergency_bed_no', 'Emergency_Bed_No',
+          'emergencyBedNumber', 'EmergencyBedNumber', 'emergency_bed_number', 'Emergency_Bed_Number',
+          'bedNo', 'BedNo', 'bed_no', 'Bed_No', 'bedNumber', 'BedNumber', 'bed_number', 'Bed_Number'
+        ], undefined),
+        eBedSlotNo: extractField(admissionData, [
+          'eBedSlotNo', 'EBedSlotNo', 'e_bed_slot_no', 'E_Bed_Slot_No',
+          'bedSlotNo', 'BedSlotNo', 'bed_slot_no', 'Bed_Slot_No',
+          'slotNo', 'SlotNo', 'slot_no', 'Slot_No',
+          'emergencyBedSlotNo', 'EmergencyBedSlotNo', 'emergency_bed_slot_no', 'Emergency_Bed_Slot_No'
+        ], undefined),
+        emergencyAdmissionDate: extractField(admissionData, [
+          'emergencyAdmissionDate', 'EmergencyAdmissionDate', 'emergency_admission_date', 'Emergency_Admission_Date',
+          'emergencyAdmissionDateTime', 'EmergencyAdmissionDateTime', 'emergency_admission_date_time', 'Emergency_Admission_Date_Time',
+          'emergencyAdmitDate', 'EmergencyAdmitDate', 'emergency_admit_date', 'Emergency_Admit_Date',
+          'emergencyDate', 'EmergencyDate', 'emergency_date', 'Emergency_Date'
+        ], undefined),
+        roomVacantDate: extractField(admissionData, [
+          'roomVacantDate', 'RoomVacantDate', 'room_vacant_date', 'Room_Vacant_Date',
+          'vacantDate', 'VacantDate', 'vacant_date', 'Vacant_Date',
+          'roomVacatedDate', 'RoomVacatedDate', 'room_vacated_date', 'Room_Vacated_Date'
+        ], undefined),
+        shiftToAnotherRoom: extractField(admissionData, [
+          'shiftToAnotherRoom', 'ShiftToAnotherRoom', 'shift_to_another_room', 'Shift_To_Another_Room',
+          'shiftToRoom', 'ShiftToRoom', 'shift_to_room', 'Shift_To_Room',
+          'isShifted', 'IsShifted', 'is_shifted', 'Is_Shifted'
+        ], undefined),
+        shiftedTo: extractField(admissionData, [
+          'shiftedTo', 'ShiftedTo', 'shifted_to', 'Shifted_To',
+          'shiftedToRoom', 'ShiftedToRoom', 'shifted_to_room', 'Shifted_To_Room',
+          'movedTo', 'MovedTo', 'moved_to', 'Moved_To'
+        ], undefined),
+        shiftedToDetails: extractField(admissionData, [
+          'shiftedToDetails', 'ShiftedToDetails', 'shifted_to_details', 'Shifted_To_Details',
+          'shiftDetails', 'ShiftDetails', 'shift_details', 'Shift_Details',
+          'shiftNotes', 'ShiftNotes', 'shift_notes', 'Shift_Notes'
+        ], undefined),
+        otAdmissionId: extractField(admissionData, [
+          'otAdmissionId', 'OTAdmissionId', 'ot_admission_id', 'OT_Admission_Id',
+          'otAdmissionID', 'OTAdmissionID', 'ot_admission_id', 'OT_Admission_ID',
+          'operationTheaterAdmissionId', 'OperationTheaterAdmissionId', 'operation_theater_admission_id', 'Operation_Theater_Admission_Id',
+          'surgeryAdmissionId', 'SurgeryAdmissionId', 'surgery_admission_id', 'Surgery_Admission_Id'
+        ], undefined),
+        icuAdmissionId: extractField(admissionData, [
+          'icuAdmissionId', 'ICUAdmissionId', 'icu_admission_id', 'ICU_Admission_Id',
+          'icuAdmissionID', 'ICUAdmissionID', 'icu_admission_id', 'ICU_Admission_ID',
+          'patientICUAdmissionId', 'PatientICUAdmissionId', 'patient_icu_admission_id', 'Patient_ICU_Admission_Id'
+        ], undefined),
+        billId: extractField(admissionData, [
+          'billId', 'BillId', 'bill_id', 'Bill_ID',
+          'billID', 'BillID', 'bill_id', 'Bill_ID',
+          'billingId', 'BillingId', 'billing_id', 'Billing_ID',
+          'invoiceId', 'InvoiceId', 'invoice_id', 'Invoice_ID'
+        ], undefined),
       };
       
       console.log('Normalized admission from getById:', {
@@ -1025,6 +1132,24 @@ export const admissionsApi = {
         BedNumber: data.bedNumber.trim(),
         AdmittedBy: data.admittedBy.trim(),
         Diagnosis: data.diagnosis.trim(),
+       patientType: data.patientType,
+       patientAppointmentId: data.patientAppointmentId,
+       emergencyAdmissionId: data.emergencyAdmissionId,
+       emergencyBedNo: data.emergencyBedNo,
+       
+       roomBedsId: data.roomBedsId,
+       doctorId: data.doctorId,
+       admittedByDoctorId: data.admittedByDoctorId,
+       roomAllocationDate: data.roomAllocationDate, 
+       caseSheet: data.caseSheet,
+       caseSheetDetails: data.caseSheetDetails,
+       isLinkedToICU: data.isLinkedToICU,
+       scheduleOT: data.scheduleOT,
+       otAdmissionId: data.otAdmissionId,
+       icuAdmissionId: data.icuAdmissionId,
+       billId: data.billId,
+       allocatedBy: data.allocatedBy,
+       allocatedAt: data.allocatedAt
       };
       
       if (data.status !== undefined && data.status !== null) {

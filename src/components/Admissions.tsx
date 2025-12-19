@@ -87,6 +87,27 @@ export function Admissions() {
     caseSheet: '',
     caseDetails: '',
     isLinkedToICU: 'No',
+    patientNo: '',
+    age: '',
+    gender: '',
+    patientName: '',
+    bedNumber: '',
+    appointmentTokenNo: '',
+    appointmentDate: '',
+    emergencyBedNo: '',
+    eBedSlotNo: '',
+    emergencyAdmissionDate: '',
+    roomVacantDate: '',
+    shiftToAnotherRoom: '',
+    shiftedTo: '',
+    shiftedToDetails: '',
+    scheduleOT: '',
+    otAdmissionId: '',
+    icuAdmissionId: '',
+    billId: '',
+    estimatedStay: '',
+    createdAt: '',
+    createdDate: '',
   });
   const [savingAdmission, setSavingAdmission] = useState(false);
   const [admissionError, setAdmissionError] = useState<string | null>(null);
@@ -345,6 +366,30 @@ export function Admissions() {
       }
     }
     
+    // Extract scheduleOT and convert to Yes/No
+    const scheduleOTValue = admission.scheduleOT;
+    let scheduleOTString = 'No';
+    if (scheduleOTValue !== undefined && scheduleOTValue !== null) {
+      if (typeof scheduleOTValue === 'boolean') {
+        scheduleOTString = scheduleOTValue ? 'Yes' : 'No';
+      } else if (typeof scheduleOTValue === 'string') {
+        const lower = String(scheduleOTValue).toLowerCase();
+        scheduleOTString = (lower === 'true' || lower === 'yes' || lower === '1') ? 'Yes' : 'No';
+      }
+    }
+
+    // Extract shiftToAnotherRoom and convert to Yes/No
+    const shiftToAnotherRoomValue = admission.shiftToAnotherRoom;
+    let shiftToAnotherRoomString = 'No';
+    if (shiftToAnotherRoomValue !== undefined && shiftToAnotherRoomValue !== null) {
+      if (typeof shiftToAnotherRoomValue === 'boolean') {
+        shiftToAnotherRoomString = shiftToAnotherRoomValue ? 'Yes' : 'No';
+      } else if (typeof shiftToAnotherRoomValue === 'string') {
+        const lower = String(shiftToAnotherRoomValue).toLowerCase();
+        shiftToAnotherRoomString = (lower === 'true' || lower === 'yes' || lower === '1') ? 'Yes' : 'No';
+      }
+    }
+
     setAddAdmissionForm({
       patientId: admission.patientId || '',
       patientType: admission.patientType || '',
@@ -362,6 +407,27 @@ export function Admissions() {
       caseSheet: admission.caseSheet || '',
       caseDetails: admission.caseSheetDetails || '',
       isLinkedToICU: isLinkedToICUString,
+      patientNo: admission.patientNo || '',
+      age: admission.age ? String(admission.age) : '',
+      gender: admission.gender || '',
+      patientName: admission.patientName || '',
+      bedNumber: admission.bedNumber || '',
+      appointmentTokenNo: admission.appointmentTokenNo || '',
+      appointmentDate: admission.appointmentDate || '',
+      emergencyBedNo: admission.emergencyBedNo || '',
+      eBedSlotNo: admission.eBedSlotNo || '',
+      emergencyAdmissionDate: admission.emergencyAdmissionDate || '',
+      roomVacantDate: admission.roomVacantDate || '',
+      shiftToAnotherRoom: shiftToAnotherRoomString,
+      shiftedTo: admission.shiftedTo || '',
+      shiftedToDetails: admission.shiftedToDetails || '',
+      scheduleOT: scheduleOTString,
+      otAdmissionId: admission.otAdmissionId ? String(admission.otAdmissionId) : '',
+      icuAdmissionId: admission.icuAdmissionId ? String(admission.icuAdmissionId) : '',
+      billId: admission.billId ? String(admission.billId) : '',
+      estimatedStay: admission.estimatedStay || '',
+      createdAt: admission.createdAt || '',
+      createdDate: admission.createdDate || '',
     });
     setPatientSearchTerm(admission.patientName || '');
     setRoomBedSearchTerm(`${admission.bedNumber} (${admission.roomType})`);
@@ -470,7 +536,7 @@ export function Admissions() {
           setAvailableAppointments([]);
         }
       } else if (patientType === 'Emergency') {
-        // If patient is already selected, fetch their emergency bed slots
+        // If patient is already selected, fetch their emergency admissions
         if (addAdmissionForm.patientId) {
           await fetchPatientEmergencyBedSlots(addAdmissionForm.patientId);
         } else {
@@ -503,7 +569,7 @@ export function Admissions() {
         throw new Error('Patient Appointment ID is required for OPD patients');
       }
       if (addAdmissionForm.patientType === 'Emergency' && !addAdmissionForm.emergencyBedSlotId) {
-        throw new Error('Emergency Bed Slot ID is required for Emergency patients');
+        throw new Error('Emergency Admission Bed No is required for Emergency patients');
       }
       if (!addAdmissionForm.roomBedId) {
         throw new Error('Please select a room/bed');
@@ -571,8 +637,16 @@ export function Admissions() {
         try {
           console.log('Checking room bed availability, RoomBedsId:', roomBedsId, 'AllocationDate:', addAdmissionForm.roomAllocationDate);
           
+          // Validate required parameters
+          if (!roomBedsId) {
+            throw new Error('RoomBedsId is required for availability check');
+          }
+          if (!addAdmissionForm.roomAllocationDate) {
+            throw new Error('Room Allocation Date is required for availability check');
+          }
+          
           // Call the room admissions availability check API
-          const checkResponse = await apiRequest<any>(`/Emergency Admission DatemBedsId=${roomBedsId}&AllocationDate=${addAdmissionForm.roomAllocationDate}`, {
+          const checkResponse = await apiRequest<any>(`/room-admissions/check-availability?RoomBedsId=${roomBedsId}&AllocationDate=${addAdmissionForm.roomAllocationDate}`, {
             method: 'GET',
           });
           
@@ -598,7 +672,7 @@ export function Admissions() {
           }
         } catch (checkError: any) {
           // If it's our custom error message, throw it
-          if (checkError?.message && (checkError.message.includes('not available') || checkError.message.includes('already occupied'))) {
+          if (checkError?.message && (checkError.message.includes('not available') || checkError.message.includes('already occupied') || checkError.message.includes('required'))) {
             throw checkError;
           }
           // If the API returns an error indicating unavailability, throw it
@@ -610,10 +684,9 @@ export function Admissions() {
               throw new Error(errorMessage || 'The selected room bed is not available for the selected allocation date.');
             }
           }
-          // If it's a network error or other issue, log it but continue (or you can choose to throw)
-          console.warn('Room bed availability check failed:', checkError);
-          // For now, we'll continue if it's not an explicit unavailability error
-          // You can change this to throw if you want to be more strict
+          // If it's a network error or other issue, throw it to prevent booking
+          console.error('Room bed availability check failed:', checkError);
+          throw new Error('Failed to verify room bed availability. Please try again or contact support.');
         }
       }
 
@@ -646,10 +719,16 @@ export function Admissions() {
         admissionData.appointmentId = String(addAdmissionForm.patientAppointmentId);
       }
       if (addAdmissionForm.patientType === 'Emergency' && addAdmissionForm.emergencyBedSlotId) {
+        // The emergencyBedSlotId field contains the EmergencyAdmissionId from the dropdown selection
+        admissionData.emergencyAdmissionId = String(addAdmissionForm.emergencyBedSlotId);
         admissionData.emergencyBedSlotId = String(addAdmissionForm.emergencyBedSlotId);
       }
 
       console.log('Saving admission with data:', admissionData);
+      console.log('PatientType in admissionData:', admissionData.patientType);
+      if (addAdmissionForm.patientType === 'Emergency' && admissionData.emergencyAdmissionId) {
+        console.log('EmergencyAdmissionId being sent:', admissionData.emergencyAdmissionId);
+      }
 
       // Call the API to create or update admission
       if (editingAdmission && (editingAdmission.roomAdmissionId || editingAdmission.admissionId)) {
@@ -701,6 +780,27 @@ export function Admissions() {
         caseSheet: '',
         caseDetails: '',
         isLinkedToICU: 'No',
+        patientNo: '',
+        age: '',
+        gender: '',
+        patientName: '',
+        bedNumber: '',
+        appointmentTokenNo: '',
+        appointmentDate: '',
+        emergencyBedNo: '',
+        eBedSlotNo: '',
+        emergencyAdmissionDate: '',
+        roomVacantDate: '',
+        shiftToAnotherRoom: '',
+        shiftedTo: '',
+        shiftedToDetails: '',
+        scheduleOT: '',
+        otAdmissionId: '',
+        icuAdmissionId: '',
+        billId: '',
+        estimatedStay: '',
+        createdAt: '',
+        createdDate: '',
       });
       setAvailableAppointments([]);
       setAvailableEmergencyBedSlots([]);
@@ -769,6 +869,27 @@ export function Admissions() {
         caseSheet: '',
         caseDetails: '',
         isLinkedToICU: 'No',
+        patientNo: '',
+        age: '',
+        gender: '',
+        patientName: '',
+        bedNumber: '',
+        appointmentTokenNo: '',
+        appointmentDate: '',
+        emergencyBedNo: '',
+        eBedSlotNo: '',
+        emergencyAdmissionDate: '',
+        roomVacantDate: '',
+        shiftToAnotherRoom: '',
+        shiftedTo: '',
+        shiftedToDetails: '',
+        scheduleOT: '',
+        otAdmissionId: '',
+        icuAdmissionId: '',
+        billId: '',
+        estimatedStay: '',
+        createdAt: '',
+        createdDate: '',
       });
       setAvailableAppointments([]);
       setAvailableEmergencyBedSlots([]);
@@ -1056,7 +1177,7 @@ export function Admissions() {
 
                 {addAdmissionForm.patientType === 'Emergency' && (
                   <div>
-                    <Label htmlFor="emergencyBedSlotId">Emergency Bed Slot ID *</Label>
+                    <Label htmlFor="emergencyBedSlotId">Emergency Admission Bed No *</Label>
                     <select
                       id="emergencyBedSlotId"
                       className="w-full px-3 py-2 border border-gray-200 rounded-md"
@@ -1064,14 +1185,17 @@ export function Admissions() {
                       onChange={(e) => setAddAdmissionForm({ ...addAdmissionForm, emergencyBedSlotId: e.target.value })}
                       required
                     >
-                      <option value="">Select Emergency Bed Slot</option>
+                      <option value="">Select Emergency Admission Bed No</option>
                       {availableEmergencyBedSlots.map((slot: any) => {
-                        const slotId = slot.id || slot.emergencyBedSlotId || slot.EmergencyBedSlotId || '';
-                        const bedNo = slot.bedNo || slot.BedNo || '';
-                        const status = slot.status || slot.Status || '';
+                        // Extract EmergencyAdmissionId (prioritize this field)
+                        const emergencyAdmissionId = slot.emergencyAdmissionId || slot.EmergencyAdmissionId || slot.id || '';
+                        // Fallback to other IDs if EmergencyAdmissionId is not available
+                        const slotId = emergencyAdmissionId || slot.emergencyBedSlotId || slot.EmergencyBedSlotId || '';
+                        const bedNo = slot.emergencyBedSlotNo || slot.EmergencyBedSlotNo || slot.bedNo || slot.BedNo || slot.emergencyBedNo || slot.EmergencyBedNo || '';
+                        const status = slot.emergencyStatus || slot.EmergencyStatus || slot.status || slot.Status || '';
                         return (
-                          <option key={slotId} value={slotId}>
-                            {bedNo ? `Bed: ${bedNo} - ${status}` : `Slot ID: ${slotId} - ${status}`}
+                          <option key={slotId} value={emergencyAdmissionId || slotId}>
+                            {bedNo ? `Bed: ${bedNo} - ${status}` : `ID: ${emergencyAdmissionId || slotId} - ${status}`}
                           </option>
                         );
                       })}
@@ -1397,9 +1521,9 @@ export function Admissions() {
                 )}
 
                 {/* Edit Mode - Show form fields (always editable) */}
-                <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Patient Selection */}
-                    <div>
+                    <div className="md:col-span-2">
                       <Label htmlFor="patient-search-edit">Patient *</Label>
                       <div className="relative mb-2">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
@@ -1577,7 +1701,7 @@ export function Admissions() {
                     )}
 
                     {/* Room/Bed Selection */}
-                    <div>
+                    <div className="md:col-span-2">
                       <Label htmlFor="room-bed-search-edit">Room/Bed *</Label>
                       <div className="relative mb-2">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
@@ -1676,7 +1800,7 @@ export function Admissions() {
                     </div>
 
                     {/* Doctor Selection */}
-                    <div>
+                    <div className="md:col-span-2">
                       <Label htmlFor="doctor-search-edit">Admitted By (Doctor) *</Label>
                       <div className="relative mb-2">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
@@ -1826,6 +1950,193 @@ export function Admissions() {
                         <option value="No">No</option>
                         <option value="Yes">Yes</option>
                       </select>
+                    </div>
+
+                    {/* Additional fields from API response */}
+                    <div>
+                      <Label htmlFor="patientNo-edit">Patient No</Label>
+                      <Input 
+                        id="patientNo-edit" 
+                        value={addAdmissionForm.patientNo}
+                        onChange={(e) => setAddAdmissionForm({ ...addAdmissionForm, patientNo: e.target.value })}
+                        disabled
+                        className="bg-gray-100"
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="age-edit">Age</Label>
+                      <Input 
+                        id="age-edit" 
+                        type="number"
+                        value={addAdmissionForm.age}
+                        onChange={(e) => setAddAdmissionForm({ ...addAdmissionForm, age: e.target.value })}
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="gender-edit">Gender</Label>
+                      <Input 
+                        id="gender-edit" 
+                        value={addAdmissionForm.gender}
+                        onChange={(e) => setAddAdmissionForm({ ...addAdmissionForm, gender: e.target.value })}
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="bedNumber-edit">Bed Number</Label>
+                      <Input 
+                        id="bedNumber-edit" 
+                        value={addAdmissionForm.bedNumber}
+                        onChange={(e) => setAddAdmissionForm({ ...addAdmissionForm, bedNumber: e.target.value })}
+                      />
+                    </div>
+
+                    {addAdmissionForm.patientType === 'OPD' && (
+                      <>
+                        <div>
+                          <Label htmlFor="appointmentTokenNo-edit">Appointment Token No</Label>
+                          <Input 
+                            id="appointmentTokenNo-edit" 
+                            value={addAdmissionForm.appointmentTokenNo}
+                            onChange={(e) => setAddAdmissionForm({ ...addAdmissionForm, appointmentTokenNo: e.target.value })}
+                          />
+                        </div>
+
+                        <div>
+                          <Label htmlFor="appointmentDate-edit">Appointment Date</Label>
+                          <Input 
+                            id="appointmentDate-edit" 
+                            type="date"
+                            value={addAdmissionForm.appointmentDate}
+                            onChange={(e) => setAddAdmissionForm({ ...addAdmissionForm, appointmentDate: e.target.value })}
+                          />
+                        </div>
+                      </>
+                    )}
+
+                    {addAdmissionForm.patientType === 'Emergency' && (
+                      <>
+                        <div>
+                          <Label htmlFor="emergencyBedNo-edit">Emergency Bed No</Label>
+                          <Input 
+                            id="emergencyBedNo-edit" 
+                            value={addAdmissionForm.emergencyBedNo}
+                            onChange={(e) => setAddAdmissionForm({ ...addAdmissionForm, emergencyBedNo: e.target.value })}
+                          />
+                        </div>
+
+                        <div>
+                          <Label htmlFor="eBedSlotNo-edit">E Bed Slot No</Label>
+                          <Input 
+                            id="eBedSlotNo-edit" 
+                            value={addAdmissionForm.eBedSlotNo}
+                            onChange={(e) => setAddAdmissionForm({ ...addAdmissionForm, eBedSlotNo: e.target.value })}
+                          />
+                        </div>
+
+                        <div>
+                          <Label htmlFor="emergencyAdmissionDate-edit">Emergency Admission Date</Label>
+                          <Input 
+                            id="emergencyAdmissionDate-edit" 
+                            type="date"
+                            value={addAdmissionForm.emergencyAdmissionDate}
+                            onChange={(e) => setAddAdmissionForm({ ...addAdmissionForm, emergencyAdmissionDate: e.target.value })}
+                          />
+                        </div>
+                      </>
+                    )}
+
+                    <div>
+                      <Label htmlFor="roomVacantDate-edit">Room Vacant Date</Label>
+                      <Input 
+                        id="roomVacantDate-edit" 
+                        type="date"
+                        value={addAdmissionForm.roomVacantDate}
+                        onChange={(e) => setAddAdmissionForm({ ...addAdmissionForm, roomVacantDate: e.target.value })}
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="shiftToAnotherRoom-edit">Shift To Another Room</Label>
+                      <select
+                        id="shiftToAnotherRoom-edit"
+                        className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                        value={addAdmissionForm.shiftToAnotherRoom}
+                        onChange={(e) => setAddAdmissionForm({ ...addAdmissionForm, shiftToAnotherRoom: e.target.value })}
+                      >
+                        <option value="No">No</option>
+                        <option value="Yes">Yes</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="shiftedTo-edit">Shifted To</Label>
+                      <Input 
+                        id="shiftedTo-edit" 
+                        value={addAdmissionForm.shiftedTo}
+                        onChange={(e) => setAddAdmissionForm({ ...addAdmissionForm, shiftedTo: e.target.value })}
+                      />
+                    </div>
+
+                    <div className="col-span-2">
+                      <Label htmlFor="shiftedToDetails-edit">Shifted To Details</Label>
+                      <Textarea 
+                        id="shiftedToDetails-edit" 
+                        value={addAdmissionForm.shiftedToDetails}
+                        onChange={(e) => setAddAdmissionForm({ ...addAdmissionForm, shiftedToDetails: e.target.value })}
+                        rows={3}
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="scheduleOT-edit">Schedule OT</Label>
+                      <select
+                        id="scheduleOT-edit"
+                        className="w-full px-3 py-2 border border-gray-200 rounded-md"
+                        value={addAdmissionForm.scheduleOT}
+                        onChange={(e) => setAddAdmissionForm({ ...addAdmissionForm, scheduleOT: e.target.value })}
+                      >
+                        <option value="No">No</option>
+                        <option value="Yes">Yes</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="otAdmissionId-edit">OT Admission ID</Label>
+                      <Input 
+                        id="otAdmissionId-edit" 
+                        value={addAdmissionForm.otAdmissionId}
+                        onChange={(e) => setAddAdmissionForm({ ...addAdmissionForm, otAdmissionId: e.target.value })}
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="icuAdmissionId-edit">ICU Admission ID</Label>
+                      <Input 
+                        id="icuAdmissionId-edit" 
+                        value={addAdmissionForm.icuAdmissionId}
+                        onChange={(e) => setAddAdmissionForm({ ...addAdmissionForm, icuAdmissionId: e.target.value })}
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="billId-edit">Bill ID</Label>
+                      <Input 
+                        id="billId-edit" 
+                        value={addAdmissionForm.billId}
+                        onChange={(e) => setAddAdmissionForm({ ...addAdmissionForm, billId: e.target.value })}
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="estimatedStay-edit">Estimated Stay</Label>
+                      <Input 
+                        id="estimatedStay-edit" 
+                        value={addAdmissionForm.estimatedStay}
+                        onChange={(e) => setAddAdmissionForm({ ...addAdmissionForm, estimatedStay: e.target.value })}
+                        placeholder="e.g., 5 days"
+                      />
                     </div>
                   </div>
               </div>
@@ -2364,11 +2675,6 @@ function AdmissionsList({
                 <th className="dashboard-table-header-cell">Admission Date</th>
                 <th className="dashboard-table-header-cell">AdmittingDoctorName</th>
                 <th className="dashboard-table-header-cell">Patient Type</th>
-                <th className="dashboard-table-header-cell">Appointment Token No</th>
-                <th className="dashboard-table-header-cell">Appointment Date</th>
-                <th className="dashboard-table-header-cell">Emergency Bed No</th>
-                <th className="dashboard-table-header-cell">EBedSlotNo</th>
-                <th className="dashboard-table-header-cell">Emergency Admission Date</th>
                 <th className="dashboard-table-header-cell">Admission Status</th>
                 <th className="dashboard-table-header-cell">Schedule OT</th>
                 <th className="dashboard-table-header-cell">Actions</th>
@@ -2377,7 +2683,7 @@ function AdmissionsList({
             <tbody>
               {admissions.length === 0 ? (
                 <tr>
-                  <td colSpan={15} className="dashboard-table-empty-cell">
+                  <td colSpan={10} className="dashboard-table-empty-cell">
                     No admissions found
                   </td>
                 </tr>
@@ -2398,57 +2704,6 @@ function AdmissionsList({
                       <Badge variant="outline">
                         {admission.patientType || 'N/A'}
                       </Badge>
-                    </td>
-                    <td className="dashboard-table-body-cell dashboard-table-body-cell-secondary">
-                      {admission.appointmentTokenNo || '-'}
-                    </td>
-                    <td className="dashboard-table-body-cell dashboard-table-body-cell-secondary">
-                      {admission.appointmentDate ? (() => {
-                        try {
-                          // Format date to display format (DD-MM-YYYY or keep as is if already formatted)
-                          const dateStr = String(admission.appointmentDate);
-                          if (dateStr.includes('T')) {
-                            // ISO format - extract date part
-                            const datePart = dateStr.split('T')[0];
-                            const [year, month, day] = datePart.split('-');
-                            return `${day}-${month}-${year}`;
-                          } else if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
-                            // YYYY-MM-DD format
-                            const [year, month, day] = dateStr.split('-');
-                            return `${day}-${month}-${year}`;
-                          }
-                          return dateStr;
-                        } catch {
-                          return admission.appointmentDate;
-                        }
-                      })() : '-'}
-                    </td>
-                    <td className="dashboard-table-body-cell dashboard-table-body-cell-secondary">
-                      {admission.emergencyBedNo || '-'}
-                    </td>
-                    <td className="dashboard-table-body-cell dashboard-table-body-cell-secondary">
-                      {admission.eBedSlotNo || '-'}
-                    </td>
-                    <td className="dashboard-table-body-cell dashboard-table-body-cell-secondary">
-                      {admission.emergencyAdmissionDate ? (() => {
-                        try {
-                          // Format date to display format (DD-MM-YYYY or keep as is if already formatted)
-                          const dateStr = String(admission.emergencyAdmissionDate);
-                          if (dateStr.includes('T')) {
-                            // ISO format - extract date part
-                            const datePart = dateStr.split('T')[0];
-                            const [year, month, day] = datePart.split('-');
-                            return `${day}-${month}-${year}`;
-                          } else if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
-                            // YYYY-MM-DD format
-                            const [year, month, day] = dateStr.split('-');
-                            return `${day}-${month}-${year}`;
-                          }
-                          return dateStr;
-                        } catch {
-                          return admission.emergencyAdmissionDate;
-                        }
-                      })() : '-'}
                     </td>
                     <td className="dashboard-table-body-cell">
                     <span className={`px-3 py-1 rounded-full text-xs ${
